@@ -1,0 +1,74 @@
+[
+  {
+    "name": "alloy",
+    "overview": "Neutral and balanced voice",
+    "gender": "Neutral",
+    "styles": [
+      { "name": "Normal", "id": "alloy" }
+    ]
+  },
+  {
+    "name": "ash",
+    "overview": "Deep and versatile voice",
+    "gender": "Neutral",
+    "styles": [
+      { "name": "Normal", "id": "ash" }
+    ]
+  },
+  {
+    "name": "coral",
+    "overview": "Expressive and warm female voice",
+    "gender": "Female",
+    "styles": [
+      { "name": "Normal", "id": "coral" }
+    ]
+  },
+  {
+    "name": "echo",
+    "overview": "Warm and relaxed voice",
+    "gender": "Neutral",
+    "styles": [
+      { "name": "Normal", "id": "echo" }
+    ]
+  },
+  {
+    "name": "fable",
+    "overview": "Narrative and expressive voice",
+    "gender": "Neutral",
+    "styles": [
+      { "name": "Normal", "id": "fable" }
+    ]
+  },
+  {
+    "name": "onyx",
+    "overview": "Deep and authoritative voice",
+    "gender": "Male",
+    "styles": [
+      { "name": "Normal", "id": "onyx" }
+    ]
+  },
+  {
+    "name": "nova",
+    "overview": "Bright and energy-filled voice",
+    "gender": "Female",
+    "styles": [
+      { "name": "Normal", "id": "nova" }
+    ]
+  },
+  {
+    "name": "sage",
+    "overview": "Experienced and thoughtful voice",
+    "gender": "Neutral",
+    "styles": [
+      { "name": "Normal", "id": "sage" }
+    ]
+  },
+  {
+    "name": "shimmer",
+    "overview": "Clear and professional voice",
+    "gender": "Female",
+    "styles": [
+      { "name": "Normal", "id": "shimmer" }
+    ]
+  }
+]

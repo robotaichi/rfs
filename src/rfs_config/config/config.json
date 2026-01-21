@@ -1,0 +1,39 @@
+{
+  "theme": "クリスマス",
+  "chat_mode": 0,
+  "move": 0,
+  "target_user": "おじいちゃん",
+  "family_config": [
+    "father",
+    "mother",
+    "daughter"
+  ],
+  "toio_speaker_match": [
+    {
+      "role": "father",
+      "toio_id": "FA:60:73:56:24:48",
+      "speaker_id": "alsa_output.usb-Synaptics_Hi-Res_Audio_000000000000000000000000-00.iec958-stereo"
+    },
+    {
+      "role": "mother",
+      "toio_id": "ED:E5:07:BE:E1:55",
+      "speaker_id": "alsa_output.usb-KTMicro_KT_USB_Audio_2021-06-07-0000-0000-0000--00.iec958-stereo"
+    },
+    {
+      "role": "daughter",
+      "toio_id": "F6:CB:DA:40:08:AD",
+      "speaker_id": "alsa_output.pci-0000_00_1f.3.analog-stereo"
+    }
+  ],
+  "experiment": "予備実験2",
+  "w1": 1.0,
+  "w2": 1.0,
+  "w3": 0.5,
+  "turns_per_step": 10,
+  "terminal_mode": "gnome-terminal",
+  "initial_coords": {
+    "x": 8.0,
+    "y": 8.0
+  },
+  "shutdown_timer_minutes": 0
+}

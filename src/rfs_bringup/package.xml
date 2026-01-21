@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>rfs_bringup</name>
+  <version>0.0.0</version>
+  <description>Launch for RFS</description>
+  <maintainer email="ubuntu@todo.todo">ubuntu</maintainer>
+  <license>TODO: License declaration</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>rfs_central_control</exec_depend>
+  <exec_depend>rfs_family</exec_depend>
+  <exec_depend>rfs_therapist</exec_depend>
+  <exec_depend>rfs_stt</exec_depend>
+  <exec_depend>rfs_tts</exec_depend>
+  <exec_depend>rfs_toio</exec_depend>
+  <exec_depend>rfs_evaluation</exec_depend>
+  <exec_depend>rfs_viewer</exec_depend>
+  <exec_depend>rfs_config</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

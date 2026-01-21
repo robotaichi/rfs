@@ -1,0 +1,48 @@
+# ROS2 build artifacts
+build/
+install/
+log/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+bin/
+lib/
+develop-eggs/
+dist/
+eggs/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Workspace local
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project specific dynamic data (rfs_database contents)
+# We might want to keep some initial data, but generally history and logs are ignored.
+src/rfs_database/conversation_history.txt
+src/rfs_database/evaluation_trajectory.json
+src/rfs_database/evaluation_plot.png
+src/rfs_database/evaluation_plot_bg.png
+src/rfs_database/*_lock.txt
+src/rfs_database/*.lock
+src/rfs_database/faces_iv_summary.md
+
+# Config secrets
+OPENAI_API_KEY
+.env
