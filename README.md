@@ -18,21 +18,20 @@ The system operates in a closed-loop cycle consisting of three main phases: **In
 ```mermaid
 sequenceDiagram
     autonumber
+    
+    %% Participant Definitions with High-Contrast Colors
     participant User
-    participant STT as rfs_stt
-    participant Fam as rfs_family_member (N)
-    participant Ther as rfs_therapist
-    participant Eval as rfs_evaluation (Node)
-    participant Plot as rfs_viewer
-    participant Toio as rfs_toio
-    participant TTS as rfs_tts
+    participant STT as rfs_stt #64B5F6
+    participant Fam as rfs_family_member (N) #81C784
+    participant Ther as rfs_therapist #FFD54F
+    participant Eval as rfs_evaluation #BA68C8
+    participant Plot as rfs_viewer #BA68C8
+    participant Toio as rfs_toio #64B5F6
+    participant TTS as rfs_tts #64B5F6
 
-    rect rgb(240, 240, 240)
     Note over Ther, Fam: phase 1: Initialization
     Ther->>Fam: [Launch] Initiate first turn
-    end
     
-    rect rgb(225, 245, 254)
     Note over User, TTS: phase 2: Interaction Loop (Turns 1-10)
     Fam->>TTS: Request Speech (Service: TTSService)
     TTS-->>User: Audio Output
@@ -40,9 +39,7 @@ sequenceDiagram
     Fam->>Fam: Turn Relay (rfs_family_actions)
     User->>STT: Voice Intervention
     STT->>Fam: User Input (rfs_stt_result)
-    end
     
-    rect rgb(255, 249, 196)
     Note over Fam, Ther: phase 3: Evaluation & Steering
     Fam->>Ther: Trigger Evaluation (Turn counter reached)
     Ther->>Fam: Request Member Self-Eval (rfs_request_member_evaluation)
@@ -52,7 +49,6 @@ sequenceDiagram
     Ther->>Plot: Update Visuals (rfs_faces_plot_updated)
     Ther->>Toio: Move Robots (rfs_toio_move_script)
     Ther->>Fam: Resume next Step (Step ID)
-    end
 ```
 
 ### Detailed Node Responsibilities
@@ -89,7 +85,7 @@ Located in `src/rfs_config/config/config.json`.
 - **ROS2**: [Jazzy Jalisco](https://docs.ros.org/en/jazzy/Installation.html)
 - **Hardware**: toio™ Core Cubes (Optional).
 
-### Setup
+### Installation
 1. **Clone & Build**:
    ```bash
    git clone https://github.com/robotaichi/rfs.git
