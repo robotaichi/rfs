@@ -23,15 +23,7 @@ from ament_index_python.packages import get_package_share_directory
 
 # Constants
 HOME = os.path.expanduser("~")
-DB_DIR_C = os.path.join(HOME, "colcon_ws/src/rfs_database")
-DB_DIR_R = os.path.join(HOME, "rfs/src/rfs_database")
-
-if os.path.isdir(DB_DIR_R):
-    DB_DIR = DB_DIR_R
-elif os.path.isdir(DB_DIR_C):
-    DB_DIR = DB_DIR_C
-else:
-    DB_DIR = DB_DIR_C # Default
+DB_DIR = os.path.join(HOME, "rfs/src/rfs_database")
 
 try:
     SHARE_DIR = get_package_share_directory('rfs_config')
@@ -356,6 +348,10 @@ class RFSFamilyMember(Node):
     def publish_pending_scenario(self, from_leader_instruction: bool = False, force_publish: bool = False):
         if self.waiting_for_evaluation and not from_leader_instruction: return
         
+        if self.pending_scenario_conversation is None:
+            self.get_logger().warn(f"[{self.role}] No pending conversation to publish.")
+            return
+
         # If this is a pre-generation call and it's not actually our turn yet, just store and return
         if not force_publish and self.is_it_my_turn_soon and not from_leader_instruction:
             self.get_logger().info(f"[{self.role}] Pre-generation complete. Waiting for predecessor to finish...")

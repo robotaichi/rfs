@@ -6,6 +6,7 @@ import threading
 import time
 import sounddevice as sd
 import os
+import json
 import numpy as np
 from google import genai
 from google.genai import types
@@ -26,21 +27,30 @@ class GeminiLiveRecorder:
         on_end: callable = lambda: None,
         on_speech_status_change: callable = lambda x: None,
         logger=None,
+        language: str = "en",
+        vad_debug: bool = False,
+        vad_energy_threshold: float = 0.0,
     ):
-        self.logger = logger
-        if not os.environ.get(api_key_env):
-            self.logger.error("GEMINI_API_KEY environment variable is not set.")
-        self.client = genai.Client(api_key=os.environ.get(api_key_env))
-        self.model = model
+        self.api_key = os.environ.get(api_key_env)
+        if not self.api_key:
+            if logger: logger.error("GEMINI_API_KEY environment variable is not set.")
         
-        # Determine language code for transcription hint
-        # Default to ja-JP if ja, otherwise en-US
-        self.lang_code = "ja-JP" if kwargs.get("language") == "ja" else "en-US"
+        self.client = genai.Client(api_key=self.api_key)
+        self.model = model
+        self.logger = logger
+        self.on_start = on_start
+        self.on_end = on_end
+        self.on_speech_status_change = on_speech_status_change
+        self.vad_debug = vad_debug
+        self.vad_energy_threshold = vad_energy_threshold
+        
+        self.lang_code = "ja-JP" if language == "ja" else "en-US"
         
         self.config = {
-            "response_modalities": ["TEXT"],
+            "response_modalities": ["AUDIO"],
             "realtime_input_config": {"automatic_activity_detection": {"disabled": True}, "activity_handling": "NO_INTERRUPTION"},
-            "input_audio_transcription": {"language_code": self.lang_code},
+            "input_audio_transcription": {},
+            "speech_config": {"voice_config": {"prebuilt_voice_config": {"voice_name": "Puck"}}},
         }
         self.sample_rate = 16000
         self.vad = webrtcvad.Vad(vad_aggressiveness)
@@ -66,10 +76,21 @@ class GeminiLiveRecorder:
                 dtype="int16",
                 channels=1,
             ) as mic:
-                self.logger.info("RFS STT: Listening...")
+                self.logger.info("RFS STT: Idle (Waiting for speech...)")
                 while rclpy.ok():
                     frame, _ = mic.read(self.frame_size)
-                    is_speech = self.vad.is_speech(frame, self.sample_rate)
+                    
+                    # Energy calculation
+                    audio_data = np.frombuffer(frame, dtype=np.int16)
+                    energy = np.sqrt(np.mean(audio_data.astype(np.float32)**2))
+                    
+                    is_speech_vad = self.vad.is_speech(frame, self.sample_rate)
+                    is_speech = is_speech_vad and (energy >= self.vad_energy_threshold)
+
+                    if self.vad_debug:
+                        status_char = "S" if is_speech else "."
+                        if not is_speech and is_speech_vad: status_char = "x" # VAD True but Energy False
+                        self.logger.info(f"VAD: {status_char} | E: {energy:6.1f} | S:{speech_frame_counter:2d} | Z:{silence_counter:2d}", once=False)
 
                     if is_speech and not self._is_speech_active:
                         self._is_speech_active = True
@@ -83,6 +104,7 @@ class GeminiLiveRecorder:
                         if is_speech:
                             speech_frame_counter += 1
                             if speech_frame_counter >= self.speech_trigger_frames:
+                                self.logger.info("RFS STT: Recording...")
                                 self.on_start()
                                 speech_started = True
                                 await session.send_realtime_input(activity_start=types.ActivityStart())
@@ -97,6 +119,7 @@ class GeminiLiveRecorder:
                         else: silence_counter += 1
                         
                         if silence_counter > self.max_silence_frames:
+                            self.logger.info("RFS STT: Speech ended, processing...")
                             self.on_end()
                             await session.send_realtime_input(activity_end=types.ActivityEnd())
                             break
@@ -132,38 +155,56 @@ class RFSSTT(Node):
         self.create_subscription(String, 'rfs_stt_resume', self.resume_callback, 10)
         self.initial_scenario_sub = self.create_subscription(String, 'rfs_initial_scenario_generated', self.initial_scenario_callback, qos_pl)
 
-        self.language = self._load_language()
+        self.stt_config = self._load_stt_config()
+        self.language = self.stt_config["language"]
         self.get_logger().info(f"STT Language Mode: {self.language}")
+        self.get_logger().info(f"VAD Config: {self.stt_config}")
 
         self.recorder = GeminiLiveRecorder(
             on_start=self._on_speech_start,
             on_end=self._on_speech_end,
             on_speech_status_change=self._on_speech_status_change,
             logger=self.get_logger(),
-            language=self.language
+            language=self.language,
+            vad_aggressiveness=self.stt_config["vad_aggressiveness"],
+            silence_duration_s=self.stt_config["silence_duration_s"],
+            speech_trigger_frames=self.stt_config["speech_trigger_frames"],
+            vad_debug=self.stt_config.get("vad_debug", False),
+            vad_energy_threshold=self.stt_config.get("vad_energy_threshold", 0.0)
         )
         self.recorder_thread = threading.Thread(target=self._recorder_loop, daemon=True)
         self.recorder_thread.start()
 
-    def _load_language(self):
+    def _load_stt_config(self):
+        config_data = {
+            "language": "en",
+            "vad_aggressiveness": 3,
+            "silence_duration_s": 2.0,
+            "speech_trigger_frames": 5,
+            "vad_debug": False,
+            "vad_energy_threshold": 0.0
+        }
         try:
             # RFS style path resolution
             home = os.path.expanduser("~")
-            share_dir = os.path.join(home, "colcon_ws/install/rfs_config/share/rfs_config/config")
-            src_dir = os.path.join(home, "colcon_ws/src/rfs_config/config")
+            paths = [
+                os.path.join(home, "rfs/src/rfs_config/config/config.json"),
+                os.path.join(home, "rfs/install/rfs_config/share/rfs_config/config/config.json"),
+            ]
             
-            config_file = None
-            if os.path.exists(os.path.join(src_dir, "config.json")):
-                config_file = os.path.join(src_dir, "config.json")
-            elif os.path.exists(os.path.join(share_dir, "config.json")):
-                config_file = os.path.join(share_dir, "config.json")
+            config_file = next((p for p in paths if os.path.exists(p)), None)
             
             if config_file:
                 with open(config_file, 'r', encoding='utf-8') as f:
                     config = json.load(f)
-                    return config.get("language", "en").lower()
+                    config_data["language"] = config.get("language", "en").lower()
+                    config_data["vad_aggressiveness"] = config.get("vad_aggressiveness", 3)
+                    config_data["silence_duration_s"] = config.get("silence_duration_s", 2.0)
+                    config_data["speech_trigger_frames"] = config.get("speech_trigger_frames", 5)
+                    config_data["vad_debug"] = config.get("vad_debug", False)
+                    config_data["vad_energy_threshold"] = config.get("vad_energy_threshold", 0.0)
         except: pass
-        return "en"
+        return config_data
 
     def initial_scenario_callback(self, msg: String):
         if msg.data == "completed":

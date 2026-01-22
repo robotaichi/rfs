@@ -62,18 +62,12 @@ class RFSViewer(Node):
 def main():
     rclpy.init()
     HOME = os.path.expanduser("~")
-    DB_DIR_C = os.path.join(HOME, "colcon_ws/src/rfs_database")
-    DB_DIR_R = os.path.join(HOME, "rfs/src/rfs_database")
-
-    if os.path.isdir(DB_DIR_R):
-        DB_DIR = DB_DIR_R
-    elif os.path.isdir(DB_DIR_C):
-        DB_DIR = DB_DIR_C
-    else:
+    DB_DIR = os.path.join(HOME, "rfs/src/rfs_database")
+    if not os.path.isdir(DB_DIR):
         try:
             DB_DIR = os.path.join(get_package_share_directory('rfs_config'), 'rfs_database')
         except Exception:
-            DB_DIR = DB_DIR_C
+            pass
     parser = argparse.ArgumentParser()
     parser.add_argument("--geometry", type=str, default="")
     args, _ = parser.parse_known_args()

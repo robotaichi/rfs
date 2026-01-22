@@ -21,7 +21,7 @@ class RFSEvaluation(Node):
         try:
             self.SAVE_DIR = os.path.join(get_package_share_directory('rfs_config'), 'config')
         except Exception:
-            self.SAVE_DIR = os.path.expanduser("~/colcon_ws/src/rfs_config/config")
+            self.SAVE_DIR = os.path.expanduser("~/rfs/src/rfs_config/config")
 
         self.HISTORY_FILE = os.path.join(self.SAVE_DIR, "conversation_history.txt")
         self.TRAJECTORY_FILE = os.path.join(self.SAVE_DIR, "evaluation_trajectory.json")

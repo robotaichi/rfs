@@ -4,6 +4,11 @@
   "chat_mode": 0,
   "move": 0,
   "target_user": "おじいちゃん",
+  "vad_aggressiveness": 3,
+  "silence_duration_s": 1.5,
+  "speech_trigger_frames": 5,
+  "vad_debug": false,
+  "vad_energy_threshold": 2000.0,
   "family_config": [
     "father",
     "mother",

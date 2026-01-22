@@ -28,7 +28,7 @@ from toio.cube.api.indicator import IndicatorParam, Color
 try:
     SAVE_DIR = os.path.join(get_package_share_directory('rfs_config'), 'config')
 except Exception:
-    SAVE_DIR = os.path.expanduser("~/colcon_ws/src/rfs_config/config")
+    SAVE_DIR = os.path.expanduser("~/rfs/src/rfs_config/config")
 
 CONFIG_FILE = os.path.join(SAVE_DIR, 'config.json')
 
