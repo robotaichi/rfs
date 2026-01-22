@@ -1,6 +1,6 @@
 # RFS: Robot Family System
 
-RFS (Robot Family System) is a ROS2-based research and educational simulation platform for family therapy and family psychology. It leverages Multiple LLM-based agents to simulate complex family dynamics, visualizes psychological states on the FACES IV circumplex model, and uses Gradient Descent to suggest therapeutic interventions.
+RFS (Robot Family System) is a ROS2-based research and educational simulation platform for family therapy and family psychology. It leverages Multiple LLM-based agents to simulate complex family dynamics, visualizes psychological states on the FACES IV circumplex model, and uses Gradient Descent to suggest AI-driven therapeutic interventions.
 
 ## 🌟 Key Features
 
@@ -9,23 +9,23 @@ RFS (Robot Family System) is a ROS2-based research and educational simulation pl
 - **Dual Trajectory Tracking**: Visualizes both the "Actual Family State" and the "Therapeutic Target" on the same plot.
 - **Predictive Interaction**: Implements "Background Scenario Generation" to pre-generate agent responses, significantly reducing latency.
 - **Physical Representation**: Integration with [toio™](https://toio.io/) robots for tangible representation of interpersonal distances.
-- **Interactive Audio**: Real-time Speech-to-Text (STT) and Text-to-Speech (TTS) capabilities.
+- **Interactive Audio**: Real-time Speech-to-Text (STT) and Text-to-Speech (TTS) capabilities for human intervention.
 
 ## 🏗 System Architecture & Processing Flow
 
-The system operates in a closed-loop cycle consisting of three main phases: **Initialization**, **Interaction**, and **Evaluation/Steering**.
+The system operates in a closed-loop cycle where the **AI Therapist** (`rfs_therapist`) orchestrates agents, while the **Human User** participates as an intervener in the family dialogue.
 
 ```mermaid
 graph TD
     %% 1. Initialization
-    S1[("🟡 STEP START<br/>(rfs_therapist)")]
+    S1[("🟡 STEP START<br/>(AI Therapist: rfs_therapist)")]
     
     %% 2. Interaction
     subgraph Phase2 ["🔄 INTERACTION LOOP (Turns 1-10)"]
         direction TB
-        F1["🟢 DIALOGUE GENERATION<br/>(rfs_family)"]
+        F1["🟢 DIALOGUE GENERATION<br/>(Family Agents)"]
         T1["🔵 SPEECH OUTPUT<br/>(rfs_tts)"]
-        U1(("👤 USER / THERAPIST"))
+        U1(("👤 HUMAN USER<br/>(Intervener)"))
         I1["🔵 VOICE INPUT<br/>(rfs_stt)"]
         R1{{"🔄 TURN RELAY"}}
     end
@@ -34,7 +34,7 @@ graph TD
     subgraph Phase3 ["📊 EVALUATION & STEERING"]
         direction TB
         E1["🟣 AGGREGATE EVALUATION<br/>(rfs_evaluation)"]
-        G1["🟡 GRADIENT DESCENT<br/>(rfs_therapist)"]
+        G1["🟡 GRADIENT DESCENT<br/>(AI Therapist)"]
         P1["🟣 UPDATE PLOT<br/>(rfs_viewer)"]
         M1["🔵 PHYSICAL MOVE<br/>(rfs_toio)"]
     end
@@ -43,7 +43,7 @@ graph TD
     S1 -- "1. Start Turn" --> F1
     F1 -- "2. Voice Request" --> T1
     T1 -- "3. Audio Out" --> U1
-    U1 -- "4. Intervention" --> I1
+    U1 -- "4. Speech Intervention" --> I1
     I1 -- "5. Text Result" --> F1
     F1 -- "6. Turn End" --> R1
     R1 -- "7. Next Agent" --> F1
@@ -84,7 +84,7 @@ graph TD
 
 | Node Category | Description | Primary Processing |
 | :--- | :--- | :--- |
-| **Orchestrator** (`rfs_therapist`) | The system brain. Manages step-level logic and therapeutic interventions. | Aggregate member evaluations, calculate Cohesion/Flexibility percentiles, and perform Gradient Descent toward balanced center (50, 50). |
+| **AI Therapist / Orchestrator** (`rfs_therapist`) | The system brain. Manages step-level logic and interventions. | Aggregate member evaluations, calculate Cohesion/Flexibility percentiles, and perform Gradient Descent toward balanced center (50, 50). |
 | **Agents** (`rfs_family`) | Individual nodes for each family role (Father, Mother, etc.). | LLM-based response generation, turn-taking logic, and individual FACES IV self-scoring. |
 | **Sensory/Motor** (`rfs_stt`, `rfs_tts`, `rfs_toio`) | The physical/audio interface layers. | GEMINI-based speech recognition, multi-sink synchronized audio output, and Bluetooth BLE control for toio robots. |
 | **Visualization** (`rfs_viewer`, `rfs_evaluation`) | Real-time monitoring and mapping. | Tkinter-based GUI for plotting the circumplex model and background processing of psychological metrics. |
@@ -130,7 +130,7 @@ Located in `src/rfs_config/config/config.json`.
    ```
 
 ## 📊 FACES IV Model & Gradient Descent
-The system identifies the family's position on the Cohesion/Flexibility spectrum. If the state is "Disengaged" or "Enmeshed", the `rfs_therapist` calculates a vector toward the **Balanced Center** and adjusts the behavioral "Steering Prompts" for individual family members to encourage healthier interaction patterns.
+The system identifies the family's position on the Cohesion/Flexibility spectrum. If the state is "Disengaged" or "Enmeshed", the AI therapist calculates a vector toward the **Balanced Center** and adjusts the behavioral "Steering Prompts" for individual family members to encourage healthier interaction patterns.
 
 ## 📜 License
 This project is licensed under the MIT License.
