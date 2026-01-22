@@ -32,10 +32,15 @@ class GeminiLiveRecorder:
             self.logger.error("GEMINI_API_KEY environment variable is not set.")
         self.client = genai.Client(api_key=os.environ.get(api_key_env))
         self.model = model
+        
+        # Determine language code for transcription hint
+        # Default to ja-JP if ja, otherwise en-US
+        self.lang_code = "ja-JP" if kwargs.get("language") == "ja" else "en-US"
+        
         self.config = {
             "response_modalities": ["TEXT"],
             "realtime_input_config": {"automatic_activity_detection": {"disabled": True}, "activity_handling": "NO_INTERRUPTION"},
-            "input_audio_transcription": {},
+            "input_audio_transcription": {"language_code": self.lang_code},
         }
         self.sample_rate = 16000
         self.vad = webrtcvad.Vad(vad_aggressiveness)
@@ -127,14 +132,38 @@ class RFSSTT(Node):
         self.create_subscription(String, 'rfs_stt_resume', self.resume_callback, 10)
         self.initial_scenario_sub = self.create_subscription(String, 'rfs_initial_scenario_generated', self.initial_scenario_callback, qos_pl)
 
+        self.language = self._load_language()
+        self.get_logger().info(f"STT Language Mode: {self.language}")
+
         self.recorder = GeminiLiveRecorder(
             on_start=self._on_speech_start,
             on_end=self._on_speech_end,
             on_speech_status_change=self._on_speech_status_change,
-            logger=self.get_logger()
+            logger=self.get_logger(),
+            language=self.language
         )
         self.recorder_thread = threading.Thread(target=self._recorder_loop, daemon=True)
         self.recorder_thread.start()
+
+    def _load_language(self):
+        try:
+            # RFS style path resolution
+            home = os.path.expanduser("~")
+            share_dir = os.path.join(home, "colcon_ws/install/rfs_config/share/rfs_config/config")
+            src_dir = os.path.join(home, "colcon_ws/src/rfs_config/config")
+            
+            config_file = None
+            if os.path.exists(os.path.join(src_dir, "config.json")):
+                config_file = os.path.join(src_dir, "config.json")
+            elif os.path.exists(os.path.join(share_dir, "config.json")):
+                config_file = os.path.join(share_dir, "config.json")
+            
+            if config_file:
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    return config.get("language", "en").lower()
+        except: pass
+        return "en"
 
     def initial_scenario_callback(self, msg: String):
         if msg.data == "completed":

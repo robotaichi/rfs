@@ -117,6 +117,7 @@ Located in `src/rfs_config/config/config.json`.
 
 | Parameter | Type | Description |
 | :--- | :--- | :--- |
+| **`language`** | String | Language code for interaction: `"en"` (English) or `"ja"` (Japanese). |
 | **`theme`** | String | The scenario or topic of conversation (e.g., "Christmas", "Moving Out"). |
 | **`w1`, `w2`, `w3`** | Float | Weights for the FACES IV evaluation model (Cohesion, Flexibility, Communication). |
 | **`turns_per_step`** | Integer | Number of conversation turns before an evaluation trigger. |

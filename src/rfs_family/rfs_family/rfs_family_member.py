@@ -183,6 +183,7 @@ class RFSFamilyMember(Node):
         self.pending_relay_recipient = None
         self.is_it_my_turn_soon = False  # Track if we should pre-generate
         self.pending_eval_step_id = None # Track if we are the one to trigger evaluation
+        self.language = "en"
 
         # Leader startup sequence
         if self.role == self.family_config[0]:
@@ -238,6 +239,7 @@ class RFSFamilyMember(Node):
                     config = json.load(f)
                     self.turns_per_step = config.get("turns_per_step", 10)
                     self.initial_coords = config.get("initial_coords", {"x": 8.0, "y": 8.0})
+                    self.language = config.get("language", "en").lower()
         except Exception as e:
             self.get_logger().error(f"Config load error: {e}")
 
@@ -479,7 +481,7 @@ Generate actions for your role considering dialogue history, available voices, a
 - Cohesion: Reflect bond strength (Enmeshed/Disengaged/etc).
 - Flexibility: Reflect leadership/rules (Rigid/Chaotic/etc).
 # Constraints
-- LANGUAGE: English Only.
+- LANGUAGE: Output dialogue ("Text" field) in { "Japanese" if self.language == "ja" else "English" }. Rationale and other internal fields must remain in English.
 - Behave human-like despite being a robot.
 - Correct mishearings.
 - Add delay (1-3s) to conversation.
