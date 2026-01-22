@@ -16,39 +16,56 @@ RFS (Robot Family System) is a ROS2-based research and educational simulation pl
 The system operates in a closed-loop cycle consisting of three main phases: **Initialization**, **Interaction**, and **Evaluation/Steering**.
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    
-    %% Participant Definitions with Primary, High-Contrast Colors
-    actor User as "User" #white
-    participant STT as "rfs_stt" #skyblue
-    participant Fam as "rfs_family" #lightgreen
-    participant Ther as "rfs_therapist" #yellow
-    participant Eval as "rfs_evaluation" #plum
-    participant Plot as "rfs_viewer" #plum
-    participant Toio as "rfs_toio" #cyan
-    participant TTS as "rfs_tts" #skyblue
+graph TD
+    %% Define Nodes
+    Ther["🟡 rfs_therapist (Orchestrator)"]
+    Fam["🟢 rfs_family (Agents)"]
+    User(("👤 User (Therapist)"))
+    STT["🔵 rfs_stt (Input)"]
+    TTS["🔵 rfs_tts (Output)"]
+    Eval["🟣 rfs_evaluation (Analysis)"]
+    Plot["🟣 rfs_viewer (Visuals)"]
+    Toio["🔹 rfs_toio (Physical)"]
 
-    Note over Ther, Fam: phase 1: Initialization
-    Ther->>Fam: [Launch] Initiate first turn
-    
-    Note over User, TTS: phase 2: Interaction Loop (Turns 1-10)
-    Fam->>TTS: Request Speech (Service: TTSService)
-    TTS-->>User: Audio Output
-    Fam->>Fam: Background Generation (Next Turn)
-    Fam->>Fam: Turn Relay (rfs_family_actions)
-    User->>STT: Voice Intervention
-    STT->>Fam: User Input (rfs_stt_result)
-    
-    Note over Fam, Ther: phase 3: Evaluation & Steering
-    Fam->>Ther: Trigger Evaluation (Turn counter reached)
-    Ther->>Fam: Request Member Self-Eval (rfs_request_member_evaluation)
-    Fam-->>Ther: Member Results (rfs_member_evaluation_results)
-    Ther->>Ther: Aggregate & Calculate FACES IV Score
-    Ther->>Ther: Gradient Descent for Therapeutic Target
-    Ther->>Plot: Update Visuals (rfs_faces_plot_updated)
-    Ther->>Toio: Move Robots (rfs_toio_move_script)
-    Ther->>Fam: Resume next Step (Step ID)
+    %% Flow with Numbered Steps
+    Ther -- "1. Start Turn" --> Fam
+    Fam -- "2. TTS Request" --> TTS
+    TTS -- "3. Audio Output" --> User
+    User -- "4. Voice Intervention" --> STT
+    STT -- "5. Transcription" --> Fam
+    Fam -- "6. Turn Relay" --> Fam
+    Fam -- "7. Trigger Eval" --> Ther
+    Ther -- "8. Request Eval" --> Fam
+    Fam -- "9. Score Data" --> Ther
+    Ther -- "10. Aggregate" --> Eval
+    Eval -- "11. Results" --> Ther
+    Ther -- "12. Plot Update" --> Plot
+    Ther -- "13. Move Logic" --> Toio
+
+    %% Node Styling (Light background, bold border, black text)
+    style Ther fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px,color:#000
+    style Fam fill:#C8E6C9,stroke:#388E3C,stroke-width:2px,color:#000
+    style User fill:#F5F5F5,stroke:#9E9E9E,stroke-width:2px,color:#000
+    style STT fill:#B3E5FC,stroke:#0288D1,stroke-width:2px,color:#000
+    style TTS fill:#B3E5FC,stroke:#0288D1,stroke-width:2px,color:#000
+    style Eval fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#000
+    style Plot fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#000
+    style Toio fill:#E0F7FA,stroke:#0097A7,stroke-width:2px,color:#000
+
+    %% Link Styling (Colors matching the source nodes)
+    linkStyle 0 stroke:#FBC02D,stroke-width:2px
+    linkStyle 1 stroke:#388E3C,stroke-width:2px
+    linkStyle 2 stroke:#01579B,stroke-width:2px
+    linkStyle 3 stroke:#616161,stroke-width:2px
+    linkStyle 4 stroke:#01579B,stroke-width:2px
+    linkStyle 5 stroke:#388E3C,stroke-width:2px
+    linkStyle 6 stroke:#388E3C,stroke-width:2px
+    linkStyle 7 stroke:#FBC02D,stroke-width:2px
+    linkStyle 8 stroke:#388E3C,stroke-width:2px
+    linkStyle 9 stroke:#FBC02D,stroke-width:2px
+    linkStyle 10 stroke:#7B1FA2,stroke-width:2px
+    linkStyle 11 stroke:#FBC02D,stroke-width:2px
+    linkStyle 12 stroke:#FBC02D,stroke-width:2px
 ```
 
 ### Detailed Node Responsibilities
