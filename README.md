@@ -19,15 +19,31 @@ The system operates in a closed-loop cycle consisting of three main phases: **In
 sequenceDiagram
     autonumber
     
-    %% Participant Definitions with High-Contrast Colors
+    box "User" #FAFAFA
     participant User
-    participant STT as rfs_stt #64B5F6
-    participant Fam as rfs_family_member (N) #81C784
-    participant Ther as rfs_therapist #FFD54F
-    participant Eval as rfs_evaluation #BA68C8
-    participant Plot as rfs_viewer #BA68C8
-    participant Toio as rfs_toio #64B5F6
-    participant TTS as rfs_tts #64B5F6
+    end
+
+    box "Speech/Audio" #E3F2FD
+    participant STT as rfs_stt
+    participant TTS as rfs_tts
+    end
+
+    box "Family Agents" #E8F5E9
+    participant Fam as rfs_family_member (N)
+    end
+
+    box "Orchestrator" #FFFDE7
+    participant Ther as rfs_therapist
+    end
+
+    box "Analysis & UI" #F3E5F5
+    participant Eval as rfs_evaluation
+    participant Plot as rfs_viewer
+    end
+
+    box "Physical Control" #E0F7FA
+    participant Toio as rfs_toio
+    end
 
     Note over Ther, Fam: phase 1: Initialization
     Ther->>Fam: [Launch] Initiate first turn
