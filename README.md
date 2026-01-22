@@ -134,7 +134,6 @@ Located in `src/rfs_config/config/config.json`.
    ```bash
    git clone https://github.com/robotaichi/rfs.git
    cd rfs
-   mkdir -p src/rfs_database
    colcon build
    source install/setup.bash
    ```
