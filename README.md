@@ -26,16 +26,39 @@ graph TD
     TTS --> User
 ```
 
-### Node Specifications
+## ⚙️ Configuration & Environment
 
-| Node | Description | Key Topics / Services |
+### Environment Variables
+The system requires valid API keys for LLM and STT functionalities. Add these to your `.bashrc` or export them in your terminal:
+
+- **`OPENAI_API_KEY`**: Used by `rfs_family` for personality simulation and `rfs_evaluation` for mapping family dynamics.
+- **`GEMINI_API_KEY`**: Used by `rfs_stt` for high-performance audio transcription and real-time interaction.
+
+### `config.json` Parameters
+Located in `src/rfs_config/config/config.json`, this file controls the behavior and hardware mapping of the simulation.
+
+| Parameter | Type | Description |
 | :--- | :--- | :--- |
-| **`rfs_therapist`** | Orchestrates simulation phases and calculates GD-based targets. | `/rfs_faces_plot_updated`, `/rfs_trigger_evaluation` |
-| **`rfs_family`** | Handles individual robot logic and LLM personality prompts. | `/rfs_family_actions`, `/rfs_stt_resume` |
-| **`rfs_evaluation`** | Maps conversation transcripts to FACES IV metrics. | `/rfs_evaluation_result` |
-| **`rfs_viewer`** | GUI for real-time trajectory visualization (Tkinter/Pillow). | `/rfs_faces_plot_updated` |
-| **`rfs_tts`** | Text-to-Speech engine utilizing multiple voices. | `TTSService.srv` |
-| **`rfs_stt`** | Speech-to-Text engine for user intervention. | `/rfs_stt_result` |
+| **`theme`** | String | The scenario or topic of conversation (e.g., "Christmas", "Moving Out"). |
+| **`chat_mode`** | Integer | Interaction logic (0: Normal Sequential, 1: High Velocity/Interventionist). |
+| **`family_config`** | List | Active roles in the session (e.g., `["father", "mother", "daughter"]`). |
+| **`target_user`** | String | The specific family member the user interacts with primarily via STT. |
+| **`turns_per_step`** | Integer | Number of conversation turns before an evaluation trigger. |
+| **`w1`, `w2`, `w3`** | Float | Weights for the FACES IV evaluation model (Cohesion, Flexibility, Communication). |
+| **`initial_coords`** | Object | Starting (x, y) coordinates on the FACES IV plot. |
+| **`move`** | Boolean | Whether toio robots are allowed to move (0: Static, 1: Mobile). |
+| **`toio_speaker_match`** | List | Hardware mapping for robots and audio outputs (see below). |
+
+#### Hardware Mapping (`toio_speaker_match`)
+Each role must be mapped to a physical toio device and a specific audio sink (speaker):
+```json
+{
+  "role": "father",
+  "toio_id": "FA:60:73:56:24:48",
+  "speaker_id": "alsa_output.usb-...-stereo"
+}
+```
+*Tip: Use `pactl list short sinks` to find your `speaker_id`.*
 
 ## 🚀 Getting Started
 
@@ -43,7 +66,7 @@ graph TD
 - **OS**: Ubuntu 24.04 (Noble Numbat)
 - **ROS2**: [Jazzy Jalisco](https://docs.ros.org/en/jazzy/Installation.html)
 - **Python**: 3.10+
-- **API Key**: `OPENAI_API_KEY` exported in your environment.
+- **Hardware**: toio™ Core Cubes (Optional, if mapping in config).
 
 ### Installation
 1. **Clone Workspace**:
@@ -52,7 +75,6 @@ graph TD
    cd rfs
    ```
 2. **Setup Directories**:
-   Ensure the data directory exists:
    ```bash
    mkdir -p src/rfs_database
    ```
@@ -63,7 +85,6 @@ graph TD
    ```
 
 ### Running the Simulation
-Launch all components:
 ```bash
 ros2 launch rfs_bringup rfs_all.launch.py
 ```
@@ -75,11 +96,10 @@ The system uses the **Family Adaptability and Cohesion Evaluation Scales (FACES 
 
 The `rfs_therapist` node applies a **Gradient Descent** algorithm to move the family's state from unbalanced quadrants toward the balanced center by adjusting robot behavior prompts.
 
-## 🛠 Advanced Configuration
-Modify `src/rfs_config/config/config.json` to change:
-- `theme`: The setting of the conversation (e.g., "Family Meeting").
-- `family_config`: Which roles are active.
-- `chat_mode`: Logic for turn-taking and depth.
+## 🛠 Advanced Features
+- **Background Scenario Generation**: Pre-generates responses while previous robots speak.
+- **Sequential Turn Relay**: Ensures only one robot speaks at a time using a lock-mechanism.
+- **Robust CSV Parsing**: Robustly handles LLM output for consistent evaluation results.
 
 ## 📜 License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
