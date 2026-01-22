@@ -13,7 +13,7 @@ RFS (Robot Family System) is a ROS2-based research and educational simulation pl
 
 ## 🏗 System Architecture & Processing Flow
 
-The system operates in a closed-loop cycle consisting of three main phases, with **Family Members** at the center of the interaction.
+The system operates in a closed-loop cycle consisting of three main phases: **Initialization**, **Interaction**, and **Evaluation/Steering**.
 
 ```mermaid
 graph TD
@@ -23,11 +23,7 @@ graph TD
     end
 
     subgraph Interaction ["2. Interaction & Background Generation Loop"]
-        subgraph FamilyMembers ["Family Agents"]
-            Father["🟢 Father"]
-            Mother["🟢 Mother"]
-            Child["🟢 Child (Daughter/Son)"]
-        end
+        Fam["🟢 rfs_family (Agents)"]
         TTS["🔵 rfs_tts (Audio Out)"]
         STT["🔵 rfs_stt (Voice In)"]
         User(("👤 User (Therapist)"))
@@ -42,26 +38,23 @@ graph TD
     end
 
     %% Flow Logic
-    Ther_Start -- "<font color='#FBC02D'>Select Leader & StartTurn</font>" --> FamilyMembers
+    Ther_Start -- "<font color='#FBC02D'>Select Leader & StartTurn</font>" --> Fam
     
-    Father -- "<font color='#388E3C'>Request Speech</font>" --> TTS
-    Mother -- "<font color='#388E3C'>Request Speech</font>" --> TTS
-    Child -- "<font color='#388E3C'>Request Speech</font>" --> TTS
-    
+    Fam -- "<font color='#388E3C'>[Start Turn] Request Speech</font>" --> TTS
     TTS -- "<font color='#01579B'>Audio Output</font>" --> User
     
-    FamilyMembers -. "<font color='#388E3C'>[Concurrent] BG Generation</font>" .-> FamilyMembers
+    Fam -. "<font color='#388E3C'>[Concurrent] BG Generation</font>" .-> Fam
     
     User -- "<font color='#616161'>Voice Intervention</font>" --> STT
-    STT -- "<font color='#01579B'>Transcription Result</font>" --> FamilyMembers
+    STT -- "<font color='#01579B'>Transcription Result</font>" --> Fam
     
-    FamilyMembers -- "<font color='#388E3C'>[Audio End] Trigger Next</font>" --> Relay
-    Relay -- "<font color='#388E3C'>Update History & Turn</font>" --> FamilyMembers
+    Fam -- "<font color='#388E3C'>[Audio End] Trigger Next</font>" --> Relay
+    Relay -- "<font color='#388E3C'>Update History & Turn</font>" --> Fam
     
     Relay -- "<font color='#388E3C'>If Turn >= 10: Trigger Eval</font>" --> Ther_Eval
     
-    Ther_Eval -- "<font color='#FBC02D'>Request Self-Eval</font>" --> FamilyMembers
-    FamilyMembers -- "<font color='#388E3C'>Member Scoring (CSV)</font>" --> Ther_Eval
+    Ther_Eval -- "<font color='#FBC02D'>Request Member Self-Eval</font>" --> Fam
+    Fam -- "<font color='#388E3C'>Member Scoring (CSV)</font>" --> Ther_Eval
     
     Ther_Eval -- "<font color='#FBC02D'>Aggregate Metrics</font>" --> Eval
     Eval -- "<font color='#7B1FA2'>FACES IV Coordinates</font>" --> Ther_Eval
@@ -70,15 +63,12 @@ graph TD
     Ther_Eval -- "<font color='#FBC02D'>Calculate Distances</font>" --> Toio
     
     Toio -- "<font color='#0097A7'>Finished Move</font>" --> Ther_Eval
-    Ther_Eval -- "<font color='#FBC02D'>Start Next Step (S++1)</font>" --> FamilyMembers
+    Ther_Eval -- "<font color='#FBC02D'>Start Next Step (S++1)</font>" --> Fam
 
     %% Node Styling
     style Ther_Start fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px,color:#000
     style Ther_Eval fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px,color:#000
-    style FamilyMembers fill:#E8F5E9,stroke:#388E3C,stroke-width:2px,color:#000
-    style Father fill:#C8E6C9,stroke:#388E3C,stroke-width:2px,color:#000
-    style Mother fill:#C8E6C9,stroke:#388E3C,stroke-width:2px,color:#000
-    style Child fill:#C8E6C9,stroke:#388E3C,stroke-width:2px,color:#000
+    style Fam fill:#C8E6C9,stroke:#388E3C,stroke-width:2px,color:#000
     style User fill:#F5F5F5,stroke:#9E9E9E,stroke-width:2px,color:#000
     style STT fill:#B3E5FC,stroke:#0288D1,stroke-width:2px,color:#000
     style TTS fill:#B3E5FC,stroke:#0288D1,stroke-width:2px,color:#000
@@ -87,26 +77,24 @@ graph TD
     style Toio fill:#E0F7FA,stroke:#0097A7,stroke-width:2px,color:#000
     style Relay fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#000
 
-    %% Link Styling (simplified indices after split)
+    %% Link Styling
     linkStyle 0 stroke:#FBC02D,stroke-width:2px
     linkStyle 1 stroke:#388E3C,stroke-width:2px
-    linkStyle 2 stroke:#388E3C,stroke-width:2px
-    linkStyle 3 stroke:#388E3C,stroke-width:2px
-    linkStyle 4 stroke:#01579B,stroke-width:2px
-    linkStyle 5 stroke:#388E3C,stroke-width:2px,stroke-dasharray: 5 5
-    linkStyle 6 stroke:#616161,stroke-width:2px
-    linkStyle 7 stroke:#01579B,stroke-width:2px
-    linkStyle 8 stroke:#388E3C,stroke-width:2px
-    linkStyle 9 stroke:#2E7D32,stroke-width:2px
-    linkStyle 10 stroke:#2E7D32,stroke-width:2px
+    linkStyle 2 stroke:#01579B,stroke-width:2px
+    linkStyle 3 stroke:#388E3C,stroke-width:2px,stroke-dasharray: 5 5
+    linkStyle 4 stroke:#616161,stroke-width:2px
+    linkStyle 5 stroke:#01579B,stroke-width:2px
+    linkStyle 6 stroke:#388E3C,stroke-width:2px
+    linkStyle 7 stroke:#2E7D32,stroke-width:2px
+    linkStyle 8 stroke:#2E7D32,stroke-width:2px
+    linkStyle 9 stroke:#FBC02D,stroke-width:2px
+    linkStyle 10 stroke:#388E3C,stroke-width:2px
     linkStyle 11 stroke:#FBC02D,stroke-width:2px
-    linkStyle 12 stroke:#388E3C,stroke-width:2px
+    linkStyle 12 stroke:#7B1FA2,stroke-width:2px
     linkStyle 13 stroke:#FBC02D,stroke-width:2px
-    linkStyle 14 stroke:#7B1FA2,stroke-width:2px
-    linkStyle 15 stroke:#FBC02D,stroke-width:2px
+    linkStyle 14 stroke:#FBC02D,stroke-width:2px
+    linkStyle 15 stroke:#0097A7,stroke-width:2px
     linkStyle 16 stroke:#FBC02D,stroke-width:2px
-    linkStyle 17 stroke:#0097A7,stroke-width:2px
-    linkStyle 18 stroke:#FBC02D,stroke-width:2px
 ```
 
 ### Detailed Node Responsibilities
