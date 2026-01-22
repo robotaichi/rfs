@@ -4,8 +4,8 @@
   <name>rfs_family</name>
   <version>0.0.0</version>
   <description>Family member node for RFS</description>
-  <maintainer email="ubuntu@todo.todo">ubuntu</maintainer>
-  <license>TODO: License declaration</license>
+  <maintainer email="hiranotaichi8@gmail.com">Taichi Hirano</maintainer>
+  <license>MIT</license>
 
   <exec_depend>rclpy</exec_depend>
   <exec_depend>std_msgs</exec_depend>

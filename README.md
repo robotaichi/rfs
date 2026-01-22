@@ -9,11 +9,11 @@ RFS (Robot Family System) is a ROS2-based research and educational simulation pl
 - **Dual Trajectory Tracking**: Visualizes both the "Actual Family State" and the "Therapeutic Target" on the same plot.
 - **Predictive Interaction**: Implements "Background Scenario Generation" to pre-generate agent responses, significantly reducing latency.
 - **Physical Representation**: Integration with [toio™](https://toio.io/) robots for tangible representation of interpersonal distances.
-- **Interactive Audio**: Real-time Speech-to-Text (STT) and Text-to-Speech (TTS) capabilities for human intervention.
+- **Interactive Audio**: Real-time Speech-to-Text (STT) and Text-to-Speech (TTS) capabilities for optional human intervention.
 
 ## 🏗 System Architecture & Processing Flow
 
-The system operates in a closed-loop cycle where the **AI Therapist** (`rfs_therapist`) orchestrates agents, while the **Human User** participates as an intervener in the family dialogue.
+The system operates in a closed-loop cycle where the **AI Therapist** (`rfs_therapist`) orchestrates agents. The **Human User** can optionally intervene in the family dialogue to influence the simulation.
 
 ```mermaid
 graph TD
@@ -25,8 +25,12 @@ graph TD
         direction TB
         F1["🟢 DIALOGUE GENERATION<br/>(Family Agents)"]
         T1["🔵 SPEECH OUTPUT<br/>(rfs_tts)"]
+        
+        %% Conditional Interaction
+        U_IF{"❓ USER INTERVENTION?"}
         U1(("👤 HUMAN USER<br/>(Intervener)"))
         I1["🔵 VOICE INPUT<br/>(rfs_stt)"]
+        
         R1{{"🔄 TURN RELAY"}}
     end
     
@@ -42,21 +46,27 @@ graph TD
     %% Process Connections
     S1 -- "1. Start Turn" --> F1
     F1 -- "2. Voice Request" --> T1
-    T1 -- "3. Audio Out" --> U1
-    U1 -- "4. Speech Intervention" --> I1
-    I1 -- "5. Text Result" --> F1
-    F1 -- "6. Turn End" --> R1
-    R1 -- "7. Next Agent" --> F1
-    R1 -- "8. Trigger Assessment" --> E1
-    E1 -- "9. FACES IV Score" --> G1
-    G1 -- "10. Set Target" --> P1
-    G1 -- "11. Robot Steering" --> M1
-    M1 -- "12. Step Cycle" --> S1
+    T1 -- "3. Audio Processed" --> U_IF
+    
+    %% Branching
+    U_IF -- "YES (If Speech Detected)" --> U1
+    U1 -- "4. Intervention" --> I1
+    I1 -- "5. Update Agent Memory" --> R1
+    
+    U_IF -. "NO (Default Flow)" .-> R1
+    
+    R1 -- "6. Next Agent" --> F1
+    R1 -- "7. Trigger Assessment" --> E1
+    E1 -- "8. FACES IV Score" --> G1
+    G1 -- "9. Set Target" --> P1
+    G1 -- "10. Robot Steering" --> M1
+    M1 -- "11. Step Cycle" --> S1
 
     %% Node Styling (High Contrast)
     style S1 fill:#FFD700,stroke:#000,stroke-width:3px,color:#000
     style F1 fill:#32CD32,stroke:#000,stroke-width:3px,color:#000
     style T1 fill:#1E90FF,stroke:#000,stroke-width:3px,color:#000
+    style U_IF fill:#FFFFFF,stroke:#000,stroke-width:3px,color:#000
     style U1 fill:#FFFFFF,stroke:#000,stroke-width:3px,color:#000
     style I1 fill:#1E90FF,stroke:#000,stroke-width:3px,color:#000
     style R1 fill:#90EE90,stroke:#000,stroke-width:3px,color:#000
@@ -70,14 +80,15 @@ graph TD
     linkStyle 1 stroke:#32CD32,stroke-width:4px
     linkStyle 2 stroke:#1E90FF,stroke-width:4px
     linkStyle 3 stroke:#616161,stroke-width:4px
-    linkStyle 4 stroke:#1E90FF,stroke-width:4px
-    linkStyle 5 stroke:#32CD32,stroke-width:4px
-    linkStyle 6 stroke:#32CD32,stroke-width:4px
+    linkStyle 4 stroke:#616161,stroke-width:4px
+    linkStyle 5 stroke:#1E90FF,stroke-width:4px
+    linkStyle 6 stroke:#616161,stroke-width:4px,stroke-dasharray: 5 5
     linkStyle 7 stroke:#32CD32,stroke-width:4px
-    linkStyle 8 stroke:#9370DB,stroke-width:4px
-    linkStyle 9 stroke:#FFD700,stroke-width:4px
+    linkStyle 8 stroke:#32CD32,stroke-width:4px
+    linkStyle 9 stroke:#9370DB,stroke-width:4px
     linkStyle 10 stroke:#FFD700,stroke-width:4px
-    linkStyle 11 stroke:#1E90FF,stroke-width:4px
+    linkStyle 11 stroke:#FFD700,stroke-width:4px
+    linkStyle 12 stroke:#1E90FF,stroke-width:4px
 ```
 
 ### Detailed Node Responsibilities
