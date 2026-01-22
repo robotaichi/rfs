@@ -17,6 +17,7 @@ The system operates in a closed-loop cycle consisting of three main phases: **In
 
 ```mermaid
 sequenceDiagram
+    autonumber
     participant User
     participant STT as rfs_stt
     participant Fam as rfs_family_member (N)
@@ -26,9 +27,12 @@ sequenceDiagram
     participant Toio as rfs_toio
     participant TTS as rfs_tts
 
+    rect rgb(240, 240, 240)
     Note over Ther, Fam: phase 1: Initialization
     Ther->>Fam: [Launch] Initiate first turn
+    end
     
+    rect rgb(225, 245, 254)
     Note over User, TTS: phase 2: Interaction Loop (Turns 1-10)
     Fam->>TTS: Request Speech (Service: TTSService)
     TTS-->>User: Audio Output
@@ -36,7 +40,9 @@ sequenceDiagram
     Fam->>Fam: Turn Relay (rfs_family_actions)
     User->>STT: Voice Intervention
     STT->>Fam: User Input (rfs_stt_result)
+    end
     
+    rect rgb(255, 249, 196)
     Note over Fam, Ther: phase 3: Evaluation & Steering
     Fam->>Ther: Trigger Evaluation (Turn counter reached)
     Ther->>Fam: Request Member Self-Eval (rfs_request_member_evaluation)
@@ -46,6 +52,7 @@ sequenceDiagram
     Ther->>Plot: Update Visuals (rfs_faces_plot_updated)
     Ther->>Toio: Move Robots (rfs_toio_move_script)
     Ther->>Fam: Resume next Step (Step ID)
+    end
 ```
 
 ### Detailed Node Responsibilities
