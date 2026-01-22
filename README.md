@@ -17,84 +17,67 @@ The system operates in a closed-loop cycle consisting of three main phases: **In
 
 ```mermaid
 graph TD
-    %% Phase Grouping
-    subgraph Initialization ["1. Initialization Phase"]
-        Ther_Start["🟡 rfs_therapist (Orchestrator)"]
+    %% 1. Initialization
+    S1[("🟡 STEP START<br/>(rfs_therapist)")]
+    
+    %% 2. Interaction
+    subgraph Phase2 ["🔄 INTERACTION LOOP (Turns 1-10)"]
+        direction TB
+        F1["🟢 DIALOGUE GENERATION<br/>(rfs_family)"]
+        T1["🔵 SPEECH OUTPUT<br/>(rfs_tts)"]
+        U1(("👤 USER / THERAPIST"))
+        I1["🔵 VOICE INPUT<br/>(rfs_stt)"]
+        R1{{"🔄 TURN RELAY"}}
+    end
+    
+    %% 3. Evaluation
+    subgraph Phase3 ["📊 EVALUATION & STEERING"]
+        direction TB
+        E1["🟣 AGGREGATE EVALUATION<br/>(rfs_evaluation)"]
+        G1["🟡 GRADIENT DESCENT<br/>(rfs_therapist)"]
+        P1["🟣 UPDATE PLOT<br/>(rfs_viewer)"]
+        M1["🔵 PHYSICAL MOVE<br/>(rfs_toio)"]
     end
 
-    subgraph Interaction ["2. Interaction & Background Generation Loop"]
-        Fam["🟢 rfs_family (Agents)"]
-        TTS["🔵 rfs_tts (Audio Out)"]
-        STT["🔵 rfs_stt (Voice In)"]
-        User(("👤 User (Therapist)"))
-        Relay{{"🔄 Turn Relay"}}
-    end
+    %% Process Connections
+    S1 -- "1. Start Turn" --> F1
+    F1 -- "2. Voice Request" --> T1
+    T1 -- "3. Audio Out" --> U1
+    U1 -- "4. Intervention" --> I1
+    I1 -- "5. Text Result" --> F1
+    F1 -- "6. Turn End" --> R1
+    R1 -- "7. Next Agent" --> F1
+    R1 -- "8. Trigger Assessment" --> E1
+    E1 -- "9. FACES IV Score" --> G1
+    G1 -- "10. Set Target" --> P1
+    G1 -- "11. Robot Steering" --> M1
+    M1 -- "12. Step Cycle" --> S1
 
-    subgraph Evaluation ["3. Evaluation & GD-Steering Phase"]
-        Ther_Eval["🟡 rfs_therapist (AGG/GD)"]
-        Eval["🟣 rfs_evaluation (Logic)"]
-        Plot["🟣 rfs_viewer (Visuals)"]
-        Toio["🔹 rfs_toio (Physical)"]
-    end
+    %% Node Styling (High Contrast)
+    style S1 fill:#FFD700,stroke:#000,stroke-width:3px,color:#000
+    style F1 fill:#32CD32,stroke:#000,stroke-width:3px,color:#000
+    style T1 fill:#1E90FF,stroke:#000,stroke-width:3px,color:#000
+    style U1 fill:#FFFFFF,stroke:#000,stroke-width:3px,color:#000
+    style I1 fill:#1E90FF,stroke:#000,stroke-width:3px,color:#000
+    style R1 fill:#90EE90,stroke:#000,stroke-width:3px,color:#000
+    style E1 fill:#9370DB,stroke:#000,stroke-width:3px,color:#000
+    style G1 fill:#FFD700,stroke:#000,stroke-width:3px,color:#000
+    style P1 fill:#9370DB,stroke:#000,stroke-width:3px,color:#000
+    style M1 fill:#1E90FF,stroke:#000,stroke-width:3px,color:#000
 
-    %% Flow Logic
-    Ther_Start -- "<font color='#FBC02D'>Select Leader & StartTurn</font>" --> Fam
-    
-    Fam -- "<font color='#388E3C'>[Start Turn] Request Speech</font>" --> TTS
-    TTS -- "<font color='#01579B'>Audio Output</font>" --> User
-    
-    Fam -. "<font color='#388E3C'>[Concurrent] BG Generation</font>" .-> Fam
-    
-    User -- "<font color='#616161'>Voice Intervention</font>" --> STT
-    STT -- "<font color='#01579B'>Transcription Result</font>" --> Fam
-    
-    Fam -- "<font color='#388E3C'>[Audio End] Trigger Next</font>" --> Relay
-    Relay -- "<font color='#388E3C'>Update History & Turn</font>" --> Fam
-    
-    Relay -- "<font color='#388E3C'>If Turn >= 10: Trigger Eval</font>" --> Ther_Eval
-    
-    Ther_Eval -- "<font color='#FBC02D'>Request Member Self-Eval</font>" --> Fam
-    Fam -- "<font color='#388E3C'>Member Scoring (CSV)</font>" --> Ther_Eval
-    
-    Ther_Eval -- "<font color='#FBC02D'>Aggregate Metrics</font>" --> Eval
-    Eval -- "<font color='#7B1FA2'>FACES IV Coordinates</font>" --> Ther_Eval
-    
-    Ther_Eval -- "<font color='#FBC02D'>GD-Target & Plot Update</font>" --> Plot
-    Ther_Eval -- "<font color='#FBC02D'>Calculate Distances</font>" --> Toio
-    
-    Toio -- "<font color='#0097A7'>Finished Move</font>" --> Ther_Eval
-    Ther_Eval -- "<font color='#FBC02D'>Start Next Step (S++1)</font>" --> Fam
-
-    %% Node Styling
-    style Ther_Start fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px,color:#000
-    style Ther_Eval fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px,color:#000
-    style Fam fill:#C8E6C9,stroke:#388E3C,stroke-width:2px,color:#000
-    style User fill:#F5F5F5,stroke:#9E9E9E,stroke-width:2px,color:#000
-    style STT fill:#B3E5FC,stroke:#0288D1,stroke-width:2px,color:#000
-    style TTS fill:#B3E5FC,stroke:#0288D1,stroke-width:2px,color:#000
-    style Eval fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#000
-    style Plot fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#000
-    style Toio fill:#E0F7FA,stroke:#0097A7,stroke-width:2px,color:#000
-    style Relay fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#000
-
-    %% Link Styling
-    linkStyle 0 stroke:#FBC02D,stroke-width:2px
-    linkStyle 1 stroke:#388E3C,stroke-width:2px
-    linkStyle 2 stroke:#01579B,stroke-width:2px
-    linkStyle 3 stroke:#388E3C,stroke-width:2px,stroke-dasharray: 5 5
-    linkStyle 4 stroke:#616161,stroke-width:2px
-    linkStyle 5 stroke:#01579B,stroke-width:2px
-    linkStyle 6 stroke:#388E3C,stroke-width:2px
-    linkStyle 7 stroke:#2E7D32,stroke-width:2px
-    linkStyle 8 stroke:#2E7D32,stroke-width:2px
-    linkStyle 9 stroke:#FBC02D,stroke-width:2px
-    linkStyle 10 stroke:#388E3C,stroke-width:2px
-    linkStyle 11 stroke:#FBC02D,stroke-width:2px
-    linkStyle 12 stroke:#7B1FA2,stroke-width:2px
-    linkStyle 13 stroke:#FBC02D,stroke-width:2px
-    linkStyle 14 stroke:#FBC02D,stroke-width:2px
-    linkStyle 15 stroke:#0097A7,stroke-width:2px
-    linkStyle 16 stroke:#FBC02D,stroke-width:2px
+    %% Link Styling (Bold & Node-Coordinated)
+    linkStyle 0 stroke:#FFD700,stroke-width:4px
+    linkStyle 1 stroke:#32CD32,stroke-width:4px
+    linkStyle 2 stroke:#1E90FF,stroke-width:4px
+    linkStyle 3 stroke:#616161,stroke-width:4px
+    linkStyle 4 stroke:#1E90FF,stroke-width:4px
+    linkStyle 5 stroke:#32CD32,stroke-width:4px
+    linkStyle 6 stroke:#32CD32,stroke-width:4px
+    linkStyle 7 stroke:#32CD32,stroke-width:4px
+    linkStyle 8 stroke:#9370DB,stroke-width:4px
+    linkStyle 9 stroke:#FFD700,stroke-width:4px
+    linkStyle 10 stroke:#FFD700,stroke-width:4px
+    linkStyle 11 stroke:#1E90FF,stroke-width:4px
 ```
 
 ### Detailed Node Responsibilities
