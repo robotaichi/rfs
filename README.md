@@ -2,6 +2,10 @@
 
 RFS (Robot Family System) is a ROS2-based research and educational simulation platform for family therapy and family psychology. It leverages Multiple LLM-based agents to simulate complex family dynamics, visualizes psychological states on the FACES IV circumplex model, and uses Gradient Descent to suggest AI-driven therapeutic interventions.
 
+This project is developed as part of the research at the **Future Thinking Laboratory (FTL)** at the University of Tsukuba. Our research focuses on the intersection of human-robot interaction, social psychology, and advanced AI to design systems that enhance human well-being and social harmony.
+
+🔗 **Learn more about our research**: [Future Thinking Laboratory - Projects](https://www.ftl.iit.tsukuba.ac.jp/projects/)
+
 ## 🌟 Key Features
 
 - **Multi-Agent Simulation**: Simulates distinct family member personalities (Father, Mother, Daughter, Son) using advanced LLMs.
@@ -58,9 +62,9 @@ graph TD
     R1 -- "6. Next Agent" --> F1
     R1 -- "7. Trigger Assessment" --> E1
     E1 -- "8. FACES IV Score" --> G1
-    G1 -- "9. Set Target" --> P1
-    G1 -- "10. Robot Steering" --> M1
-    M1 -- "11. Step Cycle" --> S1
+    G1 -- "10. Set Target" --> P1
+    G1 -- "11. Robot Steering" --> M1
+    M1 -- "12. Step Cycle" --> S1
 
     %% Node Styling (High Contrast)
     style S1 fill:#FFD700,stroke:#000,stroke-width:3px,color:#000
