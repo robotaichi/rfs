@@ -131,6 +131,18 @@ Located in `src/rfs_config/config/config.json`.
 
 The system treats therapeutic intervention as an optimization problem. If a family state is identified as "Disengaged" or "Enmeshed", the **AI Therapist** calculates the optimal path toward health using **Gradient Descent**.
 
+### Olson's Circumplex Model
+
+The **Circumplex Model of Marital and Family Systems** (developed by David H. Olson) provides a framework for understanding family dynamics across three dimensions: **Cohesion**, **Flexibility**, and **Communication**.
+
+1.  **Cohesion**: Measures the emotional bonding and sense of togetherness.
+2.  **Flexibility**: Measures the quality of leadership, role relationships, and ability to adapt to stress.
+3.  **Communication**: A facilitating dimension that enables families to adjust their levels of cohesion and flexibility.
+
+The model classifies family states into **Balanced** (Healthy/Functional) and **Unbalanced** (Extreme/Dysfunctional) regions. Our AI Therapist uses this model to steer the simulated family from unbalanced "corners" (e.g., Rigid-Disengaged or Chaotic-Enmeshed) back towards the **Balanced Center**.
+
+![Olson's Circumplex Model](docs/images/circumplex_model.png)
+
 ### Percentile Conversion
 
 Before any mathematical processing or plotting, the system converts the **Raw Scores** obtained from assessments into **Percentile Scores**. This conversion is essential for standardized mapping onto the Circumplex Model and ensures that the Gradient Descent operates on a normalized scale ($0$ to $100$).

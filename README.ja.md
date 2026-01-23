@@ -131,6 +131,18 @@ source ~/.bashrc
 
 システムは、治療的介入を最適化問題として扱います。家族の状態が「遊離（Disengaged）」または「密着（Enmeshed）」と特定された場合、**AI Therapist** は **勾配降下法（Gradient Descent）** を使用して健康な状態への最適なパスを計算します。
 
+### Olson の円環モデル (Circumplex Model)
+
+**Olson の円環モデル (Circumplex Model of Marital and Family Systems)** は、家族のダイナミクスを **「親密度 (Cohesion)」**、**「柔軟性 (Flexibility)」**、および **「コミュニケーション (Communication)」** の3つの主要な次元で理解するための枠組みです。
+
+1.  **親密度 (Cohesion)**: 家族メンバー間の情緒的な結びつきや一体感の強さを測定します。
+2.  **柔軟性 (Flexibility)**: リーダーシップの質、役割関係、およびストレスに対する適応能力を測定します。
+3.  **コミュニケーション (Communication)**: 家族が親密度と柔軟性のレベルを調整することを可能にする促進的な次元です。
+
+このモデルでは、家族の状態を **「バランス (Balanced)」**（健康的・機能的）な領域と、**「アンバランス (Unbalanced)」**（極端・不全的）な領域に分類します。本システムの AI Therapist は、このモデルに基づき、アンバランスな状態（例：硬直した遊離状態や、混乱した密着状態）にある擬似家族を **「バランスの取れた中心 (Balanced Center)」** へと導きます。
+
+![Olson's Circumplex Model](docs/images/circumplex_model.png)
+
 ### パーセンタイル変換
 
 数学的な処理やプロットの前に、システムは評価から得られた **Raw Scores（生得点）** を **Percentile Scores（パーセンタイル順位）** に変換します。この変換は、円環モデル上への標準化されたマッピングに不可欠であり、勾配降下法が正規化されたスケール（$0$ から $100$）で動作することを保証します。
