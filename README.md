@@ -235,7 +235,7 @@ The AI Therapist calculates the optimal therapeutic path using Gradient Descent 
 #### 1. State Vector ($x_t$)
 The family state at turn $t$ is represented as a 7-dimensional vector consisting of the converted **Percentile Scores**:
 
-| $\displaystyle \Large x_t = \begin{bmatrix} C_{bal} \\ C_{dis} \\ C_{enm} \\ F_{bal} \\ F_{rig} \\ F_{cha} \\ Comm \end{bmatrix} = [C_{bal}, \dots, Comm]^T$ |
+| $\displaystyle \Large x_t = \begin{bmatrix} C_{bal} \\\\ C_{dis} \\\\ C_{enm} \\\\ F_{bal} \\\\ F_{rig} \\\\ F_{cha} \\\\ Comm \end{bmatrix} = [C_{bal}, \dots, Comm]^T$ |
 | :--- |
 
 #### 2. Objective Function ($J(x_t)$)
@@ -253,13 +253,13 @@ Where:
 #### 3. Gradient Calculation ($\nabla J(x_t)$)
 The gradient vector $\nabla J(x_t)$ represents the direction of steepest increase for the cost function:
 
-| $\displaystyle \Large \nabla J(x_t) = \left[ \frac{\partial J}{\partial C_{bal}}, \dots, \frac{\partial J}{\partial Comm} \right]^T$ |
+| $\displaystyle \Large \nabla J(x_t) = \left[ \frac{\partial J}{\partial C_{bal}}, \frac{\partial J}{\partial C_{dis}}, \frac{\partial J}{\partial C_{enm}}, \frac{\partial J}{\partial F_{bal}}, \frac{\partial J}{\partial F_{rig}}, \frac{\partial J}{\partial F_{cha}}, \frac{\partial J}{\partial Comm} \right]^T$ |
 | :--- |
 
 Individual partial derivatives are calculated as follows (combining the Ratio and Centering terms):
-- $\frac{\partial J}{\partial C_{bal}} = \frac{\partial J}{\partial F_{bal}} = - \frac{\omega_1 U}{2B^2} + \text{Centering Term}$
-- $\frac{\partial J}{\partial C_{enm}} = \frac{\partial J}{\partial C_{dis}} = \frac{\partial J}{\partial F_{cha}} = \frac{\partial J}{\partial F_{rig}} = \frac{\omega_1}{2B} + \text{Centering Term}$
-- $\frac{\partial J}{\partial Comm} = - \omega_2$
+
+| $\begin{aligned} \displaystyle \frac{\partial J}{\partial C_{bal}} &= - \frac{\omega_1 U}{2B^2} + \omega_3(x - 50) \\ \displaystyle \frac{\partial J}{\partial F_{bal}} &= - \frac{\omega_1 U}{2B^2} + \omega_3(y - 50) \\ \displaystyle \frac{\partial J}{\partial C_{enm}} &= \frac{\omega_1}{2B} + \frac{\omega_3}{2}(x - 50) \\ \displaystyle \frac{\partial J}{\partial C_{dis}} &= \frac{\omega_1}{2B} - \frac{\omega_3}{2}(x - 50) \\ \displaystyle \frac{\partial J}{\partial F_{cha}} &= \frac{\omega_1}{2B} + \frac{\omega_3}{2}(y - 50) \\ \displaystyle \frac{\partial J}{\partial F_{rig}} &= \frac{\omega_1}{2B} - \frac{\omega_3}{2}(y - 50) \\ \displaystyle \frac{\partial J}{\partial Comm} &= - \omega_2 \end{aligned}$ |
+| :--- |
 
 #### 4. Update Rule & Adaptive Learning Rate
 The target state is updated iteratively:
