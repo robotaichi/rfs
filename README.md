@@ -145,7 +145,48 @@ Located in `src/rfs_config/config/config.json`.
    ```
 
 ## 📊 FACES IV Model & Gradient Descent
-The system identifies the family's position on the Cohesion/Flexibility spectrum. If the state is "Disengaged" or "Enmeshed", the AI therapist calculates a vector toward the **Balanced Center** and adjusts the behavioral "Steering Prompts" for individual family members to encourage healthier interaction patterns.
+
+The system treats therapeutic intervention as an optimization problem. If a family state is identified as "Disengaged" or "Enmeshed", the **AI Therapist** calculates the optimal path toward health using **Gradient Descent**.
+
+### Mathematical Foundation
+
+The goal is to minimize a loss function $J$ that represents the "excess distance" from a healthy family state.
+
+#### 1. Coordinate Definitions
+Let the FACES IV dimensions be:
+- $c_{bal}, f_{bal}$: Balanced Cohesion and Flexibility
+- $c_{dis}, c_{enm}$: Disengaged and Enmeshed (Unbalanced Cohesion)
+- $f_{rig}, f_{cha}$: Rigid and Chaotic (Unbalanced Flexibility)
+- $Comm$: Communication score
+
+We define the current position $(x, y)$ on the Circumplex Model as:
+$$x = c_{bal} + \frac{c_{enm} - c_{dis}}{2}, \quad y = f_{bal} + \frac{f_{cha} - f_{rig}}{2}$$
+
+#### 2. Objective Function ($J$)
+The system optimizes the following objective function:
+$$J = \omega_1 \frac{U}{2B} - \omega_2 Comm + \frac{\omega_3}{2} \left[ (x - 50)^2 + (y - 50)^2 \right]$$
+Where:
+- $B = c_{bal} + f_{bal}$ (Balanced Sum)
+- $U = c_{dis} + c_{enm} + f_{rig} + f_{cha}$ (Unbalanced Sum)
+- $\omega_{1,2,3}$ are configurable weights (`w1, w2, w3` in `config.json`).
+
+#### 3. Gradient Calculation
+The gradients $\nabla J$ for each dimension are calculated as:
+- $\frac{\partial J}{\partial c_{bal}} = -\frac{\omega_1 U}{2B^2} + \omega_3(x - 50)$
+- $\frac{\partial J}{\partial f_{bal}} = -\frac{\omega_1 U}{2B^2} + \omega_3(y - 50)$
+- $\frac{\partial J}{\partial c_{enm}} = \frac{\omega_1}{2B} + \frac{\omega_3}{2}(x - 50)$
+- $\frac{\partial J}{\partial c_{dis}} = \frac{\omega_1}{2B} - \frac{\omega_3}{2}(x - 50)$
+- $\frac{\partial J}{\partial f_{cha}} = \frac{\omega_1}{2B} + \frac{\omega_3}{2}(y - 50)$
+- $\frac{\partial J}{\partial f_{rig}} = \frac{\omega_1}{2B} - \frac{\omega_3}{2}(y - 50)$
+- $\frac{\partial J}{\partial Comm} = -\omega_2$
+
+#### 4. Update Rule & Adaptive Learning Rate
+The target scores $\theta$ are updated iteratively:
+$$\theta_{t+1} = \theta_t - \eta \nabla J$$
+The adaptive learning rate $\eta$ is scaled by the family's communication quality:
+$$\eta = \max\left(0.15, \frac{Comm}{100}\right) \times 0.25$$
+
+The resulting vector adjusts the **Behavioral Steering Prompts** for individual family members, encouraging interaction patterns that pull the family state toward the **Balanced Center (50, 50)**.
 
 ## 📜 License
 This project is licensed under the MIT License.
