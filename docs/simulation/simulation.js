@@ -24,6 +24,8 @@ let lr_scale = 0.25;
 let pathHistory = []; // Visual coordinates {x, y} for the chart
 let stateHistory = []; // Full state objects {state, x, y} for backward stepping
 
+const tick_vals = [0, 8, 15, 16, 25, 35, 36, 50, 65, 66, 75, 85, 86, 95, 100];
+
 // --- Piecewise Linear Visual Mapping (Strictly matches therapist node) ---
 function getVisualCoord(score) {
     const gap = 0.04;
@@ -80,6 +82,7 @@ function init() {
         createChart();
     }
     updateMetrics();
+    updateButtonStates();
 }
 
 function updateUI() {
@@ -100,16 +103,34 @@ function updateUI() {
 }
 
 function updateMetrics() {
-    const coh_ratio = state.c_bal / ((state.c_dis + state.c_enm) / 2);
-    const flex_ratio = state.f_bal / ((state.f_rig + state.f_cha) / 2);
-    const total_ratio = (state.c_bal + state.f_bal) / ((state.c_dis + state.c_enm + state.f_rig + state.f_cha) / 2);
+    const coh_unbal = (state.c_dis + state.c_enm) / 2;
+    const flex_unbal = (state.f_rig + state.f_cha) / 2;
 
-    // Use last calculated x, y from history
+    const coh_ratio = state.c_bal / Math.max(1, coh_unbal);
+    const flex_ratio = state.f_bal / Math.max(1, flex_unbal);
+    const total_ratio = (state.c_bal + state.f_bal) / Math.max(1, coh_unbal + flex_unbal);
+
     const last = stateHistory[stateHistory.length - 1];
     document.getElementById('current_pos').innerText = `${Math.round(last.x)}, ${Math.round(last.y)}`;
     document.getElementById('coh_ratio').innerText = coh_ratio.toFixed(2);
     document.getElementById('flex_ratio').innerText = flex_ratio.toFixed(2);
     document.getElementById('total_ratio').innerText = total_ratio.toFixed(2);
+}
+
+function updateButtonStates() {
+    const prevBtn = document.getElementById('prev-btn');
+    if (prevBtn) {
+        prevBtn.disabled = stateHistory.length <= 1;
+        prevBtn.style.opacity = prevBtn.disabled ? "0.5" : "1";
+    }
+}
+
+function updateRunButtonText() {
+    const btn = document.getElementById('run-btn');
+    if (btn) {
+        btn.innerText = isRunning ? 'Pause Simulation' : 'Play Simulation';
+        btn.classList.toggle('primary', !isRunning);
+    }
 }
 
 // Math logic
@@ -192,7 +213,7 @@ function step() {
     pathHistory.push({ x: getVisualCoord(nextX), y: getVisualCoord(nextY) });
     stateHistory.push({ state: JSON.parse(JSON.stringify(state)), x: nextX, y: nextY });
 
-    if (pathHistory.length > 100) {
+    if (pathHistory.length > 200) {
         pathHistory.shift();
         stateHistory.shift();
     }
@@ -200,6 +221,7 @@ function step() {
     updateUI();
     updateMetrics();
     updateChart();
+    updateButtonStates();
 
     if (isRunning) {
         animationId = setTimeout(step, 100);
@@ -215,6 +237,7 @@ function undoStep() {
         updateUI();
         updateMetrics();
         updateChart();
+        updateButtonStates();
     }
 }
 
@@ -223,25 +246,23 @@ function createChart() {
     const gridAnnotations = {};
     for (let i = 0; i < 5; i++) {
         for (let j = 0; j < 5; j++) {
-            let color = '#d3d3d3'; // Outer ring (Middle range)
+            let color = '#d4d4d8'; // Default Mid-range (zinc-300)
             if ((i === 0 && j === 0) || (i === 0 && j === 4) || (i === 4 && j === 0) || (i === 4 && j === 4)) {
-                color = '#a9a9a9'; // Dark corners
+                color = '#71717a'; // Unbalanced Corners (zinc-500)
             } else if (i >= 1 && i <= 3 && j >= 1 && j <= 3) {
-                color = '#ffffff'; // Center 3x3
+                color = '#ffffff'; // Balanced Center
             }
             gridAnnotations[`grid_${i}_${j}`] = {
                 type: 'box',
                 xMin: i + 0.04, xMax: i + 0.96,
                 yMin: j + 0.04, yMax: j + 0.96,
                 backgroundColor: color,
-                borderColor: '#000000',
+                borderColor: '#27272a', // zinc-800
                 borderWidth: 1,
-                z: -10
+                drawTime: 'beforeDatasetsDraw'
             };
         }
     }
-
-    const tick_vals = [0, 8, 15, 16, 25, 35, 36, 50, 65, 66, 75, 85, 86, 95, 100];
 
     chart = new Chart(ctx, {
         type: 'scatter',
@@ -250,39 +271,43 @@ function createChart() {
                 {
                     label: 'Path',
                     data: pathHistory,
-                    borderColor: '#38bdf8',
+                    borderColor: '#0ea5e9', // sky-500
                     showLine: true,
                     borderWidth: 3,
                     pointRadius: 0,
                     tension: 0.1,
-                    z: 5
+                    order: 2
                 },
                 {
                     label: 'Current Position',
                     data: [pathHistory[pathHistory.length - 1]],
-                    backgroundColor: '#ef4444',
+                    backgroundColor: '#ef4444', // red-500
                     pointRadius: 8,
                     pointHoverRadius: 10,
-                    z: 10
+                    order: 1
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: 10 },
             scales: {
                 x: {
                     min: 0, max: 5,
                     title: { display: true, text: 'COHESION (Percentile Thresholds)', color: '#94a3b8' },
                     grid: { display: false },
                     ticks: {
-                        color: '#475569',
+                        color: '#a1a1aa',
+                        autoSkip: false,
+                        maxRotation: 0,
                         callback: function (value) {
-                            const valIdx = tick_vals.find(v => Math.abs(getVisualCoord(v) - value) < 0.01);
-                            return valIdx !== undefined ? valIdx : '';
+                            for (let v of tick_vals) {
+                                if (Math.abs(getVisualCoord(v) - value) < 0.001) return v;
+                            }
+                            return null;
                         },
-                        stepSize: 0.01,
-                        autoSkip: false
+                        stepSize: 0.001 // High resolution for threshold matching
                     }
                 },
                 y: {
@@ -290,13 +315,16 @@ function createChart() {
                     title: { display: true, text: 'FLEXIBILITY (Percentile Thresholds)', color: '#94a3b8' },
                     grid: { display: false },
                     ticks: {
-                        color: '#475569',
+                        color: '#a1a1aa',
+                        autoSkip: false,
+                        maxRotation: 0,
                         callback: function (value) {
-                            const valIdx = tick_vals.find(v => Math.abs(getVisualCoord(v) - value) < 0.01);
-                            return valIdx !== undefined ? valIdx : '';
+                            for (let v of tick_vals) {
+                                if (Math.abs(getVisualCoord(v) - value) < 0.001) return v;
+                            }
+                            return null;
                         },
-                        stepSize: 0.01,
-                        autoSkip: false
+                        stepSize: 0.001
                     }
                 }
             },
@@ -309,26 +337,24 @@ function createChart() {
                             xValue: 2.5, yValue: 2.5,
                             content: 'BALANCED',
                             color: 'rgba(34, 197, 94, 0.4)',
-                            font: { size: 24, weight: 'bold' },
-                            z: -5
+                            font: { size: 28, weight: 'bold' }
                         },
-                        targetPoint: {
+                        centerTarget: {
                             type: 'point',
                             xValue: getVisualCoord(50), yValue: getVisualCoord(50),
-                            backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                            radius: 4,
-                            z: 0
+                            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                            radius: 4
                         }
                     }
                 },
-                legend: { display: false }
+                legend: { display: false },
+                tooltip: { enabled: false }
             }
         }
     });
 }
 
 function updateChart() {
-    chart.data.datasets[0].data = pathHistory;
     chart.data.datasets[1].data = [pathHistory[pathHistory.length - 1]];
     chart.update('none');
 }
@@ -345,6 +371,7 @@ document.querySelectorAll('input[type="range"]').forEach(slider => {
         const valEl = document.getElementById(id + '_val');
         if (valEl) valEl.innerText = id.startsWith('w') || id === 'lr_scale' ? val.toFixed(1) : val.toFixed(0);
 
+        // Reset path when starting sliders are manipulated
         if (!isRunning) {
             const x = state.c_bal + (state.c_enm - state.c_dis) / 2;
             const y = state.f_bal + (state.f_cha - state.f_rig) / 2;
@@ -352,35 +379,41 @@ document.querySelectorAll('input[type="range"]').forEach(slider => {
             stateHistory = [{ state: JSON.parse(JSON.stringify(state)), x, y }];
             updateChart();
             updateMetrics();
+            updateButtonStates();
         }
     });
 });
 
 document.getElementById('run-btn').addEventListener('click', () => {
     isRunning = !isRunning;
-    const btn = document.getElementById('run-btn');
-    btn.innerText = isRunning ? 'Pause Simulation' : 'Play Simulation';
-    btn.classList.toggle('primary', isRunning);
-
+    updateRunButtonText();
     if (isRunning) step();
+    else clearTimeout(animationId);
 });
 
 document.getElementById('reset-btn').addEventListener('click', () => {
     isRunning = false;
     clearTimeout(animationId);
-    const btn = document.getElementById('run-btn');
-    btn.innerText = 'Play Simulation';
-    btn.classList.add('primary');
-
+    updateRunButtonText();
     init();
 });
 
 document.getElementById('next-btn').addEventListener('click', () => {
-    if (!isRunning) step();
+    if (isRunning) {
+        isRunning = false;
+        clearTimeout(animationId);
+        updateRunButtonText();
+    }
+    step();
 });
 
 document.getElementById('prev-btn').addEventListener('click', () => {
-    if (!isRunning) undoStep();
+    if (isRunning) {
+        isRunning = false;
+        clearTimeout(animationId);
+        updateRunButtonText();
+    }
+    undoStep();
 });
 
 // Start
