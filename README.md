@@ -19,7 +19,7 @@ This project is developed as part of the research at the **Fumihide Tanaka Labor
 
 ## 🏗 System Architecture & Processing Flow
 
-The system operates in a closed-loop cycle where the **AI Therapist** (`rfs_therapist`) orchestrates agents. The **Human User** can optionally intervene in the family dialogue to influence the simulation.
+The system operates in a closed-loop cycle where the **AI Therapist** (`rfs_therapist`) steers family members toward a healthy, balanced state according to Olson's Circumplex Model. The **Human User** can optionally intervene in the family dialogue to influence the simulation.
 
 ```mermaid
 graph TD
@@ -101,7 +101,7 @@ graph TD
 
 | Node | Responsibility | Key Function |
 | :--- | :--- | :--- |
-| **`rfs_therapist`** | Central Orchestrator | Calculates therapeutic targets using Gradient Descent. |
+| **`rfs_therapist`** | Therapeutic Steering | Promotes transitions toward the Balanced Center using Gradient Descent. |
 | **`rfs_family`** | Family Members | Simulates personalities (Father, Mother, etc.) using LLMs. |
 | **`rfs_stt`** | Audio Input | Real-time Speech-to-Text for human intervention via Gemini Live. |
 | **`rfs_tts`** | Audio Output | Multi-sink synchronized Text-to-Speech for family dialogue. |
