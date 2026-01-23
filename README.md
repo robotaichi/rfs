@@ -142,7 +142,7 @@ Located in `src/rfs_config/config/config.json`.
 | **`silence_duration_s`** | Float | `2.0` | Required silence to end speech (Unit: **Seconds**). |
 | **`speech_trigger_frames`** | Integer | `5` | Frames required to trigger recording (30ms/frame). |
 | **`vad_debug`** | Boolean | `false` | Enable verbose VAD logging for diagnostics. |
-| **`vad_energy_threshold`** | Float | `2000.0` | Min. RMS energy for speech detection (Default: **2000.0**). |
+| **`vad_energy_threshold`** | Float | `2000.0` | Minimum RMS energy level for speech detection. |
 | **`llm_model`** | String | `"gpt-4o"` | Model for family dialogue generation. |
 | **`llm_temperature`** | Float | `1.0` | Creativity factor for dialogue. |
 | **`llm_evaluation_model`** | String | `"gpt-4o"` | Model for FACES IV self-assessment. |
