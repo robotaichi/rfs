@@ -1,3 +1,5 @@
+[**English**](README.md) | [**日本語**](README.ja.md)
+
 # RFS: Robot Family System
 
 RFS (Robot Family System) is a ROS2-based research and educational simulation platform for family therapy and family psychology. It leverages Multiple LLM-based agents to simulate complex family dynamics, visualizes psychological states on the FACES IV circumplex model, and uses Gradient Descent to suggest AI-driven therapeutic interventions.
