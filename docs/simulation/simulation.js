@@ -9,12 +9,15 @@ let chart;
 let animationId = null;
 let isRunning = false;
 
-// State Variables (Scores 0-100)
+// State Variables (Current)
 let state = {
     c_bal: 20, c_dis: 80, c_enm: 10,
     f_bal: 20, f_rig: 80, f_cha: 10,
     comm: 50
 };
+
+// Values that the simulation will return to on "Reset"
+let startingState = JSON.parse(JSON.stringify(state));
 
 let weights = {
     w1: 1.0, w2: 1.0, w3: 2.0
@@ -60,12 +63,8 @@ function getVisualCoord(score) {
 
 // Initialize Values
 function init() {
-    state = {
-        c_bal: 20, c_dis: 80, c_enm: 10,
-        f_bal: 20, f_rig: 80, f_cha: 10,
-        comm: 50
-    };
-    lr_scale = 0.25;
+    // Revert state to the USER DEFINED starting point
+    state = JSON.parse(JSON.stringify(startingState));
 
     updateUI();
     const x = state.c_bal + (state.c_enm - state.c_dis) / 2;
@@ -125,8 +124,7 @@ function updateButtonStates() {
 function updateRunButtonText() {
     const btn = document.getElementById('run-btn');
     if (btn) {
-        btn.innerText = isRunning ? 'Pause' : 'Play Simulation';
-        btn.classList.toggle('primary', !isRunning);
+        btn.innerText = isRunning ? 'Pause Simulation' : 'Play Simulation';
     }
 }
 
@@ -243,11 +241,11 @@ function createChart() {
     const gridAnnotations = {};
     for (let i = 0; i < 5; i++) {
         for (let j = 0; j < 5; j++) {
-            let color = '#d3d3d3'; // Default Mid-range (12 cells: Light Gray)
+            let color = '#d3d3d3'; // Default: Light Gray
             if ((i === 0 && j === 0) || (i === 0 && j === 4) || (i === 4 && j === 0) || (i === 4 && j === 4)) {
-                color = '#a9a9a9'; // 4 Corners (Gray)
+                color = '#a9a9a9'; // Corners: Gray
             } else if (i >= 1 && i <= 3 && j >= 1 && j <= 3) {
-                color = '#ffffff'; // 9 Center (White)
+                color = '#ffffff'; // Center: White
             }
             gridAnnotations[`grid_${i}_${j}`] = {
                 type: 'box',
@@ -273,7 +271,7 @@ function createChart() {
                     borderWidth: 3,
                     pointRadius: 0,
                     tension: 0.1,
-                    order: 1 // Drawn after background, but before current dot
+                    order: 1 // Drawn second
                 },
                 {
                     label: 'Current Position',
@@ -283,7 +281,9 @@ function createChart() {
                     borderWidth: 2,
                     pointRadius: 10,
                     pointHoverRadius: 12,
-                    order: 0 // HIGHER priority = Drawn last = On Top
+                    order: 0 // Drawn FIRST (if lower is first) - WAIT.
+                    // If "lower draws first", then Path(1) is on top of Pos(0).
+                    // I want Pos on top, so Pos should have the LARGE order.
                 }
             ]
         },
@@ -354,6 +354,16 @@ function createChart() {
             }
         }
     });
+
+    // Explicitly set Pos on Top
+    chart.data.datasets[0].order = 1; // Path
+    chart.data.datasets[1].order = 0; // Pos -> DRAWS FIRST
+    // WAIT. If order 0 draws first, it's the bottom. I WANT IT AT THE END.
+    chart.data.datasets[0].order = 0; // Path draws first (BOTTOM)
+    chart.data.datasets[1].order = -1; // Wait, let's just use high numbers.
+    chart.data.datasets[0].order = 10; // Path
+    chart.data.datasets[1].order = 1; // Pos
+    // Chart.js: "Higher order is drawn first". So 10 is on bottom, 1 is on top. Correct.
 }
 
 function updateChart() {
@@ -367,21 +377,28 @@ document.querySelectorAll('input[type="range"]').forEach(slider => {
     slider.addEventListener('input', (e) => {
         const id = e.target.id;
         const val = parseFloat(e.target.value);
+
+        // Update values
         if (state[id] !== undefined) state[id] = val;
         if (weights[id] !== undefined) weights[id] = val;
         if (id === 'lr_scale') lr_scale = val;
 
+        // UI Text
         const valEl = document.getElementById(id + '_val');
         if (valEl) valEl.innerText = id.startsWith('w') || id === 'lr_scale' ? val.toFixed(1) : val.toFixed(0);
 
-        if (!isRunning) {
+        // If simulation hasn't started, this IS the starting state.
+        if (stateHistory.length <= 1) {
+            if (state[id] !== undefined) {
+                startingState[id] = val;
+            }
+            // Update the single point on the chart
             const x = state.c_bal + (state.c_enm - state.c_dis) / 2;
             const y = state.f_bal + (state.f_cha - state.f_rig) / 2;
             pathHistory = [{ x: getVisualCoord(x), y: getVisualCoord(y) }];
             stateHistory = [{ state: JSON.parse(JSON.stringify(state)), x, y }];
             updateChart();
             updateMetrics();
-            updateButtonStates();
         }
     });
 });
@@ -396,7 +413,7 @@ document.getElementById('reset-btn').addEventListener('click', () => {
     isRunning = false;
     clearTimeout(animationId);
     updateRunButtonText();
-    init();
+    init(); // Reverts to CUSTOM startingState
 });
 
 document.getElementById('next-btn').addEventListener('click', () => {
