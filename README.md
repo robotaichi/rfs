@@ -192,7 +192,7 @@ The following conversion charts, based on standard FACES IV norms, are used by t
 #### 1. Balanced & Unbalanced Scales (Cohesion & Flexibility)
 
 | Raw Score | Balanced Percentile (C/F) | Unbalanced Percentile (D/E/R/C) |
-| :--- | :--- | :--- | :--- |
+| :--- | :--- | :--- |
 | **7** | 16 | 10 |
 | **8** | 18 | 12 |
 | **9** | 20 | 13 |
@@ -226,7 +226,7 @@ The following conversion charts, based on standard FACES IV norms, are used by t
 #### 2. Family Communication
 
 | Raw Score | Percentile | Raw Score | Percentile |
-| :--- | :--- | :--- | :--- | :--- |
+| :--- | :--- | :--- | :--- |
 | **10-23** | 10 | **37** | 58 |
 | **24** | 12 | **38** | 62 |
 | **25** | 13 | **39** | 65 |
