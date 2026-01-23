@@ -97,13 +97,15 @@ graph TD
 
 ### Detailed Node Responsibilities
 
-- **`rfs_therapist`**: The central orchestrator. Manages step-level logic, aggregates member evaluations, and performs Gradient Descent calculations.
-- **Family Members (`rfs_family`)**: Individual nodes for Father, Mother, Daughter, and Son. Handles personality simulation and dialogue generation.
-- **`rfs_stt`**: Real-time Speech-to-Text conversion using Gemini Live for human interaction.
-- **`rfs_tts`**: Multi-sink synchronized Text-to-Speech output for vocalizing family responses.
-- **`rfs_toio`**: Controls [toio™](https://toio.io/) robots via Bluetooth BLE to represent physical interpersonal distances.
-- **`rfs_viewer`**: Interactive GUI for real-time visualization of the FACES IV circumplex model and trajectory.
-- **`rfs_evaluation`**: Background processing node that evaluates conversation logs for psychological metrics.
+| Node | Responsibility | Key Function |
+| :--- | :--- | :--- |
+| **`rfs_therapist`** | Central Orchestrator | Calculates therapeutic targets using Gradient Descent. |
+| **`rfs_family`** | Family Members | Simulates personalities (Father, Mother, etc.) using LLMs. |
+| **`rfs_stt`** | Audio Input | Real-time Speech-to-Text for human intervention via Gemini Live. |
+| **`rfs_tts`** | Audio Output | Multi-sink synchronized Text-to-Speech for family dialogue. |
+| **`rfs_toio`** | Physical Layer | Interpersonal distance representation using [toio™](https://toio.io/) robots. |
+| **`rfs_viewer`** | Visualization | Real-time GUI for plotting psychological trajectories. |
+| **`rfs_evaluation`** | Map & Assess | Aggregates logs and maps them to the FACES IV circumplex. |
 
 ## ⚙️ Configuration & Environment
 
