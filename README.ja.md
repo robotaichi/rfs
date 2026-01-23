@@ -156,8 +156,8 @@ export GEMINI_API_KEY="AIza..."
 source ~/.bashrc
 ```
 
-- **`OPENAI_API_KEY`**: LLMベースの対話生成および心理マッピングに不可欠です。
-- **`GEMINI_API_KEY`**: Gemini Liveベースの音声書き起こしに必要です。
+- [**`OPENAI_API_KEY`**](https://platform.openai.com/api-keys): LLMベースの対話生成および心理マッピングに不可欠です。
+- [**`GEMINI_API_KEY`**](https://aistudio.google.com/app/apikey): Gemini Liveベースの音声書き起こしに必要です。
 
 2. **起動**:
    ```bash
