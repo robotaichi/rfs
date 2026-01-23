@@ -214,19 +214,19 @@ The system also calculates **Ratio Scores** to assess the overall health of the 
 These are calculated using the converted **Percentile Scores**:
 
 1. **Cohesion Ratio**
-```math
-\text{Cohesion Ratio} = \frac{c_{bal}}{(c_{dis} + c_{enm}) / 2}
-```
+
+| $\displaystyle \Large \text{Cohesion Ratio} = \frac{c_{bal}}{(c_{dis} + c_{enm}) / 2}$ |
+| :--- |
 
 2. **Flexibility Ratio**
-```math
-\text{Flexibility Ratio} = \frac{f_{bal}}{(f_{rig} + f_{cha}) / 2}
-```
+
+| $\displaystyle \Large \text{Flexibility Ratio} = \frac{f_{bal}}{(f_{rig} + f_{cha}) / 2}$ |
+| :--- |
 
 3. **Total Ratio**
-```math
-\text{Total Ratio} = \frac{\text{Cohesion Ratio} + \text{Flexibility Ratio}}{2}
-```
+
+| $\displaystyle \Large \text{Total Ratio} = \frac{\text{Cohesion Ratio} + \text{Flexibility Ratio}}{2}$ |
+| :--- |
 
 ### Mathematical Foundation
 
@@ -235,57 +235,42 @@ The AI Therapist calculates the optimal therapeutic path using Gradient Descent 
 #### 1. State Vector ($x_t$)
 The family state at turn $t$ is represented as a 7-dimensional vector consisting of the converted **Percentile Scores**:
 
-```math
-x_t = \begin{bmatrix} C_{bal} \\ C_{dis} \\ C_{enm} \\ F_{bal} \\ F_{rig} \\ F_{cha} \\ Comm \end{bmatrix} = [C_{bal}, \dots, Comm]^T
-```
+| $\displaystyle \Large x_t = \begin{bmatrix} C_{bal} \\\\ C_{dis} \\\\ C_{enm} \\\\ F_{bal} \\\\ F_{rig} \\\\ F_{cha} \\\\ Comm \end{bmatrix} = [C_{bal}, \dots, Comm]^T$ |
+| :--- |
 
 #### 2. Objective Function ($J(x_t)$)
 The goal is to minimize a cost function that balances the FACES IV Ratio (Health) and Centering (Stability):
 
-```math
-J(x_t) = \omega_1 \frac{U}{2B} - \omega_2 Comm_t + \frac{\omega_3}{2} \left[ (x - 50)^2 + (y - 50)^2 \right]
-```
+| $\displaystyle \Large J(x_t) = \omega_1 \frac{U}{2B} - \omega_2 Comm_t + \frac{\omega_3}{2} \left[ (x - 50)^2 + (y - 50)^2 \right]$ |
+| :--- |
 Where:
 - $B = C_{bal} + F_{bal}$ (Balanced Sum)
-- $U = C_{dis} + C_{enm} + F_{rig} + F_{cha}$ (Unbalanced Sum)
+- $U = C_{dis} + C_{enm} + f_{rig} + f_{cha}$ (Unbalanced Sum)
 
-```math
-x = C_{bal} + \frac{C_{enm} - C_{dis}}{2}, \quad y = F_{bal} + \frac{F_{cha} - F_{rig}}{2}
-```
+| $\displaystyle \Large x = C_{bal} + \frac{C_{enm} - C_{dis}}{2}, \quad y = F_{bal} + \frac{F_{cha} - F_{rig}}{2}$ |
+| :--- |
 
 #### 3. Gradient Calculation ($\nabla J(x_t)$)
 The gradient vector $\nabla J(x_t)$ represents the direction of steepest increase for the cost function:
 
-```math
-\nabla J(x_t) = \left[ \frac{\partial J}{\partial C_{bal}}, \frac{\partial J}{\partial C_{dis}}, \dots, \frac{\partial J}{\partial Comm} \right]^T
-```
+| $\displaystyle \Large \nabla J(x_t) = \left[ \frac{\partial J}{\partial C_{bal}}, \dots, \frac{\partial J}{\partial Comm} \right]^T$ |
+| :--- |
 
 Individual partial derivatives are calculated as follows (combining the Ratio and Centering terms):
 
-```math
-\begin{aligned}
-\frac{\partial J}{\partial C_{bal}} &= - \frac{\omega_1 U}{2B^2} + \omega_3(x - 50) \\
-\frac{\partial J}{\partial F_{bal}} &= - \frac{\omega_1 U}{2B^2} + \omega_3(y - 50) \\
-\frac{\partial J}{\partial C_{enm}} &= \frac{\omega_1}{2B} + \frac{\omega_3}{2}(x - 50) \\
-\frac{\partial J}{\partial C_{dis}} &= \frac{\omega_1}{2B} - \frac{\omega_3}{2}(x - 50) \\
-\frac{\partial J}{\partial F_{cha}} &= \frac{\omega_1}{2B} + \frac{\omega_3}{2}(y - 50) \\
-\frac{\partial J}{\partial F_{rig}} &= \frac{\omega_1}{2B} - \frac{\omega_3}{2}(y - 50) \\
-\frac{\partial J}{\partial Comm} &= - \omega_2
-\end{aligned}
-```
+| $\begin{aligned} \displaystyle \frac{\partial J}{\partial C_{bal}} &= - \frac{\omega_1 U}{2B^2} + \omega_3(x - 50) \\\\ \displaystyle \frac{\partial J}{\partial F_{bal}} &= - \frac{\omega_1 U}{2B^2} + \omega_3(y - 50) \\\\ \displaystyle \frac{\partial J}{\partial C_{enm}} &= \frac{\omega_1}{2B} + \frac{\omega_3}{2}(x - 50) \\\\ \displaystyle \frac{\partial J}{\partial C_{dis}} &= \frac{\omega_1}{2B} - \frac{\omega_3}{2}(x - 50) \\\\ \displaystyle \frac{\partial J}{\partial F_{cha}} &= \frac{\omega_1}{2B} + \frac{\omega_3}{2}(y - 50) \\\\ \displaystyle \frac{\partial J}{\partial F_{rig}} &= \frac{\omega_1}{2B} - \frac{\omega_3}{2}(y - 50) \\\\ \displaystyle \frac{\partial J}{\partial Comm} &= - \omega_2 \end{aligned}$ |
+| :--- |
 
 #### 4. Update Rule & Adaptive Learning Rate
 The target state is updated iteratively:
 
-```math
-x_{t+1} = x_t - \eta(Comm_t) \cdot \nabla J(x_t)
-```
+| $\displaystyle \Large x_{t+1} = x_t - \eta(Comm_t) \cdot \nabla J(x_t)$ |
+| :--- |
 
 Where the adaptive learning rate $\eta (Comm_t)$ represents the **step width**:
 
-```math
-\eta(Comm_t) = \frac{Comm_t}{100} \cdot 0.25
-```
+| $\displaystyle \Large \eta(Comm_t) = \frac{Comm_t}{100} \cdot 0.25$ |
+| :--- |
 
 *(Note: 1 step ($t$) corresponds to 10 conversation turns in the simulation cycle)*
 
