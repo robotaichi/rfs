@@ -46,7 +46,7 @@ function calcDimensionScores(s) {
 
 /**
  * --- Piecewise Linear Visual Mapping ---
- * Maps 5-95 percentile scores to 0.0 - 5.0 visual coordinates.
+ * Maps 0-100 percentile scores to 0.0 - 5.0 visual coordinates.
  * Strictly matches RFSTherapist's get_visual_coord logic.
  */
 function getVisualCoord(score) {
@@ -161,7 +161,7 @@ function updateButtonStates() {
 function updateRunButtonText() {
     const btn = document.getElementById('run-btn');
     if (btn) {
-        btn.innerText = isRunning ? 'Pause Simulation' : 'Play Simulation';
+        btn.innerText = isRunning ? 'Pause' : 'Play Simulation';
     }
 }
 
@@ -169,19 +169,22 @@ function updateRunButtonText() {
 function step() {
     const B = Math.max(0.1, state.c_bal + state.f_bal);
     const U = state.c_dis + state.c_enm + state.f_rig + state.f_cha;
-    const dim = calcDimensionScores(state);
 
+    // We update state first, then calculate dimension scores
     const eta = Math.max(0.15, state.comm / 100) * lr_scale;
 
+    // Calculate raw dimension scores BEFORE adjustment
+    const currentDim = calcDimensionScores(state);
+
     const grad_bal_prefix = - (weights.w1 * U) / (2.0 * B ** 2);
-    const dJ_dc_bal = grad_bal_prefix + weights.w3 * (dim.x - 50.0);
-    const dJ_df_bal = grad_bal_prefix + weights.w3 * (dim.y - 50.0);
+    const dJ_dc_bal = grad_bal_prefix + weights.w3 * (currentDim.x - 50.0);
+    const dJ_df_bal = grad_bal_prefix + weights.w3 * (currentDim.y - 50.0);
 
     const grad_unbal_prefix = weights.w1 / (2.0 * B);
-    const dJ_dc_enm = grad_unbal_prefix + (weights.w3 / 2.0) * (dim.x - 50.0);
-    const dJ_dc_dis = grad_unbal_prefix - (weights.w3 / 2.0) * (dim.x - 50.0);
-    const dJ_df_cha = grad_unbal_prefix + (weights.w3 / 2.0) * (dim.y - 50.0);
-    const dJ_df_rig = grad_unbal_prefix - (weights.w3 / 2.0) * (dim.y - 50.0);
+    const dJ_dc_enm = grad_unbal_prefix + (weights.w3 / 2.0) * (currentDim.x - 50.0);
+    const dJ_dc_dis = grad_unbal_prefix - (weights.w3 / 2.0) * (currentDim.x - 50.0);
+    const dJ_df_cha = grad_unbal_prefix + (weights.w3 / 2.0) * (currentDim.y - 50.0);
+    const dJ_df_rig = grad_unbal_prefix - (weights.w3 / 2.0) * (currentDim.y - 50.0);
 
     const dJ_dcomm = - weights.w2;
 
@@ -206,8 +209,8 @@ function step() {
     const nextXRaw = (state.c_bal + delta.c_bal) + ((state.c_enm + delta.c_enm) - (state.c_dis + delta.c_dis)) / 2.0;
     const nextYRaw = (state.f_bal + delta.f_bal) + ((state.f_cha + delta.f_cha) - (state.f_rig + delta.f_rig)) / 2.0;
 
-    const currI = getCellIdx(dim.x);
-    const currJ = getCellIdx(dim.y);
+    const currI = getCellIdx(currentDim.x);
+    const currJ = getCellIdx(currentDim.y);
     const ranges = [[0, 15], [16, 35], [36, 65], [66, 85], [86, 100]];
     const lowX = ranges[Math.max(0, currI - 1)][0];
     const highX = ranges[Math.min(4, currI + 1)][1];
@@ -215,15 +218,15 @@ function step() {
     const highY = ranges[Math.min(4, currJ + 1)][1];
 
     let alpha = 1.0;
-    const dx = nextXRaw - dim.x;
-    const dy = nextYRaw - dim.y;
+    const dx = nextXRaw - currentDim.x;
+    const dy = nextYRaw - currentDim.y;
     if (dx !== 0) {
-        if (dim.x + dx > highX) alpha = Math.min(alpha, (highX - dim.x) / dx);
-        if (dim.x + dx < lowX) alpha = Math.min(alpha, (lowX - dim.x) / dx);
+        if (currentDim.x + dx > highX) alpha = Math.min(alpha, (highX - currentDim.x) / dx);
+        if (currentDim.x + dx < lowX) alpha = Math.min(alpha, (lowX - currentDim.x) / dx);
     }
     if (dy !== 0) {
-        if (dim.y + dy > highY) alpha = Math.min(alpha, (highY - dim.y) / dy);
-        if (dim.y + dy < lowY) alpha = Math.min(alpha, (lowY - dim.y) / dy);
+        if (currentDim.y + dy > highY) alpha = Math.min(alpha, (highY - currentDim.y) / dy);
+        if (currentDim.y + dy < lowY) alpha = Math.min(alpha, (lowY - currentDim.y) / dy);
     }
 
     if (alpha < 1.0) {
@@ -262,7 +265,8 @@ function undoStep() {
     if (stateHistory.length > 1) {
         stateHistory.pop();
         pathHistory.pop();
-        state = JSON.parse(JSON.stringify(stateHistory[stateHistory.length - 1].state));
+        const prev = stateHistory[stateHistory.length - 1];
+        state = JSON.parse(JSON.stringify(prev.state));
 
         updateUILabels();
         updateMetrics();
@@ -276,11 +280,11 @@ function createChart() {
     const gridAnnotations = {};
     for (let i = 0; i < 5; i++) {
         for (let j = 0; j < 5; j++) {
-            let color = '#d3d3d3'; // Light Gray
+            let color = '#d3d3d3';
             if ((i === 0 && j === 0) || (i === 0 && j === 4) || (i === 4 && j === 0) || (i === 4 && j === 4)) {
-                color = '#a9a9a9'; // Gray
+                color = '#a9a9a9';
             } else if (i >= 1 && i <= 3 && j >= 1 && j <= 3) {
-                color = '#ffffff'; // White
+                color = '#ffffff';
             }
             gridAnnotations[`grid_${i}_${j}`] = {
                 type: 'box',
@@ -377,7 +381,7 @@ function createChart() {
                             borderColor: '#ffffff',
                             borderWidth: 3,
                             radius: 10,
-                            z: 200 // ON TOP
+                            z: 200
                         }
                     }
                 },
@@ -407,7 +411,7 @@ document.querySelectorAll('input[type="range"]').forEach(slider => {
         if (weights[id] !== undefined) weights[id] = val;
         if (id === 'lr_scale') lr_scale = val;
 
-        // UI Text
+        // UI Text labels
         const valEl = document.getElementById(id + '_val');
         if (valEl) valEl.innerText = id.startsWith('w') || id === 'lr_scale' ? val.toFixed(1) : val.toFixed(0);
 
