@@ -142,14 +142,18 @@ pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py P
 
 ### Configuration
 
-The system requires valid API keys. Set them in your terminal before launching:
+The system requires valid API keys. For a persistent setup, add them to your `~/.bashrc`:
 
 ```bash
-# OpenAI API Key (Required for personality and evaluation)
-export OPENAI_API_KEY="sk-..."
+# 1. Open .bashrc
+nano ~/.bashrc
 
-# Gemini API Key (Required for real-time STT)
+# 2. Add these lines at the end of the file
+export OPENAI_API_KEY="sk-..."
 export GEMINI_API_KEY="AIza..."
+
+# 3. Save and reload
+source ~/.bashrc
 ```
 
 - **`OPENAI_API_KEY`**: Essential for LLM-based dialogue generation and psychological mapping.

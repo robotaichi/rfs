@@ -142,14 +142,18 @@ pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py P
 
 ### 設定 (Configuration)
 
-シミュレーションを起動する前に、有効なAPIキーをターミナルで設定する必要があります。
+シミュレーションを起動する前に、有効なAPIキーを設定する必要があります。設定を永続化するには、`~/.bashrc` に追記してください：
 
 ```bash
-# OpenAI API Key (性格シミュレーションおよび評価に必要)
-export OPENAI_API_KEY="sk-..."
+# 1. .bashrc を開く
+nano ~/.bashrc
 
-# Gemini API Key (リアルタイム音声認識に必要)
+# 2. ファイルの末尾に以下を追記して保存
+export OPENAI_API_KEY="sk-..."
 export GEMINI_API_KEY="AIza..."
+
+# 3. 設定を反映
+source ~/.bashrc
 ```
 
 - **`OPENAI_API_KEY`**: LLMベースの対話生成および心理マッピングに不可欠です。
