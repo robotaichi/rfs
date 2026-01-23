@@ -698,7 +698,7 @@ def main():
         theme = config.get("theme", "Family Dinner")
         chat_mode = config.get("chat_mode", 0)
         target_user = config.get("target_user", "User")
-        move_enabled = config.get("move", 1)
+        move_enabled = config.get("toio_move", 1)
     except:
         family_config = ["father", "mother", "daughter"]
         theme = "Family Dinner"; chat_mode = 0; target_user = "User"; move_enabled = 1
