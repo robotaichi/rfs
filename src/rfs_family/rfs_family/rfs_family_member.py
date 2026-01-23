@@ -701,7 +701,7 @@ def main():
         move_enabled = config.get("toio_move", 1)
     except:
         family_config = ["father", "mother", "daughter"]
-        theme = "Family Dinner"; chat_mode = 0; target_user = "User"; move_enabled = 1
+        theme = "Family Dinner"; chat_mode = 0; target_user = "User"; move_enabled = 0
 
     node = RFSFamilyMember(role=args.role, theme=theme, chat_mode=chat_mode, target_user=target_user, move=move_enabled, family_config=family_config, initial_role=args.role if args.initiate else "")
     executor = MultiThreadedExecutor()

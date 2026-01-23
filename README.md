@@ -174,7 +174,7 @@ Located in `src/rfs_config/config/config.json`.
 | **`language`** | String | `"en"` | Interaction language: `"en"` (English) or `"ja"` (Japanese). |
 | **`theme`** | String | N/A | High-level topic of family conversation. |
 | **`chat_mode`** | Integer | `0` | `0` (Normal), `1` (Terminal mode - no hardware). |
-| **`toio_move`** | Integer | `1` | Enable toio movement: `1` (Enabled), `0` (Disabled). |
+| **`toio_move`** | Integer | `0` | Enable toio movement: `1` (Enabled), `0` (Disabled). |
 | **`target_user`** | String | `"User"` | Name of the person interacting with the family. |
 | **`family_config`** | List | `["father", "mother", "daughter"]` | Active family roles for the simulation. |
 | **`toio_speaker_match`** | List | `[...]` | Hardware toio-to-speaker mapping configuration. |

@@ -174,7 +174,7 @@ source ~/.bashrc
 | **`language`** | String | `"en"` | インタラクション言語: `"en"` (英語) または `"ja"` (日本語)。 |
 | **`theme`** | String | N/A | 家族の会話のハイレベルなトピック。 |
 | **`chat_mode`** | Integer | `0` | `0` (通常), `1` (ターミナルモード - ハードウェアなし)。 |
-| **`toio_move`** | Integer | `1` | toioの移動を有効化: `1` (有効), `0` (無効)。 |
+| **`toio_move`** | Integer | `0` | toioの移動を有効化: `1` (有効), `0` (無効)。 |
 | **`target_user`** | String | `"User"` | 家族と対話するユーザーの名前。 |
 | **`family_config`** | List | `["father", "mother", "daughter"]` | シミュレーションでアクティブな家族の役割。 |
 | **`toio_speaker_match`** | List | `[...]` | ハードウェア（toio）とスピーカーの対応付け設定。 |
