@@ -103,19 +103,24 @@
                 <div class="metrics-grid">
                     <div class="metric-card">
                         <span class="label">Current Position (X, Y)</span>
-                        <div class="value" id="current_pos">0, 0</div>
+                        <div class="value" id="current_pos"
+                            title="X = C_bal + (C_enm - C_dis)/2, Y = F_bal + (F_cha - F_rig)/2 (Clipped 5-95)">0, 0
+                        </div>
                     </div>
                     <div class="metric-card">
                         <span class="label">Cohesion Ratio</span>
-                        <div class="value" id="coh_ratio">0.00</div>
+                        <div class="value" id="coh_ratio"
+                            title="Cohesion Ratio = Balanced / mean(Disengaged, Enmeshed)">0.00</div>
                     </div>
                     <div class="metric-card">
                         <span class="label">Flexibility Ratio</span>
-                        <div class="value" id="flex_ratio">0.00</div>
+                        <div class="value" id="flex_ratio" title="Flexibility Ratio = Balanced / mean(Rigid, Chaotic)">
+                            0.00</div>
                     </div>
                     <div class="metric-card">
                         <span class="label">Total Ratio</span>
-                        <div class="value" id="total_ratio">0.00</div>
+                        <div class="value" id="total_ratio"
+                            title="Total Ratio = (C_bal + F_bal) / mean(C_dis, C_enm, F_rig, F_cha)">0.00</div>
                     </div>
                 </div>
             </section>

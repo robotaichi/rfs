@@ -148,6 +148,25 @@ button:disabled {
     cursor: not-allowed;
 }
 
+.slider-item.disabled {
+    opacity: 0.3;
+    pointer-events: auto;
+    /* Allow hover for tooltip */
+    cursor: not-allowed;
+}
+
+.slider-item.disabled input {
+    cursor: not-allowed;
+}
+
+.metric-card .value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-top: 0.25rem;
+    cursor: help;
+}
+
 .visualization-panel {
     display: flex;
     flex-direction: column;
