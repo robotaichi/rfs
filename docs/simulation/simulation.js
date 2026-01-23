@@ -83,6 +83,15 @@ function syncFromSliders() {
 
     // Update the starting point for "Reset"
     startingState = JSON.parse(JSON.stringify(state));
+
+    // Calculate current x, y
+    const x = state.c_bal + (state.c_enm - state.c_dis) / 2;
+    const y = state.f_bal + (state.f_cha - state.f_rig) / 2;
+    const vx = getVisualCoord(x);
+    const vy = getVisualCoord(y);
+
+    pathHistory = [{ x: vx, y: vy }];
+    stateHistory = [{ state: JSON.parse(JSON.stringify(state)), x, y }];
 }
 
 /**
@@ -356,11 +365,10 @@ function createChart() {
                             radius: 4,
                             drawTime: 'beforeDraw'
                         },
-                        // CURRENT POSITION AS ANNOTATION WITH HIGHEST Z-INDEX
                         currentPosMarker: {
                             type: 'point',
-                            xValue: pathHistory[pathHistory.length - 1].x,
-                            yValue: pathHistory[pathHistory.length - 1].y,
+                            xValue: pathHistory[0].x,
+                            yValue: pathHistory[0].y,
                             backgroundColor: '#ef4444',
                             borderColor: '#ffffff',
                             borderWidth: 3,
@@ -378,7 +386,6 @@ function createChart() {
 
 function updateChart() {
     chart.data.datasets[0].data = pathHistory;
-    // Update marker annotation directly
     const lastPoint = pathHistory[pathHistory.length - 1];
     chart.options.plugins.annotation.annotations.currentPosMarker.xValue = lastPoint.x;
     chart.options.plugins.annotation.annotations.currentPosMarker.yValue = lastPoint.y;
@@ -402,11 +409,7 @@ document.querySelectorAll('input[type="range"]').forEach(slider => {
 
         // If simulation is NOT running, this becomes the start of the next run
         if (!isRunning) {
-            syncFromSliders(); // This also updates startingState
-            const x = state.c_bal + (state.c_enm - state.c_dis) / 2;
-            const y = state.f_bal + (state.f_cha - state.f_rig) / 2;
-            pathHistory = [{ x: getVisualCoord(x), y: getVisualCoord(y) }];
-            stateHistory = [{ state: JSON.parse(JSON.stringify(state)), x, y }];
+            syncFromSliders(); // This also updates startingState and calculates history
             updateChart();
             updateMetrics();
             updateButtonStates();
