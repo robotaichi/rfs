@@ -224,44 +224,40 @@ These are calculated using the converted **Percentile Scores**:
 
 The goal is to minimize a loss function $J$ that represents the "excess distance" from a healthy family state.
 
-#### 1. Coordinate Definitions
-> [!IMPORTANT]
-> All variables ($c_{bal}, f_{bal}, \dots, Comm$) in the following formulas represent **Percentile Scores** derived from the conversion charts above.
+### Mathematical Foundation
 
-Let the FACES IV dimensions be:
-- $c_{bal}, f_{bal}$: Balanced Cohesion and Flexibility
-- $c_{dis}, c_{enm}$: Disengaged and Enmeshed (Unbalanced Cohesion)
-- $f_{rig}, f_{cha}$: Rigid and Chaotic (Unbalanced Flexibility)
-- $Comm$: Communication score
+The system treats therapeutic intervention as an optimization problem. The **AI Therapist** calculates the optimal path toward a healthy family state using **Gradient Descent**.
 
-We define the current position $(x, y)$ on the Circumplex Model as:
-$$x = c_{bal} + \frac{c_{enm} - c_{dis}}{2}, \quad y = f_{bal} + \frac{f_{cha} - f_{rig}}{2}$$
+#### 1. State Vector ($x_t$)
+The family state at turn $t$ is represented as a 7-dimensional vector consisting of the converted **Percentile Scores**:
+$$x_t = \begin{bmatrix} C_{bal} \\ C_{dis} \\ C_{enm} \\ F_{bal} \\ F_{rig} \\ F_{cha} \\ Comm \end{bmatrix} = [C_{bal}, C_{dis}, C_{enm}, F_{bal}, F_{rig}, F_{cha}, Comm]^T$$
 
-#### 2. Objective Function ($J$)
-The system optimizes the following objective function:
-$$J = \omega_1 \frac{U}{2B} - \omega_2 Comm + \frac{\omega_3}{2} \left[ (x - 50)^2 + (y - 50)^2 \right]$$
+#### 2. Objective Function ($J(x_t)$)
+The goal is to minimize a cost function that balances the FACES IV Ratio (Health) and Centering (Stability):
+$$J(x_t) = \omega_1 \frac{U}{2B} - \omega_2 Comm_t + \frac{\omega_3}{2} \left[ (x - 50)^2 + (y - 50)^2 \right]$$
 Where:
-- $B = c_{bal} + f_{bal}$ (Balanced Sum)
-- $U = c_{dis} + c_{enm} + f_{rig} + f_{cha}$ (Unbalanced Sum)
-- $\omega_{1,2,3}$ are configurable weights (`w1, w2, w3` in `config.json`).
+- $B = C_{bal} + F_{bal}$ (Balanced Sum)
+- $U = C_{dis} + C_{enm} + F_{rig} + F_{cha}$ (Unbalanced Sum)
+- $x = C_{bal} + \frac{C_{enm} - C_{dis}}{2}, \quad y = F_{bal} + \frac{F_{cha} - F_{rig}}{2}$
 
-#### 3. Gradient Calculation
-The gradients $\nabla J$ for each dimension are calculated as:
-- $\frac{\partial J}{\partial c_{bal}} = -\frac{\omega_1 U}{2B^2} + \omega_3(x - 50)$
-- $\frac{\partial J}{\partial f_{bal}} = -\frac{\omega_1 U}{2B^2} + \omega_3(y - 50)$
-- $\frac{\partial J}{\partial c_{enm}} = \frac{\omega_1}{2B} + \frac{\omega_3}{2}(x - 50)$
-- $\frac{\partial J}{\partial c_{dis}} = \frac{\omega_1}{2B} - \frac{\omega_3}{2}(x - 50)$
-- $\frac{\partial J}{\partial f_{cha}} = \frac{\omega_1}{2B} + \frac{\omega_3}{2}(y - 50)$
-- $\frac{\partial J}{\partial f_{rig}} = \frac{\omega_1}{2B} - \frac{\omega_3}{2}(y - 50)$
-- $\frac{\partial J}{\partial Comm} = -\omega_2$
+#### 3. Gradient Calculation ($\nabla J(x_t)$)
+The gradient vector $\nabla J(x_t)$ represents the direction of steepest increase for the cost function:
+$$\nabla J(x_t) = \left[ \frac{\partial J}{\partial C_{bal}}, \frac{\partial J}{\partial C_{dis}}, \frac{\partial J}{\partial C_{enm}}, \frac{\partial J}{\partial F_{bal}}, \frac{\partial J}{\partial F_{rig}}, \frac{\partial J}{\partial F_{cha}}, \frac{\partial J}{\partial Comm} \right]^T$$
+
+Individual partial derivatives are calculated as follows (combining the Ratio and Centering terms):
+- $\frac{\partial J}{\partial C_{bal}} = \frac{\partial J}{\partial F_{bal}} = - \frac{\omega_1 U}{2B^2} + \text{Centering Term}$
+- $\frac{\partial J}{\partial C_{enm}} = \frac{\partial J}{\partial C_{dis}} = \frac{\partial J}{\partial F_{cha}} = \frac{\partial J}{\partial F_{rig}} = \frac{\omega_1}{2B} + \text{Centering Term}$
+- $\frac{\partial J}{\partial Comm} = - \omega_2$
 
 #### 4. Update Rule & Adaptive Learning Rate
-The target scores $\theta$ are updated iteratively:
-$$\theta_{t+1} = \theta_t - \eta \nabla J$$
-The adaptive learning rate $\eta$ is scaled by the family's communication quality:
-$$\eta = \max\left(0.15, \frac{Comm}{100}\right) \times 0.25$$
+The target state is updated iteratively:
+$$x_{t+1} = x_t - \eta(Comm_t) \cdot \nabla J(x_t)$$
+Where the adaptive learning rate $\eta (Comm_t)$ represents the **step width** (degree of communication promotion):
+$$\eta(Comm_t) = \frac{Comm_t}{100} \cdot 0.25$$
 
-The resulting vector adjusts the **Behavioral Steering Prompts** for individual family members, encouraging interaction patterns that pull the family state toward the **Balanced Center (50, 50)**.
+*(Note: 1 step ($t$) corresponds to 10 conversation turns in the simulation cycle)*
+
+The resulting vector adjusts the **Behavioral Steering Prompts** for individual family members, pulling the system towards the **Balanced Center (50, 50)**.
 
 ## 📚 References
 - **Olson's Circumplex Model**: [Circumplex Model: An Update (Prepare/Enrich)](https://www.prepare-enrich.com/wp-content/uploads/2022/08/Circumplex-Model-An-Update.pdf)
