@@ -119,7 +119,6 @@ function updateButtonStates() {
     const prevBtn = document.getElementById('prev-btn');
     if (prevBtn) {
         prevBtn.disabled = stateHistory.length <= 1;
-        prevBtn.style.opacity = prevBtn.disabled ? "0.3" : "1";
     }
 }
 
@@ -244,11 +243,11 @@ function createChart() {
     const gridAnnotations = {};
     for (let i = 0; i < 5; i++) {
         for (let j = 0; j < 5; j++) {
-            let color = '#d3d3d3'; // 12 cells: Light Gray
+            let color = '#d3d3d3'; // Default Mid-range (12 cells: Light Gray)
             if ((i === 0 && j === 0) || (i === 0 && j === 4) || (i === 4 && j === 0) || (i === 4 && j === 4)) {
-                color = '#a9a9a9'; // 4 cells: Gray
+                color = '#a9a9a9'; // 4 Corners (Gray)
             } else if (i >= 1 && i <= 3 && j >= 1 && j <= 3) {
-                color = '#ffffff'; // 9 cells: White
+                color = '#ffffff'; // 9 Center (White)
             }
             gridAnnotations[`grid_${i}_${j}`] = {
                 type: 'box',
@@ -257,8 +256,7 @@ function createChart() {
                 backgroundColor: color,
                 borderColor: '#18181b',
                 borderWidth: 1.5,
-                drawTime: 'beforeDraw', // EXTREMELY IMPORTANT: Draw before everything
-                z: -100
+                drawTime: 'beforeDraw'
             };
         }
     }
@@ -274,7 +272,18 @@ function createChart() {
                     showLine: true,
                     borderWidth: 3,
                     pointRadius: 0,
-                    tension: 0.1
+                    tension: 0.1,
+                    order: 1 // Drawn after background, but before current dot
+                },
+                {
+                    label: 'Current Position',
+                    data: [pathHistory[pathHistory.length - 1]],
+                    backgroundColor: '#ef4444',
+                    borderColor: '#ffffff',
+                    borderWidth: 2,
+                    pointRadius: 10,
+                    pointHoverRadius: 12,
+                    order: 0 // HIGHER priority = Drawn last = On Top
                 }
             ]
         },
@@ -298,7 +307,7 @@ function createChart() {
                             }
                             return null;
                         },
-                        stepSize: 0.0005
+                        stepSize: 0.0001
                     }
                 },
                 y: {
@@ -315,7 +324,7 @@ function createChart() {
                             }
                             return null;
                         },
-                        stepSize: 0.0005
+                        stepSize: 0.0001
                     }
                 }
             },
@@ -329,25 +338,14 @@ function createChart() {
                             content: 'BALANCED',
                             color: 'rgba(34, 197, 94, 0.2)',
                             font: { size: 32, weight: 'bold' },
-                            z: -50
+                            drawTime: 'beforeDraw'
                         },
                         centerTarget: {
                             type: 'point',
                             xValue: getVisualCoord(50), yValue: getVisualCoord(50),
                             backgroundColor: 'rgba(0, 0, 0, 0.1)',
                             radius: 4,
-                            z: -10
-                        },
-                        // CURRENT POSITION AS ANNOTATION TO FORCE TOP LAYER
-                        currentPosMarker: {
-                            type: 'point',
-                            xValue: pathHistory[pathHistory.length - 1].x,
-                            yValue: pathHistory[pathHistory.length - 1].y,
-                            backgroundColor: '#ef4444',
-                            radius: 10,
-                            borderColor: '#ffffff',
-                            borderWidth: 2,
-                            z: 100 // TOP LAYER
+                            drawTime: 'beforeDraw'
                         }
                     }
                 },
@@ -360,9 +358,7 @@ function createChart() {
 
 function updateChart() {
     chart.data.datasets[0].data = pathHistory;
-    // Update marker annotation instead of dataset
-    chart.options.plugins.annotation.annotations.currentPosMarker.xValue = pathHistory[pathHistory.length - 1].x;
-    chart.options.plugins.annotation.annotations.currentPosMarker.yValue = pathHistory[pathHistory.length - 1].y;
+    chart.data.datasets[1].data = [pathHistory[pathHistory.length - 1]];
     chart.update('none');
 }
 
@@ -394,7 +390,6 @@ document.getElementById('run-btn').addEventListener('click', () => {
     isRunning = !isRunning;
     updateRunButtonText();
     if (isRunning) step();
-    else clearTimeout(animationId);
 });
 
 document.getElementById('reset-btn').addEventListener('click', () => {
@@ -419,7 +414,7 @@ document.getElementById('prev-btn').addEventListener('click', () => {
         clearTimeout(animationId);
         updateRunButtonText();
     }
-    undoStep();
+    if (stateHistory.length > 1) undoStep();
 });
 
 // Start

@@ -141,6 +141,11 @@ button:hover {
     filter: brightness(1.1);
 }
 
+button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
 .visualization-panel {
     display: flex;
     flex-direction: column;
@@ -152,7 +157,10 @@ button:hover {
     padding: 1.5rem;
     border-radius: 1rem;
     border: 1px solid var(--border);
-    height: 600px;
+    width: 100%;
+    max-width: 600px;
+    aspect-ratio: 1 / 1;
+    margin: 0 auto;
     position: relative;
 }
 
