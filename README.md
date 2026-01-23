@@ -107,10 +107,40 @@ graph TD
 | **`rfs_viewer`** | Visualization | Real-time GUI for plotting psychological trajectories. |
 | **`rfs_evaluation`** | Map & Assess | Aggregates logs and maps them to the FACES IV circumplex. |
 
-## ⚙️ Configuration & Environment
+## 🚀 Getting Started
 
-### Environment Variables
-The system requires valid API keys. Set them in your terminal:
+### Prerequisites
+- **OS**: Ubuntu 24.04 (Noble Numbat)
+- **ROS2**: [Jazzy Jalisco](https://docs.ros.org/en/jazzy/Installation.html)
+- **Hardware**: [toio™](https://toio.io/) Core Cubes (Optional).
+
+### Requirements
+
+Before building the project, ensure you have the necessary system and Python libraries installed:
+
+**1. System Dependencies**
+```bash
+sudo apt update && sudo apt install -y python3-tk libportaudio2
+```
+
+**2. Python Libraries**
+```bash
+pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py Pillow
+```
+
+### Installation
+
+1. **Clone & Build**:
+   ```bash
+   git clone https://github.com/robotaichi/rfs.git
+   cd rfs
+   colcon build
+   source install/setup.bash
+   ```
+
+### Configuration
+
+The system requires valid API keys. Set them in your terminal before launching:
 
 ```bash
 # OpenAI API Key (Required for personality and evaluation)
@@ -122,6 +152,13 @@ export GEMINI_API_KEY="AIza..."
 
 - **`OPENAI_API_KEY`**: Essential for LLM-based dialogue generation and psychological mapping.
 - **`GEMINI_API_KEY`**: Required for Gemini Live-based audio transcription.
+
+2. **Launch**:
+   ```bash
+   ros2 launch rfs_bringup rfs_all.launch.py
+   ```
+
+## ⚙️ Settings
 
 ### `config.json` Specification
 Located in `src/rfs_config/config/config.json`.
@@ -157,41 +194,6 @@ Located in `src/rfs_config/config/config.json`.
 - **Temperature Settings**:
   - **Dialogue (`1.0`)**: A higher temperature is used for turn-taking to ensure natural, varied, and creative conversation that reflects the dynamic nature of family interactions.
   - **Evaluation (`0.7`)**: A slightly lower temperature is used for psychological assessment to ensure reliable and consistent scoring while still allowing the LLM to capture the "subjective feel" of the simulated member.
-
-## 🚀 Getting Started
-
-### Prerequisites
-- **OS**: Ubuntu 24.04 (Noble Numbat)
-- **ROS2**: [Jazzy Jalisco](https://docs.ros.org/en/jazzy/Installation.html)
-- **Hardware**: [toio™](https://toio.io/) Core Cubes (Optional).
-
-### Requirements
-
-Before building the project, ensure you have the necessary system and Python libraries installed:
-
-**1. System Dependencies**
-```bash
-sudo apt update && sudo apt install -y python3-tk libportaudio2
-```
-
-**2. Python Libraries**
-```bash
-pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py Pillow
-```
-
-### Installation
-1. **Clone & Build**:
-   ```bash
-   git clone https://github.com/robotaichi/rfs.git
-   cd rfs
-   colcon build
-   source install/setup.bash
-   ```
-
-2. **Launch**:
-   ```bash
-   ros2 launch rfs_bringup rfs_all.launch.py
-   ```
 
 ## 📊 FACES IV Model & Gradient Descent
 
