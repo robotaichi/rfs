@@ -41,5 +41,6 @@
     "x": 8.0,
     "y": 8.0
   },
+  "learning_rate_scaling": 0.25,
   "shutdown_timer_minutes": 0
 }

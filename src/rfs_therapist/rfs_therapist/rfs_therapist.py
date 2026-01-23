@@ -63,6 +63,7 @@ class RFSTherapist(Node):
         self.OMEGA_1 = 1.0
         self.OMEGA_2 = 1.0
         self.OMEGA_3 = 2.0 # Increased from 0.5 to prioritize center targeting
+        self.LEARNING_RATE_SCALING = 0.25
         self.family_config = []
         
         self.member_results = {} # {step_id: {role: results}}
@@ -120,6 +121,7 @@ class RFSTherapist(Node):
                     self.OMEGA_3 = config.get("w3", 0.5)
                     self.family_config = config.get("family_config", [])
                     self.initial_coords = config.get("initial_coords", {"x": 8.0, "y": 8.0})
+                    self.LEARNING_RATE_SCALING = config.get("learning_rate_scaling", 0.25)
         except: pass
 
     def trigger_callback(self, msg: String):
@@ -483,7 +485,7 @@ class RFSTherapist(Node):
         U = c_dis + c_enm + f_rig + f_cha
         
         # Learning rate eta (Slightly reduced for smoother steering)
-        eta = max(0.15, comm / 100.0) * 0.25
+        eta = max(0.15, comm / 100.0) * self.LEARNING_RATE_SCALING
         
         # Calculate gradients 
         # Objective J = w1*(U/2B) - w2*Comm + w3*0.5*((x-50)^2 + (y-50)^2)

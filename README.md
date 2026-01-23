@@ -128,7 +128,7 @@ Located in `src/rfs_config/config/config.json`.
 ### Prerequisites
 - **OS**: Ubuntu 24.04 (Noble Numbat)
 - **ROS2**: [Jazzy Jalisco](https://docs.ros.org/en/jazzy/Installation.html)
-- **Hardware**: toio™ Core Cubes (Optional).
+- **Hardware**: [toio™](https://toio.io/) Core Cubes (Optional).
 
 ### Installation
 1. **Clone & Build**:
@@ -296,6 +296,8 @@ Where the adaptive learning rate $\eta (Comm_t)$ represents the **step width**:
 > ```math
 > \eta(Comm_t) = \frac{Comm_t}{100} \cdot 0.25
 > ```
+
+Where **0.25** is the base scaling factor (configurable via `learning_rate_scaling` in `config.json`) that determines the overall sensitivity of the therapeutic steering.
 
 *This step width, along with the Communication dimension, acts as the **driving force** for promoting Cohesion and Flexibility.*
 
