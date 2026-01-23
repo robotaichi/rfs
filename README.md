@@ -152,13 +152,60 @@ The system treats therapeutic intervention as an optimization problem. If a fami
 
 Before any mathematical processing or plotting, the system converts the **Raw Scores** obtained from assessments into **Percentile Scores**. This conversion is essential for standardized mapping onto the Circumplex Model and ensures that the Gradient Descent operates on a normalized scale ($0$ to $100$).
 
-The following conversion charts, based on standard FACES IV norms, are used by the `rfs_evaluation` and `rfs_therapist` nodes:
+The following conversion charts, based on standard FACES IV norms, are used by the system.
 
-#### Balanced & Unbalanced Scales
-![Percentile Conversion Balanced/Unbalanced](docs/images/percentile_conversion_balanced_unbalanced.png)
+#### 1. Balanced & Unbalanced Scales (Cohesion & Flexibility)
 
-#### Family Communication
-![Percentile Conversion Communication](docs/images/percentile_conversion_communication.png)
+| Raw Score | Balanced Pct (C/F) | Unbalanced Pct (D/E/R/C) |
+| :--- | :--- | :--- |
+| **7** | 16 | 10 |
+| **8** | 18 | 12 |
+| **9** | 20 | 13 |
+| **10** | 22 | 14 |
+| **11** | 24 | 15 |
+| **12** | 25 | 16 |
+| **13** | 26 | 18 |
+| **14** | 27 | 20 |
+| **15** | 28 | 24 |
+| **16** | 30 | 26 |
+| **17** | 32 | 30 |
+| **18** | 35 | 32 |
+| **19** | 36 | 34 |
+| **20** | 38 | 36 |
+| **21** | 40 | 40 |
+| **22** | 45 | 45 |
+| **23** | 50 | 50 |
+| **24** | 55 | 55 |
+| **25** | 58 | 60 |
+| **26** | 60 | 64 |
+| **27** | 62 | 68 |
+| **28** | 65 | 70 |
+| **29** | 68 | 75 |
+| **30** | 70 | 80 |
+| **31** | 75 | 85 |
+| **32** | 80 | 90 |
+| **33** | 82 | 95 |
+| **34** | 84 | 98 |
+| **35** | 85 | 99 |
+
+#### 2. Family Communication
+
+| Raw Score | Percentile | Raw Score | Percentile |
+| :--- | :--- | :--- | :--- |
+| **10-23** | 10 | **37** | 58 |
+| **24** | 12 | **38** | 62 |
+| **25** | 13 | **39** | 65 |
+| **26** | 14 | **40** | 70 |
+| **27** | 15 | **41** | 74 |
+| **28** | 18 | **42** | 80 |
+| **29** | 21 | **43** | 83 |
+| **30** | 24 | **44** | 86 |
+| **31** | 28 | **45** | 88 |
+| **32** | 32 | **46** | 90 |
+| **33** | 36 | **47** | 94 |
+| **34** | 40 | **48** | 96 |
+| **35** | 44 | **49** | 97 |
+| **36** | 50 | **50** | 99 |
 
 ### Ratio Scores
 
