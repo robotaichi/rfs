@@ -130,6 +130,7 @@ Located in `src/rfs_config/config/config.json`.
 | :--- | :--- | :--- |
 | **`language`** | String | Language code for interaction: `"en"` (English) or `"ja"` (Japanese). |
 | **`theme`** | String | The scenario or topic of conversation (e.g., "Christmas", "Moving Out"). |
+| **`learning_rate_scaling`** | Float | Base multiplier for therapeutic steering sensitivity (Default: `0.25`). |
 | **`w1`, `w2`, `w3`** | Float | Weights for the FACES IV evaluation model (Cohesion, Flexibility, Communication). |
 | **`turns_per_step`** | Integer | Number of conversation turns before an evaluation trigger. |
 | **`toio_speaker_match`** | List | Hardware mapping for robots (`toio_id`) and audio outputs (`speaker_id`). |
