@@ -4,14 +4,13 @@
  * Strictly synchronized with RFSTherapist node logic and visual mapping.
  */
 
-// Global Chart Instance
+// Global State
 let chart;
-const ctx = document.getElementById('circumplexChart').getContext('2d');
 let animationId = null;
 let isRunning = false;
 
 // Initial configuration (tied to sliders)
-let configState = {
+const configState = {
     c_bal: 20, c_dis: 80, c_enm: 10,
     f_bal: 20, f_rig: 80, f_cha: 10,
     comm: 50
@@ -20,7 +19,7 @@ let configState = {
 // Active simulation state (evolves via math)
 let currentState = JSON.parse(JSON.stringify(configState));
 
-let weights = {
+const weights = {
     w1: 1.0, w2: 1.0, w3: 2.0
 };
 
@@ -32,14 +31,10 @@ const tick_vals = [0, 8, 15, 16, 25, 35, 36, 50, 65, 66, 75, 85, 86, 95, 100];
 
 /**
  * --- Dimension Score Calculation (Percentile) ---
- * Converts 7-variable state to X (Cohesion) and Y (Flexibility) dimension scores.
- * Clipped to [5, 95] as requested.
  */
 function getClippedDimensionScores(s) {
     let x = s.c_bal + (s.c_enm - s.c_dis) / 2.0;
     let y = s.f_bal + (s.f_cha - s.f_rig) / 2.0;
-
-    // Strict Clipping to [5, 95]
     return {
         x: Math.max(5, Math.min(95, x)),
         y: Math.max(5, Math.min(95, y))
@@ -48,7 +43,6 @@ function getClippedDimensionScores(s) {
 
 /**
  * --- Piecewise Linear Visual Mapping ---
- * Maps 0-100 percentile scores to 0.0 - 5.0 visual coordinates.
  */
 function getVisualCoord(score) {
     const gap = 0.04;
@@ -59,17 +53,14 @@ function getVisualCoord(score) {
         { idx: 3, min: 66, mid: 75, max: 85 },
         { idx: 4, min: 86, mid: 95, max: 100 }
     ];
-
     let r = ranges.find(range => score >= range.min && score <= range.max);
     if (!r) {
         if (score < 0) r = ranges[0];
         else r = ranges[4];
     }
-
     const vis_start = r.idx + gap;
     const vis_mid = r.idx + 0.5;
     const vis_end = r.idx + 1.0 - gap;
-
     if (score <= r.mid) {
         if (r.mid === r.min) return vis_start;
         const norm = (score - r.min) / (r.mid - r.min);
@@ -82,29 +73,17 @@ function getVisualCoord(score) {
 }
 
 /**
- * Enables/Disables sliders based on whether the simulation has history.
+ * UI Syncing
  */
 function updateSliderState() {
-    const hasHistory = stateHistory.length > 1;
-    const allSliders = document.querySelectorAll('input[type="range"]');
-
-    allSliders.forEach(slider => {
-        if (hasHistory) {
-            slider.disabled = true;
-            slider.parentElement.classList.add('disabled');
-            slider.title = "値を変更するにはリセットしてください / Reset to change initial values";
-        } else {
-            slider.disabled = false;
-            slider.parentElement.classList.remove('disabled');
-            slider.title = "";
-        }
+    const isActuallyRunning = stateHistory.length > 1;
+    document.querySelectorAll('input[type="range"]').forEach(slider => {
+        slider.disabled = isActuallyRunning;
+        slider.parentElement.classList.toggle('disabled', isActuallyRunning);
+        slider.title = isActuallyRunning ? "値を変更するにはリセットしてください / Reset to change initial values" : "";
     });
 }
 
-/**
- * Updates only the textual value indicators NEXT to sliders.
- * These reflect the INITIAL values set by the user.
- */
 function updateSliderLabels() {
     Object.keys(configState).forEach(key => {
         const valEl = document.getElementById(key + '_val');
@@ -114,13 +93,12 @@ function updateSliderLabels() {
         const valEl = document.getElementById(key + '_val');
         if (valEl) valEl.innerText = weights[key].toFixed(1);
     });
-    const lrValEl = document.getElementById('lr_scale_val');
-    if (lrValEl) lrValEl.innerText = lr_scale.toFixed(2);
+    document.getElementById('lr_scale_val').innerText = lr_scale.toFixed(2);
 }
 
 function updateMetrics() {
+    if (stateHistory.length === 0) return;
     const last = stateHistory[stateHistory.length - 1];
-
     const coh_unbal = (currentState.c_dis + currentState.c_enm) / 2;
     const flex_unbal = (currentState.f_rig + currentState.f_cha) / 2;
     const coh_ratio = currentState.c_bal / Math.max(1, coh_unbal);
@@ -135,7 +113,12 @@ function updateMetrics() {
 
 function updateButtonStates() {
     const prevBtn = document.getElementById('prev-btn');
-    if (prevBtn) prevBtn.disabled = stateHistory.length <= 1;
+    if (prevBtn) {
+        // Force disable if length <= 1
+        prevBtn.disabled = (stateHistory.length <= 1);
+        // Explicitly set opacity if CSS is finicky
+        prevBtn.style.opacity = (stateHistory.length <= 1) ? "0.2" : "1";
+    }
 }
 
 function updateRunButtonText() {
@@ -146,17 +129,17 @@ function updateRunButtonText() {
 function updateChart() {
     if (!chart) return;
     chart.data.datasets[0].data = JSON.parse(JSON.stringify(pathHistory));
-    const lastPoint = pathHistory[pathHistory.length - 1];
-    chart.options.plugins.annotation.annotations.currentPosMarker.xValue = lastPoint.x;
-    chart.options.plugins.annotation.annotations.currentPosMarker.yValue = lastPoint.y;
+    const lastPos = pathHistory[pathHistory.length - 1];
+    chart.options.plugins.annotation.annotations.currentPosMarker.xValue = lastPos.x;
+    chart.options.plugins.annotation.annotations.currentPosMarker.yValue = lastPos.y;
     chart.update('none');
 }
 
 /**
- * Syncs the starting point from the slider positions.
- * Updates configState and initializes currentState.
+ * Logic Hooks
  */
 function syncFromUI() {
+    // Collect from sliders
     Object.keys(configState).forEach(key => {
         const el = document.getElementById(key);
         if (el) configState[key] = parseFloat(el.value);
@@ -168,141 +151,30 @@ function syncFromUI() {
     const lrEl = document.getElementById('lr_scale');
     if (lrEl) lr_scale = parseFloat(lrEl.value);
 
+    // Set active state
     currentState = JSON.parse(JSON.stringify(configState));
 
+    // Reset history to JUST the start
     const dim = getClippedDimensionScores(currentState);
     pathHistory = [{ x: getVisualCoord(dim.x), y: getVisualCoord(dim.y) }];
     stateHistory = [{ state: JSON.parse(JSON.stringify(currentState)), x: dim.x, y: dim.y }];
 
-    updateMetrics();
-    updateChart();
-    updateButtonStates();
     updateSliderLabels();
+    updateMetrics();
+    updateButtonStates();
     updateSliderState();
+    updateChart();
 }
 
-/**
- * Resets the entire simulation to the state held in the sliders.
- */
 function init() {
     syncFromUI();
+
+    const canvas = document.getElementById('circumplexChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
     if (chart) chart.destroy();
-    createChart();
-}
 
-/**
- * --- Gradient Descent Step ---
- */
-function step() {
-    const B = Math.max(0.1, currentState.c_bal + currentState.f_bal);
-    const U = currentState.c_dis + currentState.c_enm + currentState.f_rig + currentState.f_cha;
-
-    const rawX = currentState.c_bal + (currentState.c_enm - currentState.c_dis) / 2.0;
-    const rawY = currentState.f_bal + (currentState.f_cha - currentState.f_rig) / 2.0;
-
-    const eta = Math.max(0.15, currentState.comm / 100) * lr_scale;
-
-    const grad_bal_prefix = - (weights.w1 * U) / (2.0 * B ** 2);
-    const dJ_dc_bal = grad_bal_prefix + weights.w3 * (rawX - 50.0);
-    const dJ_df_bal = grad_bal_prefix + weights.w3 * (rawY - 50.0);
-
-    const grad_unbal_prefix = weights.w1 / (2.0 * B);
-    const dJ_dc_enm = grad_unbal_prefix + (weights.w3 / 2.0) * (rawX - 50.0);
-    const dJ_dc_dis = grad_unbal_prefix - (weights.w3 / 2.0) * (rawX - 50.0);
-    const dJ_df_cha = grad_unbal_prefix + (weights.w3 / 2.0) * (rawY - 50.0);
-    const dJ_df_rig = grad_unbal_prefix - (weights.w3 / 2.0) * (rawY - 50.0);
-
-    const dJ_dcomm = - weights.w2;
-
-    let delta = {
-        c_bal: -eta * dJ_dc_bal,
-        f_bal: -eta * dJ_df_bal,
-        c_enm: -eta * dJ_dc_enm,
-        c_dis: -eta * dJ_dc_dis,
-        f_cha: -eta * dJ_df_cha,
-        f_rig: -eta * dJ_df_rig,
-        comm: -eta * dJ_dcomm
-    };
-
-    function getCellIdx(v) {
-        if (v <= 15) return 0;
-        if (v <= 35) return 1;
-        if (v <= 65) return 2;
-        if (v <= 85) return 3;
-        return 4;
-    }
-
-    const currI = getCellIdx(rawX);
-    const currJ = getCellIdx(rawY);
-    const ranges = [[0, 15], [16, 35], [36, 65], [66, 85], [86, 100]];
-    const lowX = ranges[Math.max(0, currI - 1)][0];
-    const highX = ranges[Math.min(4, currI + 1)][1];
-    const lowY = ranges[Math.max(0, currJ - 1)][0];
-    const highY = ranges[Math.min(4, currJ + 1)][1];
-
-    const nextXRaw = (currentState.c_bal + delta.c_bal) + ((currentState.c_enm + delta.c_enm) - (currentState.c_dis + delta.c_dis)) / 2.0;
-    const nextYRaw = (currentState.f_bal + delta.f_bal) + ((currentState.f_cha + delta.f_cha) - (currentState.f_rig + delta.f_rig)) / 2.0;
-
-    let alpha = 1.0;
-    const dx = nextXRaw - rawX;
-    const dy = nextYRaw - rawY;
-    if (dx !== 0) {
-        if (rawX + dx > highX) alpha = Math.min(alpha, (highX - rawX) / dx);
-        if (rawX + dx < lowX) alpha = Math.min(alpha, (lowX - rawX) / dx);
-    }
-    if (dy !== 0) {
-        if (rawY + dy > highY) alpha = Math.min(alpha, (highY - rawY) / dy);
-        if (rawY + dy < lowY) alpha = Math.min(alpha, (lowY - rawY) / dy);
-    }
-
-    if (alpha < 1.0) {
-        Object.keys(delta).forEach(k => delta[k] *= alpha);
-    }
-
-    currentState.c_bal = Math.min(100, Math.max(0, currentState.c_bal + delta.c_bal));
-    currentState.f_bal = Math.min(100, Math.max(0, currentState.f_bal + delta.f_bal));
-    currentState.c_enm = Math.min(100, Math.max(0, currentState.c_enm + delta.c_enm));
-    currentState.c_dis = Math.min(100, Math.max(0, currentState.c_dis + delta.c_dis));
-    currentState.f_cha = Math.min(100, Math.max(0, currentState.f_cha + delta.f_cha));
-    currentState.f_rig = Math.min(100, Math.max(0, currentState.f_rig + delta.f_rig));
-    currentState.comm = Math.min(100, Math.max(0, currentState.comm + delta.comm));
-
-    const finalDim = getClippedDimensionScores(currentState);
-
-    pathHistory.push({ x: getVisualCoord(finalDim.x), y: getVisualCoord(finalDim.y) });
-    stateHistory.push({ state: JSON.parse(JSON.stringify(currentState)), x: finalDim.x, y: finalDim.y });
-
-    if (pathHistory.length > 500) {
-        pathHistory.shift();
-        stateHistory.shift();
-    }
-
-    updateMetrics();
-    updateChart();
-    updateButtonStates();
-    updateSliderState();
-
-    if (isRunning) {
-        animationId = setTimeout(step, 100);
-    }
-}
-
-function undoStep() {
-    if (stateHistory.length > 1) {
-        stateHistory.pop();
-        pathHistory.pop();
-        const prev = stateHistory[stateHistory.length - 1];
-        currentState = JSON.parse(JSON.stringify(prev.state));
-
-        updateMetrics();
-        updateChart();
-        updateButtonStates();
-        updateSliderState();
-    }
-}
-
-// Charting
-function createChart() {
     const gridAnnotations = {};
     for (let i = 0; i < 5; i++) {
         for (let j = 0; j < 5; j++) {
@@ -327,19 +199,17 @@ function createChart() {
     chart = new Chart(ctx, {
         type: 'scatter',
         data: {
-            datasets: [
-                {
-                    label: 'Trajectory',
-                    data: pathHistory,
-                    borderColor: 'rgba(239, 68, 68, 0.3)',
-                    backgroundColor: 'rgba(239, 68, 68, 0.4)',
-                    showLine: true,
-                    borderWidth: 2,
-                    pointRadius: 5,
-                    pointHoverRadius: 7,
-                    tension: 0.1
-                }
-            ]
+            datasets: [{
+                label: 'Trajectory',
+                data: pathHistory,
+                borderColor: 'rgba(239, 68, 68, 0.3)',
+                backgroundColor: 'rgba(239, 68, 68, 0.4)',
+                showLine: true,
+                borderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                tension: 0.1
+            }]
         },
         options: {
             responsive: true,
@@ -353,15 +223,9 @@ function createChart() {
                     grid: { display: false },
                     ticks: {
                         color: '#71717a',
+                        callback: (v) => tick_vals.find(tv => Math.abs(getVisualCoord(tv) - v) < 0.005) || null,
                         autoSkip: false,
-                        maxRotation: 0,
-                        callback: function (value) {
-                            for (let v of tick_vals) {
-                                if (Math.abs(getVisualCoord(v) - value) < 0.0005) return v;
-                            }
-                            return null;
-                        },
-                        stepSize: 0.0001
+                        maxRotation: 0
                     }
                 },
                 y: {
@@ -370,15 +234,9 @@ function createChart() {
                     grid: { display: false },
                     ticks: {
                         color: '#71717a',
+                        callback: (v) => tick_vals.find(tv => Math.abs(getVisualCoord(tv) - v) < 0.005) || null,
                         autoSkip: false,
-                        maxRotation: 0,
-                        callback: function (value) {
-                            for (let v of tick_vals) {
-                                if (Math.abs(getVisualCoord(v) - value) < 0.0005) return v;
-                            }
-                            return null;
-                        },
-                        stepSize: 0.0001
+                        maxRotation: 0
                     }
                 }
             },
@@ -420,12 +278,85 @@ function createChart() {
     });
 }
 
+function step() {
+    const B = Math.max(0.1, currentState.c_bal + currentState.f_bal);
+    const U = currentState.c_dis + currentState.c_enm + currentState.f_rig + currentState.f_cha;
+    const rawX = currentState.c_bal + (currentState.c_enm - currentState.c_dis) / 2.0;
+    const rawY = currentState.f_bal + (currentState.f_cha - currentState.f_rig) / 2.0;
+    const eta = Math.max(0.15, currentState.comm / 100) * lr_scale;
+
+    const grad_prefix_bal = -(weights.w1 * U) / (2.0 * B ** 2);
+    const dJ_dc_bal = grad_prefix_bal + weights.w3 * (rawX - 50.0);
+    const dJ_df_bal = grad_prefix_bal + weights.w3 * (rawY - 50.0);
+
+    const grad_prefix_unbal = weights.w1 / (2.0 * B);
+    const dJ_dc_enm = grad_prefix_unbal + (weights.w3 / 2.0) * (rawX - 50.0);
+    const dJ_dc_dis = grad_prefix_unbal - (weights.w3 / 2.0) * (rawX - 50.0);
+    const dJ_df_cha = grad_prefix_unbal + (weights.w3 / 2.0) * (rawY - 50.0);
+    const dJ_df_rig = grad_prefix_unbal - (weights.w3 / 2.0) * (rawY - 50.0);
+
+    const dJ_dcomm = -weights.w2;
+
+    const getCellIdx = (v) => (v <= 15 ? 0 : v <= 35 ? 1 : v <= 65 ? 2 : v <= 85 ? 3 : 4);
+    const ranges = [[0, 15], [16, 35], [36, 65], [66, 85], [86, 100]];
+    const currI = getCellIdx(rawX);
+    const currJ = getCellIdx(rawY);
+    const lowX = ranges[Math.max(0, currI - 1)][0], highX = ranges[Math.min(4, currI + 1)][1];
+    const lowY = ranges[Math.max(0, currJ - 1)][0], highY = ranges[Math.min(4, currJ + 1)][1];
+
+    let delta = {
+        c_bal: -eta * dJ_dc_bal, f_bal: -eta * dJ_df_bal,
+        c_enm: -eta * dJ_dc_enm, c_dis: -eta * dJ_dc_dis,
+        f_cha: -eta * dJ_df_cha, f_rig: -eta * dJ_df_rig,
+        comm: -eta * dJ_dcomm
+    };
+
+    const nextXRaw = (currentState.c_bal + delta.c_bal) + ((currentState.c_enm + delta.c_enm) - (currentState.c_dis + delta.c_dis)) / 2.0;
+    const nextYRaw = (currentState.f_bal + delta.f_bal) + ((currentState.f_cha + delta.f_cha) - (currentState.f_rig + delta.f_rig)) / 2.0;
+
+    let alpha = 1.0;
+    const dx = nextXRaw - rawX, dy = nextYRaw - rawY;
+    if (dx !== 0) {
+        if (rawX + dx > highX) alpha = Math.min(alpha, (highX - rawX) / dx);
+        if (rawX + dx < lowX) alpha = Math.min(alpha, (lowX - rawX) / dx);
+    }
+    if (dy !== 0) {
+        if (rawY + dy > highY) alpha = Math.min(alpha, (highY - rawY) / dy);
+        if (rawY + dy < lowY) alpha = Math.min(alpha, (lowY - rawY) / dy);
+    }
+    if (alpha < 1.0) Object.keys(delta).forEach(k => delta[k] *= alpha);
+
+    Object.keys(delta).forEach(k => currentState[k] = Math.min(100, Math.max(0, currentState[k] + delta[k])));
+
+    const dim = getClippedDimensionScores(currentState);
+    pathHistory.push({ x: getVisualCoord(dim.x), y: getVisualCoord(dim.y) });
+    stateHistory.push({ state: JSON.parse(JSON.stringify(currentState)), x: dim.x, y: dim.y });
+
+    updateMetrics();
+    updateChart();
+    updateButtonStates();
+    updateSliderState();
+
+    if (isRunning) animationId = setTimeout(step, 100);
+}
+
+function undoStep() {
+    if (stateHistory.length > 1) {
+        stateHistory.pop();
+        pathHistory.pop();
+        const prev = stateHistory[stateHistory.length - 1];
+        currentState = JSON.parse(JSON.stringify(prev.state));
+        updateMetrics();
+        updateChart();
+        updateButtonStates();
+        updateSliderState();
+    }
+}
+
 // Event Listeners
 document.querySelectorAll('input[type="range"]').forEach(slider => {
-    slider.addEventListener('input', (e) => {
-        if (!isRunning && stateHistory.length <= 1) {
-            syncFromUI();
-        }
+    slider.addEventListener('input', () => {
+        if (!isRunning && stateHistory.length <= 1) syncFromUI();
     });
 });
 
@@ -443,22 +374,18 @@ document.getElementById('reset-btn').addEventListener('click', () => {
 });
 
 document.getElementById('next-btn').addEventListener('click', () => {
-    if (isRunning) {
-        isRunning = false;
-        clearTimeout(animationId);
-        updateRunButtonText();
-    }
+    if (isRunning) { isRunning = false; clearTimeout(animationId); updateRunButtonText(); }
     step();
 });
 
 document.getElementById('prev-btn').addEventListener('click', () => {
-    if (isRunning) {
-        isRunning = false;
-        clearTimeout(animationId);
-        updateRunButtonText();
-    }
-    if (stateHistory.length > 1) undoStep();
+    if (isRunning) { isRunning = false; clearTimeout(animationId); updateRunButtonText(); }
+    undoStep();
 });
 
-// Boot
-init();
+// START
+document.addEventListener('DOMContentLoaded', init);
+// Fallback if DOMContentLoaded already fired
+if (document.readyState === 'interactive' || document.readyState === 'complete') {
+    init();
+}
