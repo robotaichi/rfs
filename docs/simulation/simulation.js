@@ -76,11 +76,10 @@ function init() {
     pathHistory = [{ x: vx, y: vy }];
     stateHistory = [{ state: JSON.parse(JSON.stringify(state)), x, y }];
 
-    if (chart) {
-        updateChart();
-    } else {
-        createChart();
-    }
+    // CRITICAL: Always destroy and recreate to apply scale changes
+    if (chart) chart.destroy();
+    createChart();
+
     updateMetrics();
     updateButtonStates();
 }
@@ -121,7 +120,7 @@ function updateButtonStates() {
     const prevBtn = document.getElementById('prev-btn');
     if (prevBtn) {
         prevBtn.disabled = stateHistory.length <= 1;
-        prevBtn.style.opacity = prevBtn.disabled ? "0.5" : "1";
+        prevBtn.style.opacity = prevBtn.disabled ? "0.3" : "1";
     }
 }
 
@@ -213,7 +212,7 @@ function step() {
     pathHistory.push({ x: getVisualCoord(nextX), y: getVisualCoord(nextY) });
     stateHistory.push({ state: JSON.parse(JSON.stringify(state)), x: nextX, y: nextY });
 
-    if (pathHistory.length > 200) {
+    if (pathHistory.length > 500) {
         pathHistory.shift();
         stateHistory.shift();
     }
@@ -246,19 +245,19 @@ function createChart() {
     const gridAnnotations = {};
     for (let i = 0; i < 5; i++) {
         for (let j = 0; j < 5; j++) {
-            let color = '#d4d4d8'; // Default Mid-range (zinc-300)
+            let color = '#d3d3d3'; // Default Mid-range (Light Gray)
             if ((i === 0 && j === 0) || (i === 0 && j === 4) || (i === 4 && j === 0) || (i === 4 && j === 4)) {
-                color = '#71717a'; // Unbalanced Corners (zinc-500)
+                color = '#a9a9a9'; // Unbalanced Corners (Gray)
             } else if (i >= 1 && i <= 3 && j >= 1 && j <= 3) {
-                color = '#ffffff'; // Balanced Center
+                color = '#ffffff'; // Balanced Center (White)
             }
             gridAnnotations[`grid_${i}_${j}`] = {
                 type: 'box',
                 xMin: i + 0.04, xMax: i + 0.96,
                 yMin: j + 0.04, yMax: j + 0.96,
                 backgroundColor: color,
-                borderColor: '#27272a', // zinc-800
-                borderWidth: 1,
+                borderColor: '#18181b', // dark border
+                borderWidth: 1.5,
                 drawTime: 'beforeDatasetsDraw'
             };
         }
@@ -271,7 +270,7 @@ function createChart() {
                 {
                     label: 'Path',
                     data: pathHistory,
-                    borderColor: '#0ea5e9', // sky-500
+                    borderColor: '#0ea5e9',
                     showLine: true,
                     borderWidth: 3,
                     pointRadius: 0,
@@ -281,50 +280,51 @@ function createChart() {
                 {
                     label: 'Current Position',
                     data: [pathHistory[pathHistory.length - 1]],
-                    backgroundColor: '#ef4444', // red-500
-                    pointRadius: 8,
-                    pointHoverRadius: 10,
-                    order: 1
+                    backgroundColor: '#ef4444',
+                    pointRadius: 10,
+                    pointHoverRadius: 12,
+                    order: 1 // ALWAYS Smallest = Top
                 }
             ]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
-            layout: { padding: 10 },
+            maintainAspectRatio: true,
+            aspectRatio: 1, // FORCE SQUARE
+            layout: { padding: { left: 10, right: 30, top: 10, bottom: 20 } },
             scales: {
                 x: {
                     min: 0, max: 5,
-                    title: { display: true, text: 'COHESION (Percentile Thresholds)', color: '#94a3b8' },
+                    title: { display: true, text: 'COHESION', color: '#94a3b8', font: { weight: 'bold' } },
                     grid: { display: false },
                     ticks: {
-                        color: '#a1a1aa',
+                        color: '#71717a',
                         autoSkip: false,
                         maxRotation: 0,
                         callback: function (value) {
                             for (let v of tick_vals) {
-                                if (Math.abs(getVisualCoord(v) - value) < 0.001) return v;
+                                if (Math.abs(getVisualCoord(v) - value) < 0.0005) return v;
                             }
                             return null;
                         },
-                        stepSize: 0.001 // High resolution for threshold matching
+                        stepSize: 0.0005
                     }
                 },
                 y: {
                     min: 0, max: 5,
-                    title: { display: true, text: 'FLEXIBILITY (Percentile Thresholds)', color: '#94a3b8' },
+                    title: { display: true, text: 'FLEXIBILITY', color: '#94a3b8', font: { weight: 'bold' } },
                     grid: { display: false },
                     ticks: {
-                        color: '#a1a1aa',
+                        color: '#71717a',
                         autoSkip: false,
                         maxRotation: 0,
                         callback: function (value) {
                             for (let v of tick_vals) {
-                                if (Math.abs(getVisualCoord(v) - value) < 0.001) return v;
+                                if (Math.abs(getVisualCoord(v) - value) < 0.0005) return v;
                             }
                             return null;
                         },
-                        stepSize: 0.001
+                        stepSize: 0.0005
                     }
                 }
             },
@@ -336,25 +336,33 @@ function createChart() {
                             type: 'label',
                             xValue: 2.5, yValue: 2.5,
                             content: 'BALANCED',
-                            color: 'rgba(34, 197, 94, 0.4)',
-                            font: { size: 28, weight: 'bold' }
+                            color: 'rgba(34, 197, 94, 0.3)',
+                            font: { size: 32, weight: 'bold' }
                         },
                         centerTarget: {
                             type: 'point',
                             xValue: getVisualCoord(50), yValue: getVisualCoord(50),
                             backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                            radius: 4
+                            radius: 5
                         }
                     }
                 },
                 legend: { display: false },
-                tooltip: { enabled: false }
+                tooltip: {
+                    enabled: true,
+                    callbacks: {
+                        label: function (context) {
+                            return `Visual: (${context.parsed.x.toFixed(2)}, ${context.parsed.y.toFixed(2)})`;
+                        }
+                    }
+                }
             }
         }
     });
 }
 
 function updateChart() {
+    chart.data.datasets[0].data = pathHistory;
     chart.data.datasets[1].data = [pathHistory[pathHistory.length - 1]];
     chart.update('none');
 }
@@ -371,7 +379,6 @@ document.querySelectorAll('input[type="range"]').forEach(slider => {
         const valEl = document.getElementById(id + '_val');
         if (valEl) valEl.innerText = id.startsWith('w') || id === 'lr_scale' ? val.toFixed(1) : val.toFixed(0);
 
-        // Reset path when starting sliders are manipulated
         if (!isRunning) {
             const x = state.c_bal + (state.c_enm - state.c_dis) / 2;
             const y = state.f_bal + (state.f_cha - state.f_rig) / 2;
@@ -388,7 +395,6 @@ document.getElementById('run-btn').addEventListener('click', () => {
     isRunning = !isRunning;
     updateRunButtonText();
     if (isRunning) step();
-    else clearTimeout(animationId);
 });
 
 document.getElementById('reset-btn').addEventListener('click', () => {
