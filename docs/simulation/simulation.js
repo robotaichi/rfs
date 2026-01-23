@@ -1,7 +1,7 @@
 /**
  * RFS Gradient Descent Simulation
  * Logic based on FACES IV Model documentation
- * Strictly synchronized with RFSTherapist node visual coordinates
+ * Strictly synchronized with RFSTherapist node logic and visual mapping.
  */
 
 const ctx = document.getElementById('circumplexChart').getContext('2d');
@@ -9,14 +9,14 @@ let chart;
 let animationId = null;
 let isRunning = false;
 
-// State Variables (Current)
+// State Variables (Scores 0-100)
 let state = {
     c_bal: 20, c_dis: 80, c_enm: 10,
     f_bal: 20, f_rig: 80, f_cha: 10,
     comm: 50
 };
 
-// Values at startup or set by manual slider intervention
+// Values that the simulation reverts to on "Reset"
 let startingState = JSON.parse(JSON.stringify(state));
 
 let weights = {
@@ -24,30 +24,30 @@ let weights = {
 };
 
 let lr_scale = 0.25;
-let pathHistory = []; // Visual coordinates {x, y} for the chart
-let stateHistory = []; // Full state objects {state, x, y} where x,y are CLIPPED dimension scores
+let pathHistory = []; // Visual coordinates {x, y} [0-5]
+let stateHistory = []; // Clipped dimension scores {state, x, y} [5-95]
 
 const tick_vals = [0, 8, 15, 16, 25, 35, 36, 50, 65, 66, 75, 85, 86, 95, 100];
 
 /**
- * --- Dimension Score Calculation ---
- * Calculates x, y from raw scores and clips to [5, 95] as requested.
+ * --- Dimension Score Calculation (Percentile) ---
+ * Converts 7-variable state to X (Cohesion) and Y (Flexibility) dimension scores.
+ * Clipped to [5, 95] as requested.
  */
-function calcDimensionScores(s) {
+function getClippedDimensionScores(s) {
     let x = s.c_bal + (s.c_enm - s.c_dis) / 2.0;
     let y = s.f_bal + (s.f_cha - s.f_rig) / 2.0;
 
-    // Strict Clipping to [5, 95] percentile range
-    x = Math.max(5, Math.min(95, x));
-    y = Math.max(5, Math.min(95, y));
-
-    return { x, y };
+    // Strict Clipping to [5, 95]
+    return {
+        x: Math.max(5, Math.min(95, x)),
+        y: Math.max(5, Math.min(95, y))
+    };
 }
 
 /**
  * --- Piecewise Linear Visual Mapping ---
  * Maps 0-100 percentile scores to 0.0 - 5.0 visual coordinates.
- * Strictly matches RFSTherapist's get_visual_coord logic.
  */
 function getVisualCoord(score) {
     const gap = 0.04;
@@ -81,7 +81,7 @@ function getVisualCoord(score) {
 }
 
 /**
- * Syncs the internal state with the ACTUAL values currently in the sliders.
+ * Syncs the internal simulation state with the CURRENT slider values.
  */
 function syncFromSliders() {
     Object.keys(state).forEach(key => {
@@ -95,24 +95,20 @@ function syncFromSliders() {
     const lrEl = document.getElementById('lr_scale');
     if (lrEl) lr_scale = parseFloat(lrEl.value);
 
-    // Update the starting point
+    // Update the baseline for "Reset"
     startingState = JSON.parse(JSON.stringify(state));
 
-    // Calculate INITIAL clipped dimension scores
-    const dim = calcDimensionScores(state);
-    const vx = getVisualCoord(dim.x);
-    const vy = getVisualCoord(dim.y);
-
-    pathHistory = [{ x: vx, y: vy }];
+    // Calculate initial trajectory point
+    const dim = getClippedDimensionScores(state);
+    pathHistory = [{ x: getVisualCoord(dim.x), y: getVisualCoord(dim.y) }];
     stateHistory = [{ state: JSON.parse(JSON.stringify(state)), x: dim.x, y: dim.y }];
 }
 
 /**
- * Reverts the UI and chart to the start of the simulation.
+ * Resets the simulation to the user-defined baseline.
  */
 function init() {
-    // Re-sync from sliders to ensure current UI state is honored as "Initial"
-    syncFromSliders();
+    syncFromSliders(); // Capture current UI state
 
     updateUILabels();
 
@@ -137,14 +133,14 @@ function updateUILabels() {
 }
 
 function updateMetrics() {
+    const last = stateHistory[stateHistory.length - 1];
+
     const coh_unbal = (state.c_dis + state.c_enm) / 2;
     const flex_unbal = (state.f_rig + state.f_cha) / 2;
-
     const coh_ratio = state.c_bal / Math.max(1, coh_unbal);
     const flex_ratio = state.f_bal / Math.max(1, flex_unbal);
     const total_ratio = (state.c_bal + state.f_bal) / Math.max(1, coh_unbal + flex_unbal);
 
-    const last = stateHistory[stateHistory.length - 1];
     document.getElementById('current_pos').innerText = `${Math.round(last.x)}, ${Math.round(last.y)}`;
     document.getElementById('coh_ratio').innerText = coh_ratio.toFixed(2);
     document.getElementById('flex_ratio').innerText = flex_ratio.toFixed(2);
@@ -153,38 +149,37 @@ function updateMetrics() {
 
 function updateButtonStates() {
     const prevBtn = document.getElementById('prev-btn');
-    if (prevBtn) {
-        prevBtn.disabled = stateHistory.length <= 1;
-    }
+    if (prevBtn) prevBtn.disabled = stateHistory.length <= 1;
 }
 
 function updateRunButtonText() {
     const btn = document.getElementById('run-btn');
-    if (btn) {
-        btn.innerText = isRunning ? 'Pause' : 'Play Simulation';
-    }
+    if (btn) btn.innerText = isRunning ? 'Pause' : 'Play Simulation';
 }
 
-// Math logic
+/**
+ * --- Gradient Descent Step ---
+ * Implements the objective function J = Ω1*(U/2B) + Ω2*(-Comm) + Ω3*(dist to target)^2
+ */
 function step() {
     const B = Math.max(0.1, state.c_bal + state.f_bal);
     const U = state.c_dis + state.c_enm + state.f_rig + state.f_cha;
 
-    // We update state first, then calculate dimension scores
+    // Dimension scores for gradient calculation (use raw for math, visual/display uses clipped)
+    const rawX = state.c_bal + (state.c_enm - state.c_dis) / 2.0;
+    const rawY = state.f_bal + (state.f_cha - state.f_rig) / 2.0;
+
     const eta = Math.max(0.15, state.comm / 100) * lr_scale;
 
-    // Calculate raw dimension scores BEFORE adjustment
-    const currentDim = calcDimensionScores(state);
-
     const grad_bal_prefix = - (weights.w1 * U) / (2.0 * B ** 2);
-    const dJ_dc_bal = grad_bal_prefix + weights.w3 * (currentDim.x - 50.0);
-    const dJ_df_bal = grad_bal_prefix + weights.w3 * (currentDim.y - 50.0);
+    const dJ_dc_bal = grad_bal_prefix + weights.w3 * (rawX - 50.0);
+    const dJ_df_bal = grad_bal_prefix + weights.w3 * (rawY - 50.0);
 
     const grad_unbal_prefix = weights.w1 / (2.0 * B);
-    const dJ_dc_enm = grad_unbal_prefix + (weights.w3 / 2.0) * (currentDim.x - 50.0);
-    const dJ_dc_dis = grad_unbal_prefix - (weights.w3 / 2.0) * (currentDim.x - 50.0);
-    const dJ_df_cha = grad_unbal_prefix + (weights.w3 / 2.0) * (currentDim.y - 50.0);
-    const dJ_df_rig = grad_unbal_prefix - (weights.w3 / 2.0) * (currentDim.y - 50.0);
+    const dJ_dc_enm = grad_unbal_prefix + (weights.w3 / 2.0) * (rawX - 50.0);
+    const dJ_dc_dis = grad_unbal_prefix - (weights.w3 / 2.0) * (rawX - 50.0);
+    const dJ_df_cha = grad_unbal_prefix + (weights.w3 / 2.0) * (rawY - 50.0);
+    const dJ_df_rig = grad_unbal_prefix - (weights.w3 / 2.0) * (rawY - 50.0);
 
     const dJ_dcomm = - weights.w2;
 
@@ -198,6 +193,7 @@ function step() {
         comm: -eta * dJ_dcomm
     };
 
+    // Adjacency Constraint: limit move to neighboring category cell
     function getCellIdx(v) {
         if (v <= 15) return 0;
         if (v <= 35) return 1;
@@ -206,33 +202,34 @@ function step() {
         return 4;
     }
 
-    const nextXRaw = (state.c_bal + delta.c_bal) + ((state.c_enm + delta.c_enm) - (state.c_dis + delta.c_dis)) / 2.0;
-    const nextYRaw = (state.f_bal + delta.f_bal) + ((state.f_cha + delta.f_cha) - (state.f_rig + delta.f_rig)) / 2.0;
-
-    const currI = getCellIdx(currentDim.x);
-    const currJ = getCellIdx(currentDim.y);
+    const currI = getCellIdx(rawX);
+    const currJ = getCellIdx(rawY);
     const ranges = [[0, 15], [16, 35], [36, 65], [66, 85], [86, 100]];
     const lowX = ranges[Math.max(0, currI - 1)][0];
     const highX = ranges[Math.min(4, currI + 1)][1];
     const lowY = ranges[Math.max(0, currJ - 1)][0];
     const highY = ranges[Math.min(4, currJ + 1)][1];
 
+    const nextXRaw = (state.c_bal + delta.c_bal) + ((state.c_enm + delta.c_enm) - (state.c_dis + delta.c_dis)) / 2.0;
+    const nextYRaw = (state.f_bal + delta.f_bal) + ((state.f_cha + delta.f_cha) - (state.f_rig + delta.f_rig)) / 2.0;
+
     let alpha = 1.0;
-    const dx = nextXRaw - currentDim.x;
-    const dy = nextYRaw - currentDim.y;
+    const dx = nextXRaw - rawX;
+    const dy = nextYRaw - rawY;
     if (dx !== 0) {
-        if (currentDim.x + dx > highX) alpha = Math.min(alpha, (highX - currentDim.x) / dx);
-        if (currentDim.x + dx < lowX) alpha = Math.min(alpha, (lowX - currentDim.x) / dx);
+        if (rawX + dx > highX) alpha = Math.min(alpha, (highX - rawX) / dx);
+        if (rawX + dx < lowX) alpha = Math.min(alpha, (lowX - rawX) / dx);
     }
     if (dy !== 0) {
-        if (currentDim.y + dy > highY) alpha = Math.min(alpha, (highY - currentDim.y) / dy);
-        if (currentDim.y + dy < lowY) alpha = Math.min(alpha, (lowY - currentDim.y) / dy);
+        if (rawY + dy > highY) alpha = Math.min(alpha, (highY - rawY) / dy);
+        if (rawY + dy < lowY) alpha = Math.min(alpha, (lowY - rawY) / dy);
     }
 
     if (alpha < 1.0) {
         Object.keys(delta).forEach(k => delta[k] *= alpha);
     }
 
+    // Apply Deltas
     state.c_bal = Math.min(100, Math.max(0, state.c_bal + delta.c_bal));
     state.f_bal = Math.min(100, Math.max(0, state.f_bal + delta.f_bal));
     state.c_enm = Math.min(100, Math.max(0, state.c_enm + delta.c_enm));
@@ -241,10 +238,11 @@ function step() {
     state.f_rig = Math.min(100, Math.max(0, state.f_rig + delta.f_rig));
     state.comm = Math.min(100, Math.max(0, state.comm + delta.comm));
 
-    const nextDim = calcDimensionScores(state);
+    // Display and Path use CLIPPED dimension scores
+    const finalDim = getClippedDimensionScores(state);
 
-    pathHistory.push({ x: getVisualCoord(nextDim.x), y: getVisualCoord(nextDim.y) });
-    stateHistory.push({ state: JSON.parse(JSON.stringify(state)), x: nextDim.x, y: nextDim.y });
+    pathHistory.push({ x: getVisualCoord(finalDim.x), y: getVisualCoord(finalDim.y) });
+    stateHistory.push({ state: JSON.parse(JSON.stringify(state)), x: finalDim.x, y: finalDim.y });
 
     if (pathHistory.length > 500) {
         pathHistory.shift();
@@ -280,11 +278,11 @@ function createChart() {
     const gridAnnotations = {};
     for (let i = 0; i < 5; i++) {
         for (let j = 0; j < 5; j++) {
-            let color = '#d3d3d3';
+            let color = '#d3d3d3'; // Light Gray
             if ((i === 0 && j === 0) || (i === 0 && j === 4) || (i === 4 && j === 0) || (i === 4 && j === 4)) {
-                color = '#a9a9a9';
+                color = '#a9a9a9'; // corners: Gray
             } else if (i >= 1 && i <= 3 && j >= 1 && j <= 3) {
-                color = '#ffffff';
+                color = '#ffffff'; // 3x3: White
             }
             gridAnnotations[`grid_${i}_${j}`] = {
                 type: 'box',
@@ -305,9 +303,9 @@ function createChart() {
                 {
                     label: 'Path',
                     data: pathHistory,
-                    borderColor: '#0ea5e9',
+                    borderColor: 'rgba(239, 68, 68, 0.4)', // LIGHT RED Trajectory
                     showLine: true,
-                    borderWidth: 3,
+                    borderWidth: 4,
                     pointRadius: 0,
                     tension: 0.1
                 }
@@ -377,7 +375,7 @@ function createChart() {
                             type: 'point',
                             xValue: pathHistory[0].x,
                             yValue: pathHistory[0].y,
-                            backgroundColor: '#ef4444',
+                            backgroundColor: '#ef4444', // RED Pos Marker
                             borderColor: '#ffffff',
                             borderWidth: 3,
                             radius: 10,
@@ -406,17 +404,16 @@ document.querySelectorAll('input[type="range"]').forEach(slider => {
         const id = e.target.id;
         const val = parseFloat(e.target.value);
 
-        // Update current local values
+        // Update values
         if (state[id] !== undefined) state[id] = val;
         if (weights[id] !== undefined) weights[id] = val;
         if (id === 'lr_scale') lr_scale = val;
 
-        // UI Text labels
         const valEl = document.getElementById(id + '_val');
         if (valEl) valEl.innerText = id.startsWith('w') || id === 'lr_scale' ? val.toFixed(1) : val.toFixed(0);
 
-        // If simulation is NOT running, this becomes the start of the next run
-        if (!isRunning) {
+        // Before first step, this IS the starting position
+        if (stateHistory.length <= 1) {
             syncFromSliders();
             updateChart();
             updateMetrics();
@@ -456,5 +453,5 @@ document.getElementById('prev-btn').addEventListener('click', () => {
     if (stateHistory.length > 1) undoStep();
 });
 
-// STARTUP
+// Start
 init();
