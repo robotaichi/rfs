@@ -97,20 +97,29 @@ graph TD
 
 ### Detailed Node Responsibilities
 
-| Node Category | Description | Primary Processing |
-| :--- | :--- | :--- |
-| **AI Therapist / Orchestrator** (`rfs_therapist`) | The system brain. Manages step-level logic and interventions. | Aggregate member evaluations, calculate Cohesion/Flexibility percentiles, and perform Gradient Descent toward balanced center (50, 50). |
-| **Agents** (`rfs_family`) | Individual nodes for each family role (Father, Mother, etc.). | LLM-based response generation, turn-taking logic, and individual FACES IV self-scoring. |
-| **Sensory/Motor** (`rfs_stt`, `rfs_tts`, `rfs_toio`) | The physical/audio interface layers. | GEMINI-based speech recognition, multi-sink synchronized audio output, and Bluetooth BLE control for toio robots. |
-| **Visualization** (`rfs_viewer`, `rfs_evaluation`) | Real-time monitoring and mapping. | Tkinter-based GUI for plotting the circumplex model and background processing of psychological metrics. |
+- **`rfs_therapist`**: The central orchestrator. Manages step-level logic, aggregates member evaluations, and performs Gradient Descent calculations.
+- **Family Members (`rfs_family`)**: Individual nodes for Father, Mother, Daughter, and Son. Handles personality simulation and dialogue generation.
+- **`rfs_stt`**: Real-time Speech-to-Text conversion using Gemini Live for human interaction.
+- **`rfs_tts`**: Multi-sink synchronized Text-to-Speech output for vocalizing family responses.
+- **`rfs_toio`**: Controls [toio™](https://toio.io/) robots via Bluetooth BLE to represent physical interpersonal distances.
+- **`rfs_viewer`**: Interactive GUI for real-time visualization of the FACES IV circumplex model and trajectory.
+- **`rfs_evaluation`**: Background processing node that evaluates conversation logs for psychological metrics.
 
 ## ⚙️ Configuration & Environment
 
 ### Environment Variables
-The system requires valid API keys for LLM and STT functionalities.
+The system requires valid API keys. Set them in your terminal:
 
-- **`OPENAI_API_KEY`**: Used by `rfs_family` for personality simulation and `rfs_evaluation` for mapping family dynamics.
-- **`GEMINI_API_KEY`**: Used by `rfs_stt` for high-performance audio transcription and real-time interaction.
+```bash
+# OpenAI API Key (Required for personality and evaluation)
+export OPENAI_API_KEY="sk-..."
+
+# Gemini API Key (Required for real-time STT)
+export GEMINI_API_KEY="AIza..."
+```
+
+- **`OPENAI_API_KEY`**: Essential for LLM-based dialogue generation and psychological mapping.
+- **`GEMINI_API_KEY`**: Required for Gemini Live-based audio transcription.
 
 ### `config.json` Specification
 Located in `src/rfs_config/config/config.json`.
