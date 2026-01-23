@@ -1,6 +1,7 @@
 /**
  * RFS Gradient Descent Simulation
  * Logic based on FACES IV Model documentation
+ * Strictly synchronized with RFSTherapist node visual coordinates
  */
 
 const ctx = document.getElementById('circumplexChart').getContext('2d');
@@ -8,7 +9,7 @@ let chart;
 let animationId = null;
 let isRunning = false;
 
-// State Variables
+// State Variables (Scores 0-100)
 let state = {
     c_bal: 20, c_dis: 80, c_enm: 10,
     f_bal: 20, f_rig: 80, f_cha: 10,
@@ -20,8 +21,40 @@ let weights = {
 };
 
 let lr_scale = 0.25;
-let pathHistory = []; // Coordinates for the chart
-let stateHistory = []; // Full state objects for undo/backward
+let pathHistory = []; // Visual coordinates {x, y} for the chart
+let stateHistory = []; // Full state objects {state, x, y} for backward stepping
+
+// --- Piecewise Linear Visual Mapping (Strictly matches therapist node) ---
+function getVisualCoord(score) {
+    const gap = 0.04;
+    const ranges = [
+        { idx: 0, min: 0, mid: 8, max: 15 },
+        { idx: 1, min: 16, mid: 25, max: 35 },
+        { idx: 2, min: 36, mid: 50, max: 65 },
+        { idx: 3, min: 66, mid: 75, max: 85 },
+        { idx: 4, min: 86, mid: 95, max: 100 }
+    ];
+
+    let r = ranges.find(range => score >= range.min && score <= range.max);
+    if (!r) {
+        if (score < 0) r = ranges[0];
+        else r = ranges[4];
+    }
+
+    const vis_start = r.idx + gap;
+    const vis_mid = r.idx + 0.5;
+    const vis_end = r.idx + 1.0 - gap;
+
+    if (score <= r.mid) {
+        if (r.mid === r.min) return vis_start;
+        const norm = (score - r.min) / (r.mid - r.min);
+        return vis_start + norm * (vis_mid - vis_start);
+    } else {
+        if (r.max === r.mid) return vis_end;
+        const norm = (score - r.mid) / (r.max - r.mid);
+        return vis_mid + norm * (vis_end - vis_mid);
+    }
+}
 
 // Initialize Values
 function init() {
@@ -33,10 +66,13 @@ function init() {
     lr_scale = 0.25;
 
     updateUI();
-    const startX = state.c_bal + (state.c_enm - state.c_dis) / 2;
-    const startY = state.f_bal + (state.f_cha - state.f_rig) / 2;
-    pathHistory = [{ x: startX, y: startY }];
-    stateHistory = [JSON.parse(JSON.stringify(state))];
+    const x = state.c_bal + (state.c_enm - state.c_dis) / 2;
+    const y = state.f_bal + (state.f_cha - state.f_rig) / 2;
+    const vx = getVisualCoord(x);
+    const vy = getVisualCoord(y);
+
+    pathHistory = [{ x: vx, y: vy }];
+    stateHistory = [{ state: JSON.parse(JSON.stringify(state)), x, y }];
 
     if (chart) {
         updateChart();
@@ -68,10 +104,9 @@ function updateMetrics() {
     const flex_ratio = state.f_bal / ((state.f_rig + state.f_cha) / 2);
     const total_ratio = (state.c_bal + state.f_bal) / ((state.c_dis + state.c_enm + state.f_rig + state.f_cha) / 2);
 
-    const x = state.c_bal + (state.c_enm - state.c_dis) / 2;
-    const y = state.f_bal + (state.f_cha - state.f_rig) / 2;
-
-    document.getElementById('current_pos').innerText = `${Math.round(x)}, ${Math.round(y)}`;
+    // Use last calculated x, y from history
+    const last = stateHistory[stateHistory.length - 1];
+    document.getElementById('current_pos').innerText = `${Math.round(last.x)}, ${Math.round(last.y)}`;
     document.getElementById('coh_ratio').innerText = coh_ratio.toFixed(2);
     document.getElementById('flex_ratio').innerText = flex_ratio.toFixed(2);
     document.getElementById('total_ratio').innerText = total_ratio.toFixed(2);
@@ -84,10 +119,8 @@ function step() {
     const x = state.c_bal + (state.c_enm - state.c_dis) / 2;
     const y = state.f_bal + (state.f_cha - state.f_rig) / 2;
 
-    // Learning rate eta (Strictly faithful to therapist node: max(0.15, comm/100) * scaling)
     const eta = Math.max(0.15, state.comm / 100) * lr_scale;
 
-    // Gradients: J = w1*(U/2B) - w2*Comm + w3*0.5*((x-50)^2 + (y-50)^2)
     const grad_bal_prefix = - (weights.w1 * U) / (2.0 * B ** 2);
     const dJ_dc_bal = grad_bal_prefix + weights.w3 * (x - 50.0);
     const dJ_df_bal = grad_bal_prefix + weights.w3 * (y - 50.0);
@@ -100,7 +133,6 @@ function step() {
 
     const dJ_dcomm = - weights.w2;
 
-    // Proposed updates
     let delta = {
         c_bal: -eta * dJ_dc_bal,
         f_bal: -eta * dJ_df_bal,
@@ -111,7 +143,6 @@ function step() {
         comm: -eta * dJ_dcomm
     };
 
-    // Adjacency constraint (Matches calculate_gradient in therapist node)
     function getCellIdx(v) {
         if (v <= 15) return 0;
         if (v <= 35) return 1;
@@ -143,12 +174,10 @@ function step() {
         if (y + dy < lowY) alpha = Math.min(alpha, (lowY - y) / dy);
     }
 
-    // Apply alpha scaling to all deltas if constrained
     if (alpha < 1.0) {
         Object.keys(delta).forEach(k => delta[k] *= alpha);
     }
 
-    // Final State Application
     state.c_bal = Math.min(100, Math.max(0, state.c_bal + delta.c_bal));
     state.f_bal = Math.min(100, Math.max(0, state.f_bal + delta.f_bal));
     state.c_enm = Math.min(100, Math.max(0, state.c_enm + delta.c_enm));
@@ -160,8 +189,8 @@ function step() {
     const nextX = state.c_bal + (state.c_enm - state.c_dis) / 2;
     const nextY = state.f_bal + (state.f_cha - state.f_rig) / 2;
 
-    pathHistory.push({ x: nextX, y: nextY });
-    stateHistory.push(JSON.parse(JSON.stringify(state)));
+    pathHistory.push({ x: getVisualCoord(nextX), y: getVisualCoord(nextY) });
+    stateHistory.push({ state: JSON.parse(JSON.stringify(state)), x: nextX, y: nextY });
 
     if (pathHistory.length > 100) {
         pathHistory.shift();
@@ -181,7 +210,7 @@ function undoStep() {
     if (stateHistory.length > 1) {
         stateHistory.pop();
         pathHistory.pop();
-        state = JSON.parse(JSON.stringify(stateHistory[stateHistory.length - 1]));
+        state = JSON.parse(JSON.stringify(stateHistory[stateHistory.length - 1].state));
 
         updateUI();
         updateMetrics();
@@ -191,6 +220,29 @@ function undoStep() {
 
 // Charting
 function createChart() {
+    const gridAnnotations = {};
+    for (let i = 0; i < 5; i++) {
+        for (let j = 0; j < 5; j++) {
+            let color = '#d3d3d3'; // Outer ring (Middle range)
+            if ((i === 0 && j === 0) || (i === 0 && j === 4) || (i === 4 && j === 0) || (i === 4 && j === 4)) {
+                color = '#a9a9a9'; // Dark corners
+            } else if (i >= 1 && i <= 3 && j >= 1 && j <= 3) {
+                color = '#ffffff'; // Center 3x3
+            }
+            gridAnnotations[`grid_${i}_${j}`] = {
+                type: 'box',
+                xMin: i + 0.04, xMax: i + 0.96,
+                yMin: j + 0.04, yMax: j + 0.96,
+                backgroundColor: color,
+                borderColor: '#000000',
+                borderWidth: 1,
+                z: -10
+            };
+        }
+    }
+
+    const tick_vals = [0, 8, 15, 16, 25, 35, 36, 50, 65, 66, 75, 85, 86, 95, 100];
+
     chart = new Chart(ctx, {
         type: 'scatter',
         data: {
@@ -200,16 +252,18 @@ function createChart() {
                     data: pathHistory,
                     borderColor: '#38bdf8',
                     showLine: true,
-                    borderWidth: 2,
+                    borderWidth: 3,
                     pointRadius: 0,
-                    tension: 0.1
+                    tension: 0.1,
+                    z: 5
                 },
                 {
                     label: 'Current Position',
                     data: [pathHistory[pathHistory.length - 1]],
                     backgroundColor: '#ef4444',
-                    pointRadius: 6,
-                    pointHoverRadius: 8
+                    pointRadius: 8,
+                    pointHoverRadius: 10,
+                    z: 10
                 }
             ]
         },
@@ -218,34 +272,52 @@ function createChart() {
             maintainAspectRatio: false,
             scales: {
                 x: {
-                    min: -50, max: 150,
-                    title: { display: true, text: 'Cohesion Index (Offset from Center)', color: '#94a3b8' },
-                    grid: { color: '#334155' },
-                    ticks: { color: '#94a3b8' }
+                    min: 0, max: 5,
+                    title: { display: true, text: 'COHESION (Percentile Thresholds)', color: '#94a3b8' },
+                    grid: { display: false },
+                    ticks: {
+                        color: '#475569',
+                        callback: function (value) {
+                            const valIdx = tick_vals.find(v => Math.abs(getVisualCoord(v) - value) < 0.01);
+                            return valIdx !== undefined ? valIdx : '';
+                        },
+                        stepSize: 0.01,
+                        autoSkip: false
+                    }
                 },
                 y: {
-                    min: -50, max: 150,
-                    title: { display: true, text: 'Flexibility Index (Offset from Center)', color: '#94a3b8' },
-                    grid: { color: '#334155' },
-                    ticks: { color: '#94a3b8' }
+                    min: 0, max: 5,
+                    title: { display: true, text: 'FLEXIBILITY (Percentile Thresholds)', color: '#94a3b8' },
+                    grid: { display: false },
+                    ticks: {
+                        color: '#475569',
+                        callback: function (value) {
+                            const valIdx = tick_vals.find(v => Math.abs(getVisualCoord(v) - value) < 0.01);
+                            return valIdx !== undefined ? valIdx : '';
+                        },
+                        stepSize: 0.01,
+                        autoSkip: false
+                    }
                 }
             },
             plugins: {
                 annotation: {
                     annotations: {
-                        balancedRegion: {
-                            type: 'box',
-                            xMin: 36, xMax: 65, yMin: 36, yMax: 65,
-                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                            borderColor: 'rgba(34, 197, 94, 0.5)',
-                            borderWidth: 2,
-                            label: { display: true, content: 'Balanced Region (Target)', color: '#22c55e', font: { size: 10 } }
+                        ...gridAnnotations,
+                        balancedLabel: {
+                            type: 'label',
+                            xValue: 2.5, yValue: 2.5,
+                            content: 'BALANCED',
+                            color: 'rgba(34, 197, 94, 0.4)',
+                            font: { size: 24, weight: 'bold' },
+                            z: -5
                         },
                         targetPoint: {
                             type: 'point',
-                            xValue: 50, yValue: 50,
-                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                            radius: 4
+                            xValue: getVisualCoord(50), yValue: getVisualCoord(50),
+                            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                            radius: 4,
+                            z: 0
                         }
                     }
                 },
@@ -276,8 +348,8 @@ document.querySelectorAll('input[type="range"]').forEach(slider => {
         if (!isRunning) {
             const x = state.c_bal + (state.c_enm - state.c_dis) / 2;
             const y = state.f_bal + (state.f_cha - state.f_rig) / 2;
-            pathHistory = [{ x, y }];
-            stateHistory = [JSON.parse(JSON.stringify(state))];
+            pathHistory = [{ x: getVisualCoord(x), y: getVisualCoord(y) }];
+            stateHistory = [{ state: JSON.parse(JSON.stringify(state)), x, y }];
             updateChart();
             updateMetrics();
         }
