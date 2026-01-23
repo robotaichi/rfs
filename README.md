@@ -128,28 +128,28 @@ Located in `src/rfs_config/config/config.json`.
 
 | Parameter | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| **`language`** | String | Language code for interaction: `"en"` (English) or `"ja"` (Japanese). |
-| **`theme`** | String | The scenario or topic of conversation (e.g., "Christmas", "Moving Out"). |
-| **`chat_mode`** | Integer | Simulation mode: `0` (Normal), `1` (Terminal/LLM Only - no hardware). |
-| **`move`** | Integer | Enable toio robot movement: `1` (Enabled), `0` (Disabled). |
-| **`target_user`** | String | Name of the person the family is interacting with. |
-| **`family_config`** | List | List of active family member roles (e.g., `["father", "mother", "daughter"]`). |
-| **`toio_speaker_match`** | List | Hardware mapping for robots (`toio_id`) and audio outputs (`speaker_id`). |
-| **`learning_rate_scaling`** | Float | Base multiplier for therapeutic steering sensitivity (Default: `0.25`). |
-| **`w1`, `w2`, `w3`** | Float | Weights for the FACES IV evaluation model (Cohesion, Flexibility, Communication). |
-| **`turns_per_step`** | Integer | Number of conversation turns before an evaluation trigger. |
-| **`vad_aggressiveness`** | Integer | VAD sensitivity (0-3). Higher is more aggressive in filtering noise. |
-| **`silence_duration_s`** | Float | Seconds of silence required to end user speech detection. |
-| **`speech_trigger_frames`** | Integer | Consecutive frames of speech required to trigger recording. |
-| **`vad_debug`** | Boolean | Enable verbose VAD logging for troubleshooting audio issues. |
-| **`vad_energy_threshold`** | Float | Minimum RMS energy level to consider a frame as speech. |
-| **`llm_model`** | String | Model for family dialogue generation (Default: `"gpt-4o"`). |
-| **`llm_temperature`** | Float | Creativity factor for dialogue (Default: `1.0`). |
-| **`llm_evaluation_model`** | String | Model for FACES IV self-assessment (Default: `"gpt-4o"`). |
-| **`llm_evaluation_temperature`** | Float | Stability factor for assessment (Default: `0.7`). |
-| **`initial_coords`** | Object | Starting coordinates `{"x": 8.0, "y": 8.0}` on the Circumplex Model. |
-| **`experiment`** | String | Metadata tag for labeling experiment/session trials. |
-| **`terminal_mode`** | String | Terminal emulator to use for launching nodes (e.g., `"gnome-terminal"`). |
+| **`language`** | String | `"en"` | Interaction language: `"en"` (English) or `"ja"` (Japanese). |
+| **`theme`** | String | N/A | High-level topic of family conversation. |
+| **`chat_mode`** | Integer | `0` | `0` (Normal), `1` (Terminal mode - no hardware). |
+| **`move`** | Integer | `1` | Enable toio movement: `1` (Enabled), `0` (Disabled). |
+| **`target_user`** | String | `"User"` | Name of the person interacting with the family. |
+| **`family_config`** | List | `[...]` | Active family roles (e.g., `["father", "mother"]`). |
+| **`toio_speaker_match`** | List | `[...]` | Hardware toio-to-speaker mapping configuration. |
+| **`learning_rate_scaling`** | Float | `0.25` | Base therapeutic steering sensitivity. |
+| **`w1`, `w2`, `w3`** | Float | `1.0, 1.0, 0.5` | Weights for Cohesion, Flexibility, and Communication. |
+| **`turns_per_step`** | Integer | `10` | Frequency of evaluation triggers (Unit: **Turns**). |
+| **`vad_aggressiveness`** | Integer | `3` | VAD sound filtering sensitivity (Range: 0-3). |
+| **`silence_duration_s`** | Float | `2.0` | Required silence to end speech (Unit: **Seconds**). |
+| **`speech_trigger_frames`** | Integer | `5` | Frames required to trigger recording (30ms/frame). |
+| **`vad_debug`** | Boolean | `false` | Enable verbose VAD logging for diagnostics. |
+| **`vad_energy_threshold`** | Float | `2000.0` | Min. RMS energy for speech detection (Default: **2000.0**). |
+| **`llm_model`** | String | `"gpt-4o"` | Model for family dialogue generation. |
+| **`llm_temperature`** | Float | `1.0` | Creativity factor for dialogue. |
+| **`llm_evaluation_model`** | String | `"gpt-4o"` | Model for FACES IV self-assessment. |
+| **`llm_evaluation_temperature`** | Float | `0.7` | Stability factor for assessment. |
+| **`initial_coords`** | Object | `{"x": 8, "y": 8}` | Starting coordinates (Scale: **0-100 Percentile**). |
+| **`experiment`** | String | `""` | Optional tag for trial/experiment labeling. |
+| **`terminal_mode`** | String | `"gnome-terminal"` | Terminal used for launching nodes. |
 | **`shutdown_timer_minutes`** | Integer | `0` | Automatic shutdown timer (Unit: **Minutes**). |
 
 ### LLM Selection & Guidance
