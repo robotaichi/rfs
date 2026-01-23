@@ -20,38 +20,53 @@ let weights = {
 };
 
 let lr_scale = 0.25;
-let history = [];
+let pathHistory = []; // Coordinates for the chart
+let stateHistory = []; // Full state objects for undo/backward
 
 // Initialize Values
 function init() {
+    state = {
+        c_bal: 20, c_dis: 80, c_enm: 10,
+        f_bal: 20, f_rig: 80, f_cha: 10,
+        comm: 50
+    };
+    lr_scale = 0.25;
+
     updateUI();
     const startX = state.c_bal + (state.c_enm - state.c_dis) / 2;
     const startY = state.f_bal + (state.f_cha - state.f_rig) / 2;
-    history = [{ x: startX, y: startY }];
-    createChart();
+    pathHistory = [{ x: startX, y: startY }];
+    stateHistory = [JSON.parse(JSON.stringify(state))];
+
+    if (chart) {
+        updateChart();
+    } else {
+        createChart();
+    }
     updateMetrics();
 }
 
 function updateUI() {
     Object.keys(state).forEach(key => {
-        document.getElementById(key).value = state[key];
-        document.getElementById(key + '_val').innerText = state[key];
+        const el = document.getElementById(key);
+        if (el) el.value = state[key];
+        const valEl = document.getElementById(key + '_val');
+        if (valEl) valEl.innerText = state[key].toFixed(0);
     });
     Object.keys(weights).forEach(key => {
-        document.getElementById(key).value = weights[key];
-        document.getElementById(key + '_val').innerText = weights[key];
+        const el = document.getElementById(key);
+        if (el) el.value = weights[key];
+        const valEl = document.getElementById(key + '_val');
+        if (valEl) valEl.innerText = weights[key].toFixed(1);
     });
     document.getElementById('lr_scale').value = lr_scale;
-    document.getElementById('lr_scale_val').innerText = lr_scale;
+    document.getElementById('lr_scale_val').innerText = lr_scale.toFixed(2);
 }
 
 function updateMetrics() {
-    const B = state.c_bal + state.f_bal;
-    const U = state.c_dis + state.c_enm + state.f_rig + state.f_cha;
-
     const coh_ratio = state.c_bal / ((state.c_dis + state.c_enm) / 2);
     const flex_ratio = state.f_bal / ((state.f_rig + state.f_cha) / 2);
-    const total_ratio = (coh_ratio + flex_ratio) / 2;
+    const total_ratio = (state.c_bal + state.f_bal) / ((state.c_dis + state.c_enm + state.f_rig + state.f_cha) / 2);
 
     const x = state.c_bal + (state.c_enm - state.c_dis) / 2;
     const y = state.f_bal + (state.f_cha - state.f_rig) / 2;
@@ -145,8 +160,13 @@ function step() {
     const nextX = state.c_bal + (state.c_enm - state.c_dis) / 2;
     const nextY = state.f_bal + (state.f_cha - state.f_rig) / 2;
 
-    history.push({ x: nextX, y: nextY });
-    if (history.length > 50) history.shift();
+    pathHistory.push({ x: nextX, y: nextY });
+    stateHistory.push(JSON.parse(JSON.stringify(state)));
+
+    if (pathHistory.length > 100) {
+        pathHistory.shift();
+        stateHistory.shift();
+    }
 
     updateUI();
     updateMetrics();
@@ -154,6 +174,18 @@ function step() {
 
     if (isRunning) {
         animationId = setTimeout(step, 100);
+    }
+}
+
+function undoStep() {
+    if (stateHistory.length > 1) {
+        stateHistory.pop();
+        pathHistory.pop();
+        state = JSON.parse(JSON.stringify(stateHistory[stateHistory.length - 1]));
+
+        updateUI();
+        updateMetrics();
+        updateChart();
     }
 }
 
@@ -165,7 +197,7 @@ function createChart() {
             datasets: [
                 {
                     label: 'Path',
-                    data: history,
+                    data: pathHistory,
                     borderColor: '#38bdf8',
                     showLine: true,
                     borderWidth: 2,
@@ -174,7 +206,7 @@ function createChart() {
                 },
                 {
                     label: 'Current Position',
-                    data: [history[history.length - 1]],
+                    data: [pathHistory[pathHistory.length - 1]],
                     backgroundColor: '#ef4444',
                     pointRadius: 6,
                     pointHoverRadius: 8
@@ -185,8 +217,18 @@ function createChart() {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                x: { min: -50, max: 150, title: { display: true, text: 'Cohesion Offset' } },
-                y: { min: -50, max: 150, title: { display: true, text: 'Flexibility Offset' } }
+                x: {
+                    min: -50, max: 150,
+                    title: { display: true, text: 'Cohesion Index (Offset from Center)', color: '#94a3b8' },
+                    grid: { color: '#334155' },
+                    ticks: { color: '#94a3b8' }
+                },
+                y: {
+                    min: -50, max: 150,
+                    title: { display: true, text: 'Flexibility Index (Offset from Center)', color: '#94a3b8' },
+                    grid: { color: '#334155' },
+                    ticks: { color: '#94a3b8' }
+                }
             },
             plugins: {
                 annotation: {
@@ -214,8 +256,8 @@ function createChart() {
 }
 
 function updateChart() {
-    chart.data.datasets[0].data = history;
-    chart.data.datasets[1].data = [history[history.length - 1]];
+    chart.data.datasets[0].data = pathHistory;
+    chart.data.datasets[1].data = [pathHistory[pathHistory.length - 1]];
     chart.update('none');
 }
 
@@ -228,12 +270,14 @@ document.querySelectorAll('input[type="range"]').forEach(slider => {
         if (weights[id] !== undefined) weights[id] = val;
         if (id === 'lr_scale') lr_scale = val;
 
-        document.getElementById(id + '_val').innerText = val;
+        const valEl = document.getElementById(id + '_val');
+        if (valEl) valEl.innerText = id.startsWith('w') || id === 'lr_scale' ? val.toFixed(1) : val.toFixed(0);
 
         if (!isRunning) {
             const x = state.c_bal + (state.c_enm - state.c_dis) / 2;
             const y = state.f_bal + (state.f_cha - state.f_rig) / 2;
-            history = [{ x, y }];
+            pathHistory = [{ x, y }];
+            stateHistory = [JSON.parse(JSON.stringify(state))];
             updateChart();
             updateMetrics();
         }
@@ -244,7 +288,7 @@ document.getElementById('run-btn').addEventListener('click', () => {
     isRunning = !isRunning;
     const btn = document.getElementById('run-btn');
     btn.innerText = isRunning ? 'Pause Simulation' : 'Play Simulation';
-    btn.classList.toggle('primary', !isRunning);
+    btn.classList.toggle('primary', isRunning);
 
     if (isRunning) step();
 });
@@ -252,17 +296,19 @@ document.getElementById('run-btn').addEventListener('click', () => {
 document.getElementById('reset-btn').addEventListener('click', () => {
     isRunning = false;
     clearTimeout(animationId);
-    document.getElementById('run-btn').innerText = 'Play Simulation';
-    document.getElementById('run-btn').classList.add('primary');
-
-    state = {
-        c_bal: 20, c_dis: 80, c_enm: 10,
-        f_bal: 20, f_rig: 80, f_cha: 10,
-        comm: 50
-    };
-    lr_scale = 0.25;
+    const btn = document.getElementById('run-btn');
+    btn.innerText = 'Play Simulation';
+    btn.classList.add('primary');
 
     init();
+});
+
+document.getElementById('next-btn').addEventListener('click', () => {
+    if (!isRunning) step();
+});
+
+document.getElementById('prev-btn').addEventListener('click', () => {
+    if (!isRunning) undoStep();
 });
 
 // Start

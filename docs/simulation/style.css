@@ -24,7 +24,9 @@ body {
     overflow-x: hidden;
 }
 
-h1, h2, h3 {
+h1,
+h2,
+h3 {
     font-family: 'Outfit', sans-serif;
     color: var(--text-main);
 }
@@ -108,7 +110,13 @@ main {
 
 .actions {
     display: flex;
-    gap: 1rem;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.button-row {
+    display: flex;
+    gap: 0.75rem;
 }
 
 button {
@@ -180,7 +188,7 @@ button:hover {
     main {
         grid-template-columns: 1fr;
     }
-    
+
     .visualization-panel {
         order: -1;
     }
