@@ -160,6 +160,25 @@ The following conversion charts, based on standard FACES IV norms, are used by t
 #### Family Communication
 ![Percentile Conversion Communication](docs/images/percentile_conversion_communication.png)
 
+### Ratio Scores
+
+The system also calculates **Ratio Scores** to assess the overall health of the family system. A Ratio Score greater than 1 typically indicates a healthy, balanced system, while a score less than 1 suggests an unbalanced (unhealthy) system.
+
+These are calculated using the converted **Percentile Scores**:
+
+1. **Cohesion Ratio**
+   $$\text{Cohesion Ratio} = \frac{c_{bal}}{(c_{dis} + c_{enm}) / 2}$$
+2. **Flexibility Ratio**
+   $$\text{Flexibility Ratio} = \frac{f_{bal}}{(f_{rig} + f_{cha}) / 2}$$
+3. **Total Ratio**
+   $$\text{Total Ratio} = \frac{\text{Cohesion Ratio} + \text{Flexibility Ratio}}{2}$$
+
+![Ratio Scores Chart](docs/images/ratio_scores.png)
+
+### Mathematical Foundation
+
+The goal is to minimize a loss function $J$ that represents the "excess distance" from a healthy family state.
+
 #### 1. Coordinate Definitions
 > [!IMPORTANT]
 > All variables ($c_{bal}, f_{bal}, \dots, Comm$) in the following formulas represent **Percentile Scores** derived from the charts above.
