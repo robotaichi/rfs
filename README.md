@@ -98,7 +98,7 @@ graph TD
 ### Detailed Node Responsibilities
 
 | Node | Responsibility | Key Function |
-| :--- | :--- | :--- |
+| :--- | :--- | :--- | :--- |
 | **`rfs_therapist`** | Central Orchestrator | Calculates therapeutic targets using Gradient Descent. |
 | **`rfs_family`** | Family Members | Simulates personalities (Father, Mother, etc.) using LLMs. |
 | **`rfs_stt`** | Audio Input | Real-time Speech-to-Text for human intervention via Gemini Live. |
@@ -126,8 +126,8 @@ export GEMINI_API_KEY="AIza..."
 ### `config.json` Specification
 Located in `src/rfs_config/config/config.json`.
 
-| Parameter | Type | Description |
-| :--- | :--- | :--- |
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
 | **`language`** | String | Language code for interaction: `"en"` (English) or `"ja"` (Japanese). |
 | **`theme`** | String | The scenario or topic of conversation (e.g., "Christmas", "Moving Out"). |
 | **`chat_mode`** | Integer | Simulation mode: `0` (Normal), `1` (Terminal/LLM Only - no hardware). |
@@ -150,7 +150,7 @@ Located in `src/rfs_config/config/config.json`.
 | **`initial_coords`** | Object | Starting coordinates `{"x": 8.0, "y": 8.0}` on the Circumplex Model. |
 | **`experiment`** | String | Metadata tag for labeling experiment/session trials. |
 | **`terminal_mode`** | String | Terminal emulator to use for launching nodes (e.g., `"gnome-terminal"`). |
-| **`shutdown_timer_minutes`**| Integer | Automatic shutdown timer. `0` disables it. |
+| **`shutdown_timer_minutes`** | Integer | `0` | Automatic shutdown timer (Unit: **Minutes**). |
 
 ### LLM Selection & Guidance
 - **Default Model (`gpt-4o`)**: We use `gpt-4o` as the standard for its exceptional reasoning capabilities and nuanced understanding of human social dynamics. It effectively simulates the complex psychological archetypes required for this research.
@@ -192,7 +192,7 @@ The following conversion charts, based on standard FACES IV norms, are used by t
 #### 1. Balanced & Unbalanced Scales (Cohesion & Flexibility)
 
 | Raw Score | Balanced Percentile (C/F) | Unbalanced Percentile (D/E/R/C) |
-| :--- | :--- | :--- |
+| :--- | :--- | :--- | :--- |
 | **7** | 16 | 10 |
 | **8** | 18 | 12 |
 | **9** | 20 | 13 |
@@ -226,7 +226,7 @@ The following conversion charts, based on standard FACES IV norms, are used by t
 #### 2. Family Communication
 
 | Raw Score | Percentile | Raw Score | Percentile |
-| :--- | :--- | :--- | :--- |
+| :--- | :--- | :--- | :--- | :--- |
 | **10-23** | 10 | **37** | 58 |
 | **24** | 12 | **38** | 62 |
 | **25** | 13 | **39** | 65 |
