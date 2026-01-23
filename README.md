@@ -135,7 +135,7 @@ The system treats therapeutic intervention as an optimization problem. If a fami
 
 You can visualize how the AI Therapist steers the family state towards the Balanced Center using our interactive simulation tool.
 
-👉 **[Launch Interactive Simulation](docs/simulation/index.html)**
+👉 **[Launch Interactive Simulation](https://robotaichi.github.io/rfs/simulation/index.html)**
 
 ### Olson's Circumplex Model
 

@@ -135,7 +135,7 @@ source ~/.bashrc
 
 AI Therapist がどのように家族の状態を「バランスの取れた中心 (Balanced Center)」へと誘導するかを、シミュレーションツールで視覚的に確認できます。
 
-👉 **[最急降下法シミュレーターを起動する](docs/simulation/index.html)**
+👉 **[最急降下法シミュレーターを起動する](https://robotaichi.github.io/rfs/simulation/index.html)**
 
 ### Olson の円環モデル (Circumplex Model)
 
