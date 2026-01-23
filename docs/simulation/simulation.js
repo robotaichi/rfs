@@ -159,13 +159,11 @@ function updateRunButtonText() {
 
 /**
  * --- Gradient Descent Step ---
- * Implements the objective function J = Ω1*(U/2B) + Ω2*(-Comm) + Ω3*(dist to target)^2
  */
 function step() {
     const B = Math.max(0.1, state.c_bal + state.f_bal);
     const U = state.c_dis + state.c_enm + state.f_rig + state.f_cha;
 
-    // Dimension scores for gradient calculation (use raw for math, visual/display uses clipped)
     const rawX = state.c_bal + (state.c_enm - state.c_dis) / 2.0;
     const rawY = state.f_bal + (state.f_cha - state.f_rig) / 2.0;
 
@@ -193,7 +191,6 @@ function step() {
         comm: -eta * dJ_dcomm
     };
 
-    // Adjacency Constraint: limit move to neighboring category cell
     function getCellIdx(v) {
         if (v <= 15) return 0;
         if (v <= 35) return 1;
@@ -229,7 +226,6 @@ function step() {
         Object.keys(delta).forEach(k => delta[k] *= alpha);
     }
 
-    // Apply Deltas
     state.c_bal = Math.min(100, Math.max(0, state.c_bal + delta.c_bal));
     state.f_bal = Math.min(100, Math.max(0, state.f_bal + delta.f_bal));
     state.c_enm = Math.min(100, Math.max(0, state.c_enm + delta.c_enm));
@@ -238,7 +234,6 @@ function step() {
     state.f_rig = Math.min(100, Math.max(0, state.f_rig + delta.f_rig));
     state.comm = Math.min(100, Math.max(0, state.comm + delta.comm));
 
-    // Display and Path use CLIPPED dimension scores
     const finalDim = getClippedDimensionScores(state);
 
     pathHistory.push({ x: getVisualCoord(finalDim.x), y: getVisualCoord(finalDim.y) });
@@ -278,11 +273,11 @@ function createChart() {
     const gridAnnotations = {};
     for (let i = 0; i < 5; i++) {
         for (let j = 0; j < 5; j++) {
-            let color = '#d3d3d3'; // Light Gray
+            let color = '#d3d3d3';
             if ((i === 0 && j === 0) || (i === 0 && j === 4) || (i === 4 && j === 0) || (i === 4 && j === 4)) {
-                color = '#a9a9a9'; // corners: Gray
+                color = '#a9a9a9';
             } else if (i >= 1 && i <= 3 && j >= 1 && j <= 3) {
-                color = '#ffffff'; // 3x3: White
+                color = '#ffffff';
             }
             gridAnnotations[`grid_${i}_${j}`] = {
                 type: 'box',
@@ -301,12 +296,14 @@ function createChart() {
         data: {
             datasets: [
                 {
-                    label: 'Path',
+                    label: 'Path History',
                     data: pathHistory,
-                    borderColor: 'rgba(239, 68, 68, 0.4)', // LIGHT RED Trajectory
+                    borderColor: 'rgba(239, 68, 68, 0.2)', // Very subtle trajectory line
+                    backgroundColor: 'rgba(239, 68, 68, 0.4)', // LIGHT RED Dots
                     showLine: true,
-                    borderWidth: 4,
-                    pointRadius: 0,
+                    borderWidth: 1,
+                    pointRadius: 4, // VISIBLE DOTS
+                    pointHoverRadius: 6,
                     tension: 0.1
                 }
             ]
@@ -360,7 +357,7 @@ function createChart() {
                             type: 'label',
                             xValue: 2.5, yValue: 2.5,
                             content: 'BALANCED',
-                            color: 'rgba(34, 197, 94, 0.2)',
+                            color: 'rgba(34, 197, 94, 0.15)',
                             font: { size: 32, weight: 'bold' },
                             drawTime: 'beforeDraw'
                         },
@@ -375,7 +372,7 @@ function createChart() {
                             type: 'point',
                             xValue: pathHistory[0].x,
                             yValue: pathHistory[0].y,
-                            backgroundColor: '#ef4444', // RED Pos Marker
+                            backgroundColor: '#ef4444',
                             borderColor: '#ffffff',
                             borderWidth: 3,
                             radius: 10,
@@ -404,7 +401,6 @@ document.querySelectorAll('input[type="range"]').forEach(slider => {
         const id = e.target.id;
         const val = parseFloat(e.target.value);
 
-        // Update values
         if (state[id] !== undefined) state[id] = val;
         if (weights[id] !== undefined) weights[id] = val;
         if (id === 'lr_scale') lr_scale = val;
@@ -412,7 +408,6 @@ document.querySelectorAll('input[type="range"]').forEach(slider => {
         const valEl = document.getElementById(id + '_val');
         if (valEl) valEl.innerText = id.startsWith('w') || id === 'lr_scale' ? val.toFixed(1) : val.toFixed(0);
 
-        // Before first step, this IS the starting position
         if (stateHistory.length <= 1) {
             syncFromSliders();
             updateChart();
