@@ -85,7 +85,7 @@ function getVisualCoord(score) {
  * Updates configState and initializes currentState.
  */
 function syncFromUI() {
-    // Read sliders into configState
+    // Read sliders into configState (Initial Config)
     Object.keys(configState).forEach(key => {
         const el = document.getElementById(key);
         if (el) configState[key] = parseFloat(el.value);
@@ -108,6 +108,7 @@ function syncFromUI() {
     updateMetrics();
     updateChart();
     updateButtonStates();
+    updateSliderLabels(); // Always show slider values next to sliders
 }
 
 /**
@@ -120,10 +121,27 @@ function init() {
     createChart();
 }
 
+/**
+ * Updates only the textual value indicators NEXT to sliders.
+ * These reflect the INITIAL values set by the user.
+ */
+function updateSliderLabels() {
+    Object.keys(configState).forEach(key => {
+        const valEl = document.getElementById(key + '_val');
+        if (valEl) valEl.innerText = configState[key].toFixed(0);
+    });
+    Object.keys(weights).forEach(key => {
+        const valEl = document.getElementById(key + '_val');
+        if (valEl) valEl.innerText = weights[key].toFixed(1);
+    });
+    const lrValEl = document.getElementById('lr_scale_val');
+    if (lrValEl) lrValEl.innerText = lr_scale.toFixed(2);
+}
+
 function updateMetrics() {
     const last = stateHistory[stateHistory.length - 1];
 
-    // Use currentState for ratios
+    // Use currentState for ratios (Active/Final State)
     const coh_unbal = (currentState.c_dis + currentState.c_enm) / 2;
     const flex_unbal = (currentState.f_rig + currentState.f_cha) / 2;
     const coh_ratio = currentState.c_bal / Math.max(1, coh_unbal);
@@ -153,7 +171,6 @@ function step() {
     const B = Math.max(0.1, currentState.c_bal + currentState.f_bal);
     const U = currentState.c_dis + currentState.c_enm + currentState.f_rig + currentState.f_cha;
 
-    // Dimension scores for math (use raw for precision in grad calculation)
     const rawX = currentState.c_bal + (currentState.c_enm - currentState.c_dis) / 2.0;
     const rawY = currentState.f_bal + (currentState.f_cha - currentState.f_rig) / 2.0;
 
@@ -236,6 +253,8 @@ function step() {
         stateHistory.shift();
     }
 
+    // CRITICAL: We DO NOT call updateSliderLabels or updateUI here.
+    // Sliders stay at their initial config positions.
     updateMetrics();
     updateChart();
     updateButtonStates();
@@ -289,10 +308,10 @@ function createChart() {
                     label: 'Trajectory',
                     data: pathHistory,
                     borderColor: 'rgba(239, 68, 68, 0.3)',
-                    backgroundColor: 'rgba(239, 68, 68, 0.4)', // Light Red dots
+                    backgroundColor: 'rgba(239, 68, 68, 0.4)',
                     showLine: true,
                     borderWidth: 2,
-                    pointRadius: 5, // Make dots visible
+                    pointRadius: 5,
                     pointHoverRadius: 7,
                     tension: 0.1
                 }
@@ -382,22 +401,19 @@ function updateChart() {
     const lastPoint = pathHistory[pathHistory.length - 1];
     chart.options.plugins.annotation.annotations.currentPosMarker.xValue = lastPoint.x;
     chart.options.plugins.annotation.annotations.currentPosMarker.yValue = lastPoint.y;
-    chart.update(); // Use full update to ensure path renders
+    chart.update();
 }
 
 // Event Listeners
 document.querySelectorAll('input[type="range"]').forEach(slider => {
     slider.addEventListener('input', (e) => {
-        const id = e.target.id;
-        const val = parseFloat(e.target.value);
-
-        // UI label update
-        const valEl = document.getElementById(id + '_val');
-        if (valEl) valEl.innerText = id.startsWith('w') || id === 'lr_scale' ? val.toFixed(1) : val.toFixed(0);
-
         // While simulation is NOT running, adjusting sliders updates the "Initial State"
         if (!isRunning && stateHistory.length <= 1) {
             syncFromUI();
+        } else {
+            // If simulation is running or has steps, we don't let sliders affect active state
+            // and we don't allow "Initial State" to be changed without a Reset.
+            // (Optional: we could disable sliders or show a warning)
         }
     });
 });
