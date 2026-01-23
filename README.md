@@ -173,15 +173,13 @@ These are calculated using the converted **Percentile Scores**:
 3. **Total Ratio**
    $$\text{Total Ratio} = \frac{\text{Cohesion Ratio} + \text{Flexibility Ratio}}{2}$$
 
-![Ratio Scores Chart](docs/images/ratio_scores.png)
-
 ### Mathematical Foundation
 
 The goal is to minimize a loss function $J$ that represents the "excess distance" from a healthy family state.
 
 #### 1. Coordinate Definitions
 > [!IMPORTANT]
-> All variables ($c_{bal}, f_{bal}, \dots, Comm$) in the following formulas represent **Percentile Scores** derived from the charts above.
+> All variables ($c_{bal}, f_{bal}, \dots, Comm$) in the following formulas represent **Percentile Scores** derived from the conversion charts above.
 
 Let the FACES IV dimensions be:
 - $c_{bal}, f_{bal}$: Balanced Cohesion and Flexibility
@@ -217,6 +215,10 @@ The adaptive learning rate $\eta$ is scaled by the family's communication qualit
 $$\eta = \max\left(0.15, \frac{Comm}{100}\right) \times 0.25$$
 
 The resulting vector adjusts the **Behavioral Steering Prompts** for individual family members, encouraging interaction patterns that pull the family state toward the **Balanced Center (50, 50)**.
+
+## 📚 References
+- **Olson's Circumplex Model**: [Circumplex Model: An Update (Prepare/Enrich)](https://www.prepare-enrich.com/wp-content/uploads/2022/08/Circumplex-Model-An-Update.pdf)
+- **FACES IV Manual**: [FACES IV: Manual de Aplicación de Instrumento](https://www.studocu.com/cl/document/universidad-de-valparaiso/trabajo-social-de-familia/faces-iv-manual-aplicacion-de-instrumento/107365427)
 
 ## 📜 License
 This project is licensed under the MIT License.
