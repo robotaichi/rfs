@@ -73,26 +73,26 @@ main {
 }
 
 .control-group {
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
 }
 
 .control-group h3 {
-    font-size: 1.1rem;
-    margin-bottom: 1rem;
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
     color: var(--accent-primary);
     border-bottom: 1px solid var(--border);
-    padding-bottom: 0.5rem;
+    padding-bottom: 0.25rem;
 }
 
 .slider-item {
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
 }
 
 .slider-item label {
     display: block;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
 }
 
 .slider-item input[type="range"] {
@@ -103,7 +103,7 @@ main {
 .slider-item .value {
     display: block;
     text-align: right;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--accent-secondary);
 }
@@ -129,6 +129,7 @@ button {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
+    font-size: 0.9rem;
 }
 
 button.primary {
@@ -137,12 +138,13 @@ button.primary {
     border: none;
 }
 
-button:hover {
-    filter: brightness(1.1);
+button:hover:not(:disabled) {
+    filter: brightness(1.2);
+    transform: translateY(-1px);
 }
 
 button:disabled {
-    opacity: 0.3;
+    opacity: 0.2;
     cursor: not-allowed;
 }
 
@@ -158,35 +160,44 @@ button:disabled {
     border-radius: 1rem;
     border: 1px solid var(--border);
     width: 100%;
-    max-width: 600px;
+    max-width: 650px;
+    height: auto;
     aspect-ratio: 1 / 1;
     margin: 0 auto;
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+canvas {
+    width: 100% !important;
+    height: 100% !important;
 }
 
 .metrics-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.25rem;
 }
 
 .metric-card {
     background: var(--card-bg);
-    padding: 1.25rem;
-    border-radius: 1rem;
+    padding: 1rem;
+    border-radius: 0.75rem;
     border: 1px solid var(--border);
     text-align: center;
 }
 
 .metric-card .label {
     display: block;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
 }
 
 .metric-card .value {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 600;
     color: var(--accent-primary);
     font-family: 'Outfit', sans-serif;
@@ -195,9 +206,5 @@ button:disabled {
 @media (max-width: 1024px) {
     main {
         grid-template-columns: 1fr;
-    }
-
-    .visualization-panel {
-        order: -1;
     }
 }

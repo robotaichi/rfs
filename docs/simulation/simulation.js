@@ -16,7 +16,7 @@ let state = {
     comm: 50
 };
 
-// Values that the simulation will return to on "Reset"
+// Values at startup or set by manual slider intervention
 let startingState = JSON.parse(JSON.stringify(state));
 
 let weights = {
@@ -25,11 +25,15 @@ let weights = {
 
 let lr_scale = 0.25;
 let pathHistory = []; // Visual coordinates {x, y} for the chart
-let stateHistory = []; // Full state objects {state, x, y} for backward stepping
+let stateHistory = []; // Full state objects for undo/backward
 
 const tick_vals = [0, 8, 15, 16, 25, 35, 36, 50, 65, 66, 75, 85, 86, 95, 100];
 
-// --- Piecewise Linear Visual Mapping (Strictly matches therapist node) ---
+/**
+ * --- Piecewise Linear Visual Mapping ---
+ * Maps 0-100 FACES scores to 0.0 - 5.0 visual coordinates.
+ * Strictly matches RFSTherapist's get_visual_coord logic.
+ */
 function getVisualCoord(score) {
     const gap = 0.04;
     const ranges = [
@@ -61,9 +65,31 @@ function getVisualCoord(score) {
     }
 }
 
-// Initialize Values
+/**
+ * Syncs the internal state with the ACTUAL values currently in the sliders.
+ * Used at boot and before simulation starts.
+ */
+function syncFromSliders() {
+    Object.keys(state).forEach(key => {
+        const el = document.getElementById(key);
+        if (el) state[key] = parseFloat(el.value);
+    });
+    Object.keys(weights).forEach(key => {
+        const el = document.getElementById(key);
+        if (el) weights[key] = parseFloat(el.value);
+    });
+    const lrEl = document.getElementById('lr_scale');
+    if (lrEl) lr_scale = parseFloat(lrEl.value);
+
+    // Update the starting point for "Reset"
+    startingState = JSON.parse(JSON.stringify(state));
+}
+
+/**
+ * Reverts the UI and chart to the start of the simulation.
+ */
 function init() {
-    // Revert state to the USER DEFINED starting point
+    // Revert state to the point where simulation was reset/booted
     state = JSON.parse(JSON.stringify(startingState));
 
     updateUI();
@@ -84,19 +110,15 @@ function init() {
 
 function updateUI() {
     Object.keys(state).forEach(key => {
-        const el = document.getElementById(key);
-        if (el) el.value = state[key];
         const valEl = document.getElementById(key + '_val');
         if (valEl) valEl.innerText = state[key].toFixed(0);
     });
     Object.keys(weights).forEach(key => {
-        const el = document.getElementById(key);
-        if (el) el.value = weights[key];
         const valEl = document.getElementById(key + '_val');
         if (valEl) valEl.innerText = weights[key].toFixed(1);
     });
-    document.getElementById('lr_scale').value = lr_scale;
-    document.getElementById('lr_scale_val').innerText = lr_scale.toFixed(2);
+    const lrValEl = document.getElementById('lr_scale_val');
+    if (lrValEl) lrValEl.innerText = lr_scale.toFixed(2);
 }
 
 function updateMetrics() {
@@ -270,20 +292,7 @@ function createChart() {
                     showLine: true,
                     borderWidth: 3,
                     pointRadius: 0,
-                    tension: 0.1,
-                    order: 1 // Drawn second
-                },
-                {
-                    label: 'Current Position',
-                    data: [pathHistory[pathHistory.length - 1]],
-                    backgroundColor: '#ef4444',
-                    borderColor: '#ffffff',
-                    borderWidth: 2,
-                    pointRadius: 10,
-                    pointHoverRadius: 12,
-                    order: 0 // Drawn FIRST (if lower is first) - WAIT.
-                    // If "lower draws first", then Path(1) is on top of Pos(0).
-                    // I want Pos on top, so Pos should have the LARGE order.
+                    tension: 0.1
                 }
             ]
         },
@@ -346,6 +355,17 @@ function createChart() {
                             backgroundColor: 'rgba(0, 0, 0, 0.1)',
                             radius: 4,
                             drawTime: 'beforeDraw'
+                        },
+                        // CURRENT POSITION AS ANNOTATION WITH HIGHEST Z-INDEX
+                        currentPosMarker: {
+                            type: 'point',
+                            xValue: pathHistory[pathHistory.length - 1].x,
+                            yValue: pathHistory[pathHistory.length - 1].y,
+                            backgroundColor: '#ef4444',
+                            borderColor: '#ffffff',
+                            borderWidth: 3,
+                            radius: 10,
+                            z: 200 // TOP LAYER
                         }
                     }
                 },
@@ -354,21 +374,14 @@ function createChart() {
             }
         }
     });
-
-    // Explicitly set Pos on Top
-    chart.data.datasets[0].order = 1; // Path
-    chart.data.datasets[1].order = 0; // Pos -> DRAWS FIRST
-    // WAIT. If order 0 draws first, it's the bottom. I WANT IT AT THE END.
-    chart.data.datasets[0].order = 0; // Path draws first (BOTTOM)
-    chart.data.datasets[1].order = -1; // Wait, let's just use high numbers.
-    chart.data.datasets[0].order = 10; // Path
-    chart.data.datasets[1].order = 1; // Pos
-    // Chart.js: "Higher order is drawn first". So 10 is on bottom, 1 is on top. Correct.
 }
 
 function updateChart() {
     chart.data.datasets[0].data = pathHistory;
-    chart.data.datasets[1].data = [pathHistory[pathHistory.length - 1]];
+    // Update marker annotation directly
+    const lastPoint = pathHistory[pathHistory.length - 1];
+    chart.options.plugins.annotation.annotations.currentPosMarker.xValue = lastPoint.x;
+    chart.options.plugins.annotation.annotations.currentPosMarker.yValue = lastPoint.y;
     chart.update('none');
 }
 
@@ -378,7 +391,7 @@ document.querySelectorAll('input[type="range"]').forEach(slider => {
         const id = e.target.id;
         const val = parseFloat(e.target.value);
 
-        // Update values
+        // Update current local values
         if (state[id] !== undefined) state[id] = val;
         if (weights[id] !== undefined) weights[id] = val;
         if (id === 'lr_scale') lr_scale = val;
@@ -387,18 +400,16 @@ document.querySelectorAll('input[type="range"]').forEach(slider => {
         const valEl = document.getElementById(id + '_val');
         if (valEl) valEl.innerText = id.startsWith('w') || id === 'lr_scale' ? val.toFixed(1) : val.toFixed(0);
 
-        // If simulation hasn't started, this IS the starting state.
-        if (stateHistory.length <= 1) {
-            if (state[id] !== undefined) {
-                startingState[id] = val;
-            }
-            // Update the single point on the chart
+        // If simulation is NOT running, this becomes the start of the next run
+        if (!isRunning) {
+            syncFromSliders(); // This also updates startingState
             const x = state.c_bal + (state.c_enm - state.c_dis) / 2;
             const y = state.f_bal + (state.f_cha - state.f_rig) / 2;
             pathHistory = [{ x: getVisualCoord(x), y: getVisualCoord(y) }];
             stateHistory = [{ state: JSON.parse(JSON.stringify(state)), x, y }];
             updateChart();
             updateMetrics();
+            updateButtonStates();
         }
     });
 });
@@ -413,7 +424,7 @@ document.getElementById('reset-btn').addEventListener('click', () => {
     isRunning = false;
     clearTimeout(animationId);
     updateRunButtonText();
-    init(); // Reverts to CUSTOM startingState
+    init(); // Reverts to startingState
 });
 
 document.getElementById('next-btn').addEventListener('click', () => {
@@ -434,5 +445,6 @@ document.getElementById('prev-btn').addEventListener('click', () => {
     if (stateHistory.length > 1) undoStep();
 });
 
-// Start
+// STARTUP: Sync from HTML defaults first
+syncFromSliders();
 init();
