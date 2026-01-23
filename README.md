@@ -98,7 +98,7 @@ graph TD
 ### Detailed Node Responsibilities
 
 | Node | Responsibility | Key Function |
-| :--- | :--- | :--- | :--- |
+| :--- | :--- | :--- |
 | **`rfs_therapist`** | Central Orchestrator | Calculates therapeutic targets using Gradient Descent. |
 | **`rfs_family`** | Family Members | Simulates personalities (Father, Mother, etc.) using LLMs. |
 | **`rfs_stt`** | Audio Input | Real-time Speech-to-Text for human intervention via Gemini Live. |
@@ -164,6 +164,20 @@ Located in `src/rfs_config/config/config.json`.
 - **OS**: Ubuntu 24.04 (Noble Numbat)
 - **ROS2**: [Jazzy Jalisco](https://docs.ros.org/en/jazzy/Installation.html)
 - **Hardware**: [toio™](https://toio.io/) Core Cubes (Optional).
+
+### Requirements
+
+Before building the project, ensure you have the necessary system and Python libraries installed:
+
+**1. System Dependencies**
+```bash
+sudo apt update && sudo apt install -y python3-tk libportaudio2
+```
+
+**2. Python Libraries**
+```bash
+pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py Pillow
+```
 
 ### Installation
 1. **Clone & Build**:
