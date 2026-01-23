@@ -131,6 +131,9 @@ Located in `src/rfs_config/config/config.json`.
 
 The system treats therapeutic intervention as an optimization problem. If a family state is identified as "Disengaged" or "Enmeshed", the **AI Therapist** calculates the optimal path toward health using **Gradient Descent**.
 
+> [!TIP]
+> **Interactive Simulation**: You can visualize how the AI Therapist steers the family state using this [Gradient Descent Simulation](docs/simulation/index.html).
+
 ### Olson's Circumplex Model
 
 The **Circumplex Model of Marital and Family Systems** (developed by David H. Olson) provides a framework for understanding family dynamics across three dimensions: **Cohesion**, **Flexibility**, and **Communication**.

@@ -131,6 +131,9 @@ source ~/.bashrc
 
 システムは、治療的介入を最適化問題として扱います。家族の状態が「遊離（Disengaged）」または「密着（Enmeshed）」と特定された場合、**AI Therapist** は **勾配降下法（Gradient Descent）** を使用して健康な状態への最適なパスを計算します。
 
+> [!TIP]
+> **インタラクティブ・シミュレーター**: AI Therapist がどのように家族の状態を誘導するかを、こちらの [最急降下法シミュレーター](docs/simulation/index.html) で視覚的に確認できます。
+
 ### Olson の円環モデル (Circumplex Model)
 
 **Olson の円環モデル (Circumplex Model of Marital and Family Systems)** は、家族のダイナミクスを **「親密度 (Cohesion)」**、**「柔軟性 (Flexibility)」**、および **「コミュニケーション (Communication)」** の3つの主要な次元で理解するための枠組みです。

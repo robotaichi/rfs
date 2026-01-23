@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFS | Gradient Descent Simulation</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Gradient Descent Simulation</h1>
+            <p class="subtitle">Visualizing Therapeutic Steering in the Circumplex Model</p>
+        </header>
+
+        <main>
+            <div class="controls-panel">
+                <section class="control-group">
+                    <h3>Initial State (Percentile)</h3>
+                    <div class="slider-item">
+                        <label for="c_bal">Balanced Cohesion (C<sub>bal</sub>)</label>
+                        <input type="range" id="c_bal" min="0" max="100" value="20">
+                        <span class="value" id="c_bal_val">20</span>
+                    </div>
+                    <div class="slider-item">
+                        <label for="c_dis">Disengaged Cohesion (C<sub>dis</sub>)</label>
+                        <input type="range" id="c_dis" min="0" max="100" value="80">
+                        <span class="value" id="c_dis_val">80</span>
+                    </div>
+                    <div class="slider-item">
+                        <label for="c_enm">Enmeshed Cohesion (C<sub>enm</sub>)</label>
+                        <input type="range" id="c_enm" min="0" max="100" value="10">
+                        <span class="value" id="c_enm_val">10</span>
+                    </div>
+                    <div class="slider-item">
+                        <label for="f_bal">Balanced Flexibility (F<sub>bal</sub>)</label>
+                        <input type="range" id="f_bal" min="0" max="100" value="20">
+                        <span class="value" id="f_bal_val">20</span>
+                    </div>
+                    <div class="slider-item">
+                        <label for="f_rig">Rigid Flexibility (F<sub>rig</sub>)</label>
+                        <input type="range" id="f_rig" min="0" max="100" value="80">
+                        <span class="value" id="f_rig_val">80</span>
+                    </div>
+                    <div class="slider-item">
+                        <label for="f_cha">Chaotic Flexibility (F<sub>cha</sub>)</label>
+                        <input type="range" id="f_cha" min="0" max="100" value="10">
+                        <span class="value" id="f_cha_val">10</span>
+                    </div>
+                    <div class="slider-item">
+                        <label for="comm">Communication (Comm)</label>
+                        <input type="range" id="comm" min="0" max="100" value="50">
+                        <span class="value" id="comm_val">50</span>
+                    </div>
+                </section>
+
+                <section class="control-group">
+                    <h3>Hyperparameters</h3>
+                    <div class="slider-item">
+                        <label for="w1">Weight Ratio (ω<sub>1</sub>)</label>
+                        <input type="range" id="w1" min="0" max="500" value="100">
+                        <span class="value" id="w1_val">100</span>
+                    </div>
+                    <div class="slider-item">
+                        <label for="w2">Weight Comm (ω<sub>2</sub>)</label>
+                        <input type="range" id="w2" min="0" max="500" value="50">
+                        <span class="value" id="w2_val">50</span>
+                    </div>
+                    <div class="slider-item">
+                        <label for="w3">Weight Center (ω<sub>3</sub>)</label>
+                        <input type="range" id="w3" min="0" max="20" value="2" step="0.1">
+                        <span class="value" id="w3_val">2</span>
+                    </div>
+                    <div class="slider-item">
+                        <label for="lr_scale">LR Scaling (η)</label>
+                        <input type="range" id="lr_scale" min="0.01" max="1" value="0.25" step="0.01">
+                        <span class="value" id="lr_scale_val">0.25</span>
+                    </div>
+                </section>
+                
+                <section class="actions">
+                    <button id="reset-btn">Reset Simulation</button>
+                    <button id="run-btn" class="primary">Play / Pause</button>
+                </section>
+            </div>
+
+            <div class="visualization-panel">
+                <div class="chart-container">
+                    <canvas id="circumplexChart"></canvas>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <span class="label">Current Center (X, Y)</span>
+                        <span class="value" id="current_pos">0, 0</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="label">Cohesion Ratio</span>
+                        <span class="value" id="coh_ratio">0.00</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="label">Flexibility Ratio</span>
+                        <span class="value" id="flex_ratio">0.00</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="label">Total Ratio</span>
+                        <span class="value" id="total_ratio">1.00</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="simulation.js"></script>
+</body>
+</html>
