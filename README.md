@@ -214,35 +214,27 @@ The system also calculates **Ratio Scores** to assess the overall health of the 
 These are calculated using the converted **Percentile Scores**:
 
 1. **Cohesion Ratio**
-   $$\text{Cohesion Ratio} = \frac{c_{bal}}{(c_{dis} + c_{enm}) / 2}$$
+   $$\Large \text{Cohesion Ratio} = \frac{c_{bal}}{(c_{dis} + c_{enm}) / 2}$$
 2. **Flexibility Ratio**
-   $$\text{Flexibility Ratio} = \frac{f_{bal}}{(f_{rig} + f_{cha}) / 2}$$
+   $$\Large \text{Flexibility Ratio} = \frac{f_{bal}}{(f_{rig} + f_{cha}) / 2}$$
 3. **Total Ratio**
-   $$\text{Total Ratio} = \frac{\text{Cohesion Ratio} + \text{Flexibility Ratio}}{2}$$
-
-### Mathematical Foundation
-
-The goal is to minimize a loss function $J$ that represents the "excess distance" from a healthy family state.
-
-### Mathematical Foundation
-
-The system treats therapeutic intervention as an optimization problem. The **AI Therapist** calculates the optimal path toward a healthy family state using **Gradient Descent**.
+   $$\Large \text{Total Ratio} = \frac{\text{Cohesion Ratio} + \text{Flexibility Ratio}}{2}$$
 
 #### 1. State Vector ($x_t$)
 The family state at turn $t$ is represented as a 7-dimensional vector consisting of the converted **Percentile Scores**:
-$$x_t = \begin{bmatrix} C_{bal} \\ C_{dis} \\ C_{enm} \\ F_{bal} \\ F_{rig} \\ F_{cha} \\ Comm \end{bmatrix} = [C_{bal}, C_{dis}, C_{enm}, F_{bal}, F_{rig}, F_{cha}, Comm]^T$$
+$$\Large x_t = \begin{bmatrix} C_{bal} \\ C_{dis} \\ C_{enm} \\ F_{bal} \\ F_{rig} \\ F_{cha} \\ Comm \end{bmatrix} = [C_{bal}, C_{dis}, C_{enm}, F_{bal}, F_{rig}, F_{cha}, Comm]^T$$
 
 #### 2. Objective Function ($J(x_t)$)
 The goal is to minimize a cost function that balances the FACES IV Ratio (Health) and Centering (Stability):
-$$J(x_t) = \omega_1 \frac{U}{2B} - \omega_2 Comm_t + \frac{\omega_3}{2} \left[ (x - 50)^2 + (y - 50)^2 \right]$$
+$$\Large J(x_t) = \omega_1 \frac{U}{2B} - \omega_2 Comm_t + \frac{\omega_3}{2} \left[ (x - 50)^2 + (y - 50)^2 \right]$$
 Where:
 - $B = C_{bal} + F_{bal}$ (Balanced Sum)
 - $U = C_{dis} + C_{enm} + F_{rig} + F_{cha}$ (Unbalanced Sum)
-- $x = C_{bal} + \frac{C_{enm} - C_{dis}}{2}, \quad y = F_{bal} + \frac{F_{cha} - F_{rig}}{2}$
+$$\Large x = C_{bal} + \frac{C_{enm} - C_{dis}}{2}, \quad y = F_{bal} + \frac{F_{cha} - F_{rig}}{2}$$
 
 #### 3. Gradient Calculation ($\nabla J(x_t)$)
 The gradient vector $\nabla J(x_t)$ represents the direction of steepest increase for the cost function:
-$$\nabla J(x_t) = \left[ \frac{\partial J}{\partial C_{bal}}, \frac{\partial J}{\partial C_{dis}}, \frac{\partial J}{\partial C_{enm}}, \frac{\partial J}{\partial F_{bal}}, \frac{\partial J}{\partial F_{rig}}, \frac{\partial J}{\partial F_{cha}}, \frac{\partial J}{\partial Comm} \right]^T$$
+$$\Large \nabla J(x_t) = \left[ \frac{\partial J}{\partial C_{bal}}, \dots, \frac{\partial J}{\partial Comm} \right]^T$$
 
 Individual partial derivatives are calculated as follows (combining the Ratio and Centering terms):
 - $\frac{\partial J}{\partial C_{bal}} = \frac{\partial J}{\partial F_{bal}} = - \frac{\omega_1 U}{2B^2} + \text{Centering Term}$
@@ -251,9 +243,9 @@ Individual partial derivatives are calculated as follows (combining the Ratio an
 
 #### 4. Update Rule & Adaptive Learning Rate
 The target state is updated iteratively:
-$$x_{t+1} = x_t - \eta(Comm_t) \cdot \nabla J(x_t)$$
+$$\Large x_{t+1} = x_t - \eta(Comm_t) \cdot \nabla J(x_t)$$
 Where the adaptive learning rate $\eta (Comm_t)$ represents the **step width** (degree of communication promotion):
-$$\eta(Comm_t) = \frac{Comm_t}{100} \cdot 0.25$$
+$$\Large \eta(Comm_t) = \frac{Comm_t}{100} \cdot 0.25$$
 
 *(Note: 1 step ($t$) corresponds to 10 conversation turns in the simulation cycle)*
 
