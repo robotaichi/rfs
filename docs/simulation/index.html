@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,10 +8,14 @@
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Inter:wght@300;400;500&display=swap"
+        rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -63,13 +68,13 @@
                     <h3>Hyperparameters</h3>
                     <div class="slider-item">
                         <label for="w1">Weight Ratio (ω<sub>1</sub>)</label>
-                        <input type="range" id="w1" min="0" max="500" value="100">
-                        <span class="value" id="w1_val">100</span>
+                        <input type="range" id="w1" min="0" max="10" value="1.0" step="0.1">
+                        <span class="value" id="w1_val">1.0</span>
                     </div>
                     <div class="slider-item">
                         <label for="w2">Weight Comm (ω<sub>2</sub>)</label>
-                        <input type="range" id="w2" min="0" max="500" value="50">
-                        <span class="value" id="w2_val">50</span>
+                        <input type="range" id="w2" min="0" max="10" value="1.0" step="0.1">
+                        <span class="value" id="w2_val">1.0</span>
                     </div>
                     <div class="slider-item">
                         <label for="w3">Weight Center (ω<sub>3</sub>)</label>
@@ -82,7 +87,7 @@
                         <span class="value" id="lr_scale_val">0.25</span>
                     </div>
                 </section>
-                
+
                 <section class="actions">
                     <button id="reset-btn">Reset Simulation</button>
                     <button id="run-btn" class="primary">Play / Pause</button>
@@ -116,4 +121,5 @@
     </div>
     <script src="simulation.js"></script>
 </body>
+
 </html>
