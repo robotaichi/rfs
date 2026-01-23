@@ -76,7 +76,6 @@ function init() {
     pathHistory = [{ x: vx, y: vy }];
     stateHistory = [{ state: JSON.parse(JSON.stringify(state)), x, y }];
 
-    // CRITICAL: Always destroy and recreate to apply scale changes
     if (chart) chart.destroy();
     createChart();
 
@@ -127,7 +126,7 @@ function updateButtonStates() {
 function updateRunButtonText() {
     const btn = document.getElementById('run-btn');
     if (btn) {
-        btn.innerText = isRunning ? 'Pause Simulation' : 'Play Simulation';
+        btn.innerText = isRunning ? 'Pause' : 'Play Simulation';
         btn.classList.toggle('primary', !isRunning);
     }
 }
@@ -245,20 +244,21 @@ function createChart() {
     const gridAnnotations = {};
     for (let i = 0; i < 5; i++) {
         for (let j = 0; j < 5; j++) {
-            let color = '#d3d3d3'; // Default Mid-range (Light Gray)
+            let color = '#d3d3d3'; // 12 cells: Light Gray
             if ((i === 0 && j === 0) || (i === 0 && j === 4) || (i === 4 && j === 0) || (i === 4 && j === 4)) {
-                color = '#a9a9a9'; // Unbalanced Corners (Gray)
+                color = '#a9a9a9'; // 4 cells: Gray
             } else if (i >= 1 && i <= 3 && j >= 1 && j <= 3) {
-                color = '#ffffff'; // Balanced Center (White)
+                color = '#ffffff'; // 9 cells: White
             }
             gridAnnotations[`grid_${i}_${j}`] = {
                 type: 'box',
                 xMin: i + 0.04, xMax: i + 0.96,
                 yMin: j + 0.04, yMax: j + 0.96,
                 backgroundColor: color,
-                borderColor: '#18181b', // dark border
+                borderColor: '#18181b',
                 borderWidth: 1.5,
-                drawTime: 'beforeDatasetsDraw'
+                drawTime: 'beforeDraw', // EXTREMELY IMPORTANT: Draw before everything
+                z: -100
             };
         }
     }
@@ -274,28 +274,19 @@ function createChart() {
                     showLine: true,
                     borderWidth: 3,
                     pointRadius: 0,
-                    tension: 0.1,
-                    order: 2
-                },
-                {
-                    label: 'Current Position',
-                    data: [pathHistory[pathHistory.length - 1]],
-                    backgroundColor: '#ef4444',
-                    pointRadius: 10,
-                    pointHoverRadius: 12,
-                    order: 1 // ALWAYS Smallest = Top
+                    tension: 0.1
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            aspectRatio: 1, // FORCE SQUARE
+            aspectRatio: 1,
             layout: { padding: { left: 10, right: 30, top: 10, bottom: 20 } },
             scales: {
                 x: {
                     min: 0, max: 5,
-                    title: { display: true, text: 'COHESION', color: '#94a3b8', font: { weight: 'bold' } },
+                    title: { display: true, text: 'COHESION', color: '#94a3b8' },
                     grid: { display: false },
                     ticks: {
                         color: '#71717a',
@@ -312,7 +303,7 @@ function createChart() {
                 },
                 y: {
                     min: 0, max: 5,
-                    title: { display: true, text: 'FLEXIBILITY', color: '#94a3b8', font: { weight: 'bold' } },
+                    title: { display: true, text: 'FLEXIBILITY', color: '#94a3b8' },
                     grid: { display: false },
                     ticks: {
                         color: '#71717a',
@@ -336,26 +327,32 @@ function createChart() {
                             type: 'label',
                             xValue: 2.5, yValue: 2.5,
                             content: 'BALANCED',
-                            color: 'rgba(34, 197, 94, 0.3)',
-                            font: { size: 32, weight: 'bold' }
+                            color: 'rgba(34, 197, 94, 0.2)',
+                            font: { size: 32, weight: 'bold' },
+                            z: -50
                         },
                         centerTarget: {
                             type: 'point',
                             xValue: getVisualCoord(50), yValue: getVisualCoord(50),
-                            backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                            radius: 5
+                            backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                            radius: 4,
+                            z: -10
+                        },
+                        // CURRENT POSITION AS ANNOTATION TO FORCE TOP LAYER
+                        currentPosMarker: {
+                            type: 'point',
+                            xValue: pathHistory[pathHistory.length - 1].x,
+                            yValue: pathHistory[pathHistory.length - 1].y,
+                            backgroundColor: '#ef4444',
+                            radius: 10,
+                            borderColor: '#ffffff',
+                            borderWidth: 2,
+                            z: 100 // TOP LAYER
                         }
                     }
                 },
                 legend: { display: false },
-                tooltip: {
-                    enabled: true,
-                    callbacks: {
-                        label: function (context) {
-                            return `Visual: (${context.parsed.x.toFixed(2)}, ${context.parsed.y.toFixed(2)})`;
-                        }
-                    }
-                }
+                tooltip: { enabled: false }
             }
         }
     });
@@ -363,7 +360,9 @@ function createChart() {
 
 function updateChart() {
     chart.data.datasets[0].data = pathHistory;
-    chart.data.datasets[1].data = [pathHistory[pathHistory.length - 1]];
+    // Update marker annotation instead of dataset
+    chart.options.plugins.annotation.annotations.currentPosMarker.xValue = pathHistory[pathHistory.length - 1].x;
+    chart.options.plugins.annotation.annotations.currentPosMarker.yValue = pathHistory[pathHistory.length - 1].y;
     chart.update('none');
 }
 
@@ -395,6 +394,7 @@ document.getElementById('run-btn').addEventListener('click', () => {
     isRunning = !isRunning;
     updateRunButtonText();
     if (isRunning) step();
+    else clearTimeout(animationId);
 });
 
 document.getElementById('reset-btn').addEventListener('click', () => {
