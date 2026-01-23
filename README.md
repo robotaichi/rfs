@@ -133,7 +133,7 @@ Located in `src/rfs_config/config/config.json`.
 | **`chat_mode`** | Integer | `0` | `0` (Normal), `1` (Terminal mode - no hardware). |
 | **`move`** | Integer | `1` | Enable toio movement: `1` (Enabled), `0` (Disabled). |
 | **`target_user`** | String | `"User"` | Name of the person interacting with the family. |
-| **`family_config`** | List | `[...]` | Active family roles (e.g., `["father", "mother"]`). |
+| **`family_config`** | List | `["father", "mother", "daughter"]` | Active family roles for the simulation. |
 | **`toio_speaker_match`** | List | `[...]` | Hardware toio-to-speaker mapping configuration. |
 | **`learning_rate_scaling`** | Float | `0.25` | Base therapeutic steering sensitivity. |
 | **`w1`, `w2`, `w3`** | Float | `1.0, 1.0, 0.5` | Weights for Cohesion, Flexibility, and Communication. |
