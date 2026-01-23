@@ -216,13 +216,13 @@ These are calculated using the converted **Percentile Scores**:
 1. **Cohesion Ratio**
 > [!NOTE]
 > ```math
-> \text{Cohesion Ratio} = \frac{c_{bal}}{(c_{dis} + c_{enm}) / 2}
+> \text{Cohesion Ratio} = \frac{C_{bal}}{(C_{dis} + C_{enm}) / 2}
 > ```
 
 2. **Flexibility Ratio**
 > [!NOTE]
 > ```math
-> \text{Flexibility Ratio} = \frac{f_{bal}}{(f_{rig} + f_{cha}) / 2}
+> \text{Flexibility Ratio} = \frac{F_{bal}}{(F_{rig} + F_{cha}) / 2}
 > ```
 
 3. **Total Ratio**
@@ -252,11 +252,11 @@ The goal is to minimize a cost function that balances the FACES IV Ratio (Health
 > ```
 Where:
 - $B = C_{bal} + F_{bal}$ (Balanced Sum)
-- $U = C_{dis} + C_{enm} + f_{rig} + f_{cha}$ (Unbalanced Sum)
+- $U = C_{dis} + C_{enm} + F_{rig} + F_{cha}$ (Unbalanced Sum)
 
 > [!NOTE]
 > ```math
-> x = C_{bal} + \frac{C_{enm} - C_{dis}}{2}, \quad y = F_{bal} + \frac{F_{cha} - f_{rig}}{2}
+> x = C_{bal} + \frac{C_{enm} - C_{dis}}{2}, \quad y = F_{bal} + \frac{F_{cha} - F_{rig}}{2}
 > ```
 
 #### 3. Gradient Calculation ($\nabla J(x_t)$)
@@ -297,7 +297,7 @@ Where the adaptive learning rate $\eta (Comm_t)$ represents the **step width**:
 > \eta(Comm_t) = \frac{Comm_t}{100} \cdot 0.25
 > ```
 
-*(Note: 1 step ($t$) corresponds to 10 conversation turns in the simulation cycle)*
+*This step width, along with the Communication dimension, acts as the **driving force** for promoting Cohesion and Flexibility.*
 
 The resulting vector adjusts the **Behavioral Steering Prompts** for individual family members, pulling the system towards the **Balanced Center (50, 50)**.
 
