@@ -176,6 +176,10 @@ class RFSFamilyMember(Node):
         self.is_it_my_turn_soon = False  # Track if we should pre-generate
         self.pending_eval_step_id = None # Track if we are the one to trigger evaluation
         self.language = "en"
+        self.llm_model = "gpt-4o"
+        self.llm_temperature = 1.0
+        self.llm_evaluation_model = "gpt-4o"
+        self.llm_evaluation_temperature = 0.7
 
         # Leader startup sequence
         if self.role == self.family_config[0]:
@@ -232,6 +236,10 @@ class RFSFamilyMember(Node):
                     self.turns_per_step = config.get("turns_per_step", 10)
                     self.initial_coords = config.get("initial_coords", {"x": 8.0, "y": 8.0})
                     self.language = config.get("language", "en").lower()
+                    self.llm_model = config.get("llm_model", "gpt-4o")
+                    self.llm_temperature = config.get("llm_temperature", 1.0)
+                    self.llm_evaluation_model = config.get("llm_evaluation_model", "gpt-4o")
+                    self.llm_evaluation_temperature = config.get("llm_evaluation_temperature", 0.7)
         except Exception as e:
             self.get_logger().error(f"Config load error: {e}")
 
@@ -494,7 +502,7 @@ Generate actions for your role considering dialogue history, available voices, a
                 {"role": "system", "content": f"History: {current_history}"},
                 {"role": "user", "content": prompt_base}
             ]
-            response = client.chat.completions.create(model="gpt-4o", messages=messages, temperature=1.0)
+            response = client.chat.completions.create(model=self.llm_model, messages=messages, temperature=self.llm_temperature)
             scenario_output = response.choices[0].message.content.strip()
             if scenario_output.startswith("```"): scenario_output = scenario_output.strip("`").strip()
             return scenario_output
@@ -662,10 +670,10 @@ Output in the following JSON format:
         self.get_logger().info(f"[{self.role}] Requesting subjective evaluation from OpenAI...")
         try:
             response = client.chat.completions.create(
-                model="gpt-4o",
+                model=self.llm_evaluation_model,
                 messages=[{"role": "user", "content": prompt}],
                 response_format={ "type": "json_object" },
-                temperature=0.7
+                temperature=self.llm_evaluation_temperature
             )
             content_res = response.choices[0].message.content.strip()
             return json.loads(content_res)

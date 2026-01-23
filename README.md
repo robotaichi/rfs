@@ -133,6 +133,16 @@ Located in `src/rfs_config/config/config.json`.
 | **`w1`, `w2`, `w3`** | Float | Weights for the FACES IV evaluation model (Cohesion, Flexibility, Communication). |
 | **`turns_per_step`** | Integer | Number of conversation turns before an evaluation trigger. |
 | **`toio_speaker_match`** | List | Hardware mapping for robots (`toio_id`) and audio outputs (`speaker_id`). |
+| **`llm_model`** | String | The model used for family dialogue (Default: `"gpt-4o"`). |
+| **`llm_temperature`** | Float | Creativity factor for dialogue (Default: `1.0`). Higher is more varied. |
+| **`llm_evaluation_model`** | String | The model used for FACES IV self-assessment (Default: `"gpt-4o"`). |
+| **`llm_evaluation_temperature`** | Float | Stability factor for assessment (Default: `0.7`). Lower is more consistent. |
+
+### LLM Selection & Guidance
+- **Default Model (`gpt-4o`)**: We use `gpt-4o` as the standard for its exceptional reasoning capabilities and nuanced understanding of human social dynamics. It effectively simulates the complex psychological archetypes required for this research.
+- **Temperature Settings**:
+  - **Dialogue (`1.0`)**: A higher temperature is used for turn-taking to ensure natural, varied, and creative conversation that reflects the dynamic nature of family interactions.
+  - **Evaluation (`0.7`)**: A slightly lower temperature is used for psychological assessment to ensure reliable and consistent scoring while still allowing the LLM to capture the "subjective feel" of the simulated member.
 
 ## 🚀 Getting Started
 
