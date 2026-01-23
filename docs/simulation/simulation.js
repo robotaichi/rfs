@@ -9,15 +9,15 @@ let chart;
 let animationId = null;
 let isRunning = false;
 
-// State Variables (Scores 0-100)
-let state = {
+// Initial configuration (tied to sliders)
+let configState = {
     c_bal: 20, c_dis: 80, c_enm: 10,
     f_bal: 20, f_rig: 80, f_cha: 10,
     comm: 50
 };
 
-// Values that the simulation reverts to on "Reset"
-let startingState = JSON.parse(JSON.stringify(state));
+// Active simulation state (evolves via math)
+let currentState = JSON.parse(JSON.stringify(configState));
 
 let weights = {
     w1: 1.0, w2: 1.0, w3: 2.0
@@ -81,12 +81,14 @@ function getVisualCoord(score) {
 }
 
 /**
- * Syncs the internal simulation state with the CURRENT slider values.
+ * Syncs the starting point from the slider positions.
+ * Updates configState and initializes currentState.
  */
-function syncFromSliders() {
-    Object.keys(state).forEach(key => {
+function syncFromUI() {
+    // Read sliders into configState
+    Object.keys(configState).forEach(key => {
         const el = document.getElementById(key);
-        if (el) state[key] = parseFloat(el.value);
+        if (el) configState[key] = parseFloat(el.value);
     });
     Object.keys(weights).forEach(key => {
         const el = document.getElementById(key);
@@ -95,51 +97,38 @@ function syncFromSliders() {
     const lrEl = document.getElementById('lr_scale');
     if (lrEl) lr_scale = parseFloat(lrEl.value);
 
-    // Update the baseline for "Reset"
-    startingState = JSON.parse(JSON.stringify(state));
+    // Initialize current simulation state to match config
+    currentState = JSON.parse(JSON.stringify(configState));
 
-    // Calculate initial trajectory point
-    const dim = getClippedDimensionScores(state);
+    // Calculate initial point
+    const dim = getClippedDimensionScores(currentState);
     pathHistory = [{ x: getVisualCoord(dim.x), y: getVisualCoord(dim.y) }];
-    stateHistory = [{ state: JSON.parse(JSON.stringify(state)), x: dim.x, y: dim.y }];
-}
-
-/**
- * Resets the simulation to the user-defined baseline.
- */
-function init() {
-    syncFromSliders(); // Capture current UI state
-
-    updateUILabels();
-
-    if (chart) chart.destroy();
-    createChart();
+    stateHistory = [{ state: JSON.parse(JSON.stringify(currentState)), x: dim.x, y: dim.y }];
 
     updateMetrics();
+    updateChart();
     updateButtonStates();
 }
 
-function updateUILabels() {
-    Object.keys(state).forEach(key => {
-        const valEl = document.getElementById(key + '_val');
-        if (valEl) valEl.innerText = state[key].toFixed(0);
-    });
-    Object.keys(weights).forEach(key => {
-        const valEl = document.getElementById(key + '_val');
-        if (valEl) valEl.innerText = weights[key].toFixed(1);
-    });
-    const lrValEl = document.getElementById('lr_scale_val');
-    if (lrValEl) lrValEl.innerText = lr_scale.toFixed(2);
+/**
+ * Resets the entire simulation to the state held in the sliders.
+ */
+function init() {
+    syncFromUI();
+
+    if (chart) chart.destroy();
+    createChart();
 }
 
 function updateMetrics() {
     const last = stateHistory[stateHistory.length - 1];
 
-    const coh_unbal = (state.c_dis + state.c_enm) / 2;
-    const flex_unbal = (state.f_rig + state.f_cha) / 2;
-    const coh_ratio = state.c_bal / Math.max(1, coh_unbal);
-    const flex_ratio = state.f_bal / Math.max(1, flex_unbal);
-    const total_ratio = (state.c_bal + state.f_bal) / Math.max(1, coh_unbal + flex_unbal);
+    // Use currentState for ratios
+    const coh_unbal = (currentState.c_dis + currentState.c_enm) / 2;
+    const flex_unbal = (currentState.f_rig + currentState.f_cha) / 2;
+    const coh_ratio = currentState.c_bal / Math.max(1, coh_unbal);
+    const flex_ratio = currentState.f_bal / Math.max(1, flex_unbal);
+    const total_ratio = (currentState.c_bal + currentState.f_bal) / Math.max(1, coh_unbal + flex_unbal);
 
     document.getElementById('current_pos').innerText = `${Math.round(last.x)}, ${Math.round(last.y)}`;
     document.getElementById('coh_ratio').innerText = coh_ratio.toFixed(2);
@@ -154,20 +143,21 @@ function updateButtonStates() {
 
 function updateRunButtonText() {
     const btn = document.getElementById('run-btn');
-    if (btn) btn.innerText = isRunning ? 'Pause' : 'Play Simulation';
+    if (btn) btn.innerText = isRunning ? 'Pause Simulation' : 'Play Simulation';
 }
 
 /**
  * --- Gradient Descent Step ---
  */
 function step() {
-    const B = Math.max(0.1, state.c_bal + state.f_bal);
-    const U = state.c_dis + state.c_enm + state.f_rig + state.f_cha;
+    const B = Math.max(0.1, currentState.c_bal + currentState.f_bal);
+    const U = currentState.c_dis + currentState.c_enm + currentState.f_rig + currentState.f_cha;
 
-    const rawX = state.c_bal + (state.c_enm - state.c_dis) / 2.0;
-    const rawY = state.f_bal + (state.f_cha - state.f_rig) / 2.0;
+    // Dimension scores for math (use raw for precision in grad calculation)
+    const rawX = currentState.c_bal + (currentState.c_enm - currentState.c_dis) / 2.0;
+    const rawY = currentState.f_bal + (currentState.f_cha - currentState.f_rig) / 2.0;
 
-    const eta = Math.max(0.15, state.comm / 100) * lr_scale;
+    const eta = Math.max(0.15, currentState.comm / 100) * lr_scale;
 
     const grad_bal_prefix = - (weights.w1 * U) / (2.0 * B ** 2);
     const dJ_dc_bal = grad_bal_prefix + weights.w3 * (rawX - 50.0);
@@ -191,6 +181,7 @@ function step() {
         comm: -eta * dJ_dcomm
     };
 
+    // Adjacency Constraint
     function getCellIdx(v) {
         if (v <= 15) return 0;
         if (v <= 35) return 1;
@@ -207,8 +198,8 @@ function step() {
     const lowY = ranges[Math.max(0, currJ - 1)][0];
     const highY = ranges[Math.min(4, currJ + 1)][1];
 
-    const nextXRaw = (state.c_bal + delta.c_bal) + ((state.c_enm + delta.c_enm) - (state.c_dis + delta.c_dis)) / 2.0;
-    const nextYRaw = (state.f_bal + delta.f_bal) + ((state.f_cha + delta.f_cha) - (state.f_rig + delta.f_rig)) / 2.0;
+    const nextXRaw = (currentState.c_bal + delta.c_bal) + ((currentState.c_enm + delta.c_enm) - (currentState.c_dis + delta.c_dis)) / 2.0;
+    const nextYRaw = (currentState.f_bal + delta.f_bal) + ((currentState.f_cha + delta.f_cha) - (currentState.f_rig + delta.f_rig)) / 2.0;
 
     let alpha = 1.0;
     const dx = nextXRaw - rawX;
@@ -226,25 +217,25 @@ function step() {
         Object.keys(delta).forEach(k => delta[k] *= alpha);
     }
 
-    state.c_bal = Math.min(100, Math.max(0, state.c_bal + delta.c_bal));
-    state.f_bal = Math.min(100, Math.max(0, state.f_bal + delta.f_bal));
-    state.c_enm = Math.min(100, Math.max(0, state.c_enm + delta.c_enm));
-    state.c_dis = Math.min(100, Math.max(0, state.c_dis + delta.c_dis));
-    state.f_cha = Math.min(100, Math.max(0, state.f_cha + delta.f_cha));
-    state.f_rig = Math.min(100, Math.max(0, state.f_rig + delta.f_rig));
-    state.comm = Math.min(100, Math.max(0, state.comm + delta.comm));
+    // Apply Deltas to active simulation state
+    currentState.c_bal = Math.min(100, Math.max(0, currentState.c_bal + delta.c_bal));
+    currentState.f_bal = Math.min(100, Math.max(0, currentState.f_bal + delta.f_bal));
+    currentState.c_enm = Math.min(100, Math.max(0, currentState.c_enm + delta.c_enm));
+    currentState.c_dis = Math.min(100, Math.max(0, currentState.c_dis + delta.c_dis));
+    currentState.f_cha = Math.min(100, Math.max(0, currentState.f_cha + delta.f_cha));
+    currentState.f_rig = Math.min(100, Math.max(0, currentState.f_rig + delta.f_rig));
+    currentState.comm = Math.min(100, Math.max(0, currentState.comm + delta.comm));
 
-    const finalDim = getClippedDimensionScores(state);
+    const finalDim = getClippedDimensionScores(currentState);
 
     pathHistory.push({ x: getVisualCoord(finalDim.x), y: getVisualCoord(finalDim.y) });
-    stateHistory.push({ state: JSON.parse(JSON.stringify(state)), x: finalDim.x, y: finalDim.y });
+    stateHistory.push({ state: JSON.parse(JSON.stringify(currentState)), x: finalDim.x, y: finalDim.y });
 
     if (pathHistory.length > 500) {
         pathHistory.shift();
         stateHistory.shift();
     }
 
-    updateUILabels();
     updateMetrics();
     updateChart();
     updateButtonStates();
@@ -259,9 +250,8 @@ function undoStep() {
         stateHistory.pop();
         pathHistory.pop();
         const prev = stateHistory[stateHistory.length - 1];
-        state = JSON.parse(JSON.stringify(prev.state));
+        currentState = JSON.parse(JSON.stringify(prev.state));
 
-        updateUILabels();
         updateMetrics();
         updateChart();
         updateButtonStates();
@@ -296,14 +286,14 @@ function createChart() {
         data: {
             datasets: [
                 {
-                    label: 'Path History',
+                    label: 'Trajectory',
                     data: pathHistory,
-                    borderColor: 'rgba(239, 68, 68, 0.2)', // Very subtle trajectory line
-                    backgroundColor: 'rgba(239, 68, 68, 0.4)', // LIGHT RED Dots
+                    borderColor: 'rgba(239, 68, 68, 0.3)',
+                    backgroundColor: 'rgba(239, 68, 68, 0.4)', // Light Red dots
                     showLine: true,
-                    borderWidth: 1,
-                    pointRadius: 4, // VISIBLE DOTS
-                    pointHoverRadius: 6,
+                    borderWidth: 2,
+                    pointRadius: 5, // Make dots visible
+                    pointHoverRadius: 7,
                     tension: 0.1
                 }
             ]
@@ -357,8 +347,8 @@ function createChart() {
                             type: 'label',
                             xValue: 2.5, yValue: 2.5,
                             content: 'BALANCED',
-                            color: 'rgba(34, 197, 94, 0.15)',
-                            font: { size: 32, weight: 'bold' },
+                            color: 'rgba(34, 197, 94, 0.2)',
+                            font: { size: 24, weight: 'bold' },
                             drawTime: 'beforeDraw'
                         },
                         centerTarget: {
@@ -376,7 +366,7 @@ function createChart() {
                             borderColor: '#ffffff',
                             borderWidth: 3,
                             radius: 10,
-                            z: 200
+                            z: 100
                         }
                     }
                 },
@@ -388,11 +378,11 @@ function createChart() {
 }
 
 function updateChart() {
-    chart.data.datasets[0].data = pathHistory;
+    chart.data.datasets[0].data = JSON.parse(JSON.stringify(pathHistory));
     const lastPoint = pathHistory[pathHistory.length - 1];
     chart.options.plugins.annotation.annotations.currentPosMarker.xValue = lastPoint.x;
     chart.options.plugins.annotation.annotations.currentPosMarker.yValue = lastPoint.y;
-    chart.update('none');
+    chart.update(); // Use full update to ensure path renders
 }
 
 // Event Listeners
@@ -401,18 +391,13 @@ document.querySelectorAll('input[type="range"]').forEach(slider => {
         const id = e.target.id;
         const val = parseFloat(e.target.value);
 
-        if (state[id] !== undefined) state[id] = val;
-        if (weights[id] !== undefined) weights[id] = val;
-        if (id === 'lr_scale') lr_scale = val;
-
+        // UI label update
         const valEl = document.getElementById(id + '_val');
         if (valEl) valEl.innerText = id.startsWith('w') || id === 'lr_scale' ? val.toFixed(1) : val.toFixed(0);
 
-        if (stateHistory.length <= 1) {
-            syncFromSliders();
-            updateChart();
-            updateMetrics();
-            updateButtonStates();
+        // While simulation is NOT running, adjusting sliders updates the "Initial State"
+        if (!isRunning && stateHistory.length <= 1) {
+            syncFromUI();
         }
     });
 });
@@ -427,7 +412,7 @@ document.getElementById('reset-btn').addEventListener('click', () => {
     isRunning = false;
     clearTimeout(animationId);
     updateRunButtonText();
-    init();
+    init(); // Re-sync from sliders and clear history
 });
 
 document.getElementById('next-btn').addEventListener('click', () => {
@@ -448,5 +433,5 @@ document.getElementById('prev-btn').addEventListener('click', () => {
     if (stateHistory.length > 1) undoStep();
 });
 
-// Start
+// Boot
 init();
