@@ -4,8 +4,9 @@
  * Strictly synchronized with RFSTherapist node logic and visual mapping.
  */
 
-const ctx = document.getElementById('circumplexChart').getContext('2d');
+// Global Chart Instance
 let chart;
+const ctx = document.getElementById('circumplexChart').getContext('2d');
 let animationId = null;
 let isRunning = false;
 
@@ -81,48 +82,6 @@ function getVisualCoord(score) {
 }
 
 /**
- * Syncs the starting point from the slider positions.
- * Updates configState and initializes currentState.
- */
-function syncFromUI() {
-    // Read sliders into configState (Initial Config)
-    Object.keys(configState).forEach(key => {
-        const el = document.getElementById(key);
-        if (el) configState[key] = parseFloat(el.value);
-    });
-    Object.keys(weights).forEach(key => {
-        const el = document.getElementById(key);
-        if (el) weights[key] = parseFloat(el.value);
-    });
-    const lrEl = document.getElementById('lr_scale');
-    if (lrEl) lr_scale = parseFloat(lrEl.value);
-
-    // Initialize current simulation state to match config
-    currentState = JSON.parse(JSON.stringify(configState));
-
-    // Calculate initial point
-    const dim = getClippedDimensionScores(currentState);
-    pathHistory = [{ x: getVisualCoord(dim.x), y: getVisualCoord(dim.y) }];
-    stateHistory = [{ state: JSON.parse(JSON.stringify(currentState)), x: dim.x, y: dim.y }];
-
-    updateMetrics();
-    updateChart();
-    updateButtonStates();
-    updateSliderLabels(); // Always show slider values next to sliders
-    updateSliderState();  // Enable or disable sliders based on state
-}
-
-/**
- * Resets the entire simulation to the state held in the sliders.
- */
-function init() {
-    syncFromUI();
-
-    if (chart) chart.destroy();
-    createChart();
-}
-
-/**
  * Enables/Disables sliders based on whether the simulation has history.
  */
 function updateSliderState() {
@@ -162,7 +121,6 @@ function updateSliderLabels() {
 function updateMetrics() {
     const last = stateHistory[stateHistory.length - 1];
 
-    // Use currentState for ratios (Active/Final State)
     const coh_unbal = (currentState.c_dis + currentState.c_enm) / 2;
     const flex_unbal = (currentState.f_rig + currentState.f_cha) / 2;
     const coh_ratio = currentState.c_bal / Math.max(1, coh_unbal);
@@ -183,6 +141,53 @@ function updateButtonStates() {
 function updateRunButtonText() {
     const btn = document.getElementById('run-btn');
     if (btn) btn.innerText = isRunning ? 'Pause Simulation' : 'Play Simulation';
+}
+
+function updateChart() {
+    if (!chart) return;
+    chart.data.datasets[0].data = JSON.parse(JSON.stringify(pathHistory));
+    const lastPoint = pathHistory[pathHistory.length - 1];
+    chart.options.plugins.annotation.annotations.currentPosMarker.xValue = lastPoint.x;
+    chart.options.plugins.annotation.annotations.currentPosMarker.yValue = lastPoint.y;
+    chart.update('none');
+}
+
+/**
+ * Syncs the starting point from the slider positions.
+ * Updates configState and initializes currentState.
+ */
+function syncFromUI() {
+    Object.keys(configState).forEach(key => {
+        const el = document.getElementById(key);
+        if (el) configState[key] = parseFloat(el.value);
+    });
+    Object.keys(weights).forEach(key => {
+        const el = document.getElementById(key);
+        if (el) weights[key] = parseFloat(el.value);
+    });
+    const lrEl = document.getElementById('lr_scale');
+    if (lrEl) lr_scale = parseFloat(lrEl.value);
+
+    currentState = JSON.parse(JSON.stringify(configState));
+
+    const dim = getClippedDimensionScores(currentState);
+    pathHistory = [{ x: getVisualCoord(dim.x), y: getVisualCoord(dim.y) }];
+    stateHistory = [{ state: JSON.parse(JSON.stringify(currentState)), x: dim.x, y: dim.y }];
+
+    updateMetrics();
+    updateChart();
+    updateButtonStates();
+    updateSliderLabels();
+    updateSliderState();
+}
+
+/**
+ * Resets the entire simulation to the state held in the sliders.
+ */
+function init() {
+    syncFromUI();
+    if (chart) chart.destroy();
+    createChart();
 }
 
 /**
@@ -219,7 +224,6 @@ function step() {
         comm: -eta * dJ_dcomm
     };
 
-    // Adjacency Constraint
     function getCellIdx(v) {
         if (v <= 15) return 0;
         if (v <= 35) return 1;
@@ -255,7 +259,6 @@ function step() {
         Object.keys(delta).forEach(k => delta[k] *= alpha);
     }
 
-    // Apply Deltas to active simulation state
     currentState.c_bal = Math.min(100, Math.max(0, currentState.c_bal + delta.c_bal));
     currentState.f_bal = Math.min(100, Math.max(0, currentState.f_bal + delta.f_bal));
     currentState.c_enm = Math.min(100, Math.max(0, currentState.c_enm + delta.c_enm));
@@ -417,18 +420,9 @@ function createChart() {
     });
 }
 
-function updateChart() {
-    chart.data.datasets[0].data = JSON.parse(JSON.stringify(pathHistory));
-    const lastPoint = pathHistory[pathHistory.length - 1];
-    chart.options.plugins.annotation.annotations.currentPosMarker.xValue = lastPoint.x;
-    chart.options.plugins.annotation.annotations.currentPosMarker.yValue = lastPoint.y;
-    chart.update();
-}
-
 // Event Listeners
 document.querySelectorAll('input[type="range"]').forEach(slider => {
     slider.addEventListener('input', (e) => {
-        // While simulation is NOT running, adjusting sliders updates the "Initial State"
         if (!isRunning && stateHistory.length <= 1) {
             syncFromUI();
         }
@@ -445,7 +439,7 @@ document.getElementById('reset-btn').addEventListener('click', () => {
     isRunning = false;
     clearTimeout(animationId);
     updateRunButtonText();
-    init(); // Re-sync from sliders and clear history
+    init();
 });
 
 document.getElementById('next-btn').addEventListener('click', () => {
