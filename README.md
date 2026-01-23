@@ -148,11 +148,22 @@ Located in `src/rfs_config/config/config.json`.
 
 The system treats therapeutic intervention as an optimization problem. If a family state is identified as "Disengaged" or "Enmeshed", the **AI Therapist** calculates the optimal path toward health using **Gradient Descent**.
 
-### Mathematical Foundation
+### Percentile Conversion
 
-The goal is to minimize a loss function $J$ that represents the "excess distance" from a healthy family state.
+Before any mathematical processing or plotting, the system converts the **Raw Scores** obtained from assessments into **Percentile Scores**. This conversion is essential for standardized mapping onto the Circumplex Model and ensures that the Gradient Descent operates on a normalized scale ($0$ to $100$).
+
+The following conversion charts, based on standard FACES IV norms, are used by the `rfs_evaluation` and `rfs_therapist` nodes:
+
+#### Balanced & Unbalanced Scales
+![Percentile Conversion Balanced/Unbalanced](docs/images/percentile_conversion_balanced_unbalanced.png)
+
+#### Family Communication
+![Percentile Conversion Communication](docs/images/percentile_conversion_communication.png)
 
 #### 1. Coordinate Definitions
+> [!IMPORTANT]
+> All variables ($c_{bal}, f_{bal}, \dots, Comm$) in the following formulas represent **Percentile Scores** derived from the charts above.
+
 Let the FACES IV dimensions be:
 - $c_{bal}, f_{bal}$: Balanced Cohesion and Flexibility
 - $c_{dis}, c_{enm}$: Disengaged and Enmeshed (Unbalanced Cohesion)
