@@ -131,8 +131,11 @@ Located in `src/rfs_config/config/config.json`.
 
 The system treats therapeutic intervention as an optimization problem. If a family state is identified as "Disengaged" or "Enmeshed", the **AI Therapist** calculates the optimal path toward health using **Gradient Descent**.
 
-> [!TIP]
-> **Interactive Simulation**: You can visualize how the AI Therapist steers the family state using this [Gradient Descent Simulation](docs/simulation/index.html).
+### Interactive Simulation
+
+You can visualize how the AI Therapist steers the family state towards the Balanced Center using our interactive simulation tool.
+
+👉 **[Launch Interactive Simulation](docs/simulation/index.html)**
 
 ### Olson's Circumplex Model
 

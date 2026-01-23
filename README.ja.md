@@ -131,8 +131,11 @@ source ~/.bashrc
 
 システムは、治療的介入を最適化問題として扱います。家族の状態が「遊離（Disengaged）」または「密着（Enmeshed）」と特定された場合、**AI Therapist** は **勾配降下法（Gradient Descent）** を使用して健康な状態への最適なパスを計算します。
 
-> [!TIP]
-> **インタラクティブ・シミュレーター**: AI Therapist がどのように家族の状態を誘導するかを、こちらの [最急降下法シミュレーター](docs/simulation/index.html) で視覚的に確認できます。
+### インタラクティブ・シミュレーション
+
+AI Therapist がどのように家族の状態を「バランスの取れた中心 (Balanced Center)」へと誘導するかを、シミュレーションツールで視覚的に確認できます。
+
+👉 **[最急降下法シミュレーターを起動する](docs/simulation/index.html)**
 
 ### Olson の円環モデル (Circumplex Model)
 
