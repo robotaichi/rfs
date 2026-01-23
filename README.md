@@ -193,7 +193,7 @@ Located in `src/rfs_config/config/config.json`.
 | **`initial_coords`** | Object | `{"x": 8, "y": 8}` | Starting coordinates (Scale: **0-100 Percentile**). |
 | **`experiment`** | String | `""` | Optional tag for trial/experiment labeling. |
 | **`terminal_mode`** | String | `"gnome-terminal"` | Terminal used for launching nodes. |
-| **`shutdown_timer_minutes`** | Integer | `0` | Automatic shutdown timer (Unit: **Minutes**). |
+| **`shutdown_timer_minutes`** | Integer | `0` | Auto-shutdown timer. `0` (Disabled - infinite), `1+` (Minutes before shutdown). |
 
 ### LLM Selection & Guidance
 - **Default Model (`gpt-4o`)**: We use `gpt-4o` as the standard for its exceptional reasoning capabilities and nuanced understanding of human social dynamics. It effectively simulates the complex psychological archetypes required for this research.
