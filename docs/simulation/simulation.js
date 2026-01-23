@@ -109,6 +109,7 @@ function syncFromUI() {
     updateChart();
     updateButtonStates();
     updateSliderLabels(); // Always show slider values next to sliders
+    updateSliderState();  // Enable or disable sliders based on state
 }
 
 /**
@@ -119,6 +120,26 @@ function init() {
 
     if (chart) chart.destroy();
     createChart();
+}
+
+/**
+ * Enables/Disables sliders based on whether the simulation has history.
+ */
+function updateSliderState() {
+    const hasHistory = stateHistory.length > 1;
+    const allSliders = document.querySelectorAll('input[type="range"]');
+
+    allSliders.forEach(slider => {
+        if (hasHistory) {
+            slider.disabled = true;
+            slider.parentElement.classList.add('disabled');
+            slider.title = "値を変更するにはリセットしてください / Reset to change initial values";
+        } else {
+            slider.disabled = false;
+            slider.parentElement.classList.remove('disabled');
+            slider.title = "";
+        }
+    });
 }
 
 /**
@@ -253,11 +274,10 @@ function step() {
         stateHistory.shift();
     }
 
-    // CRITICAL: We DO NOT call updateSliderLabels or updateUI here.
-    // Sliders stay at their initial config positions.
     updateMetrics();
     updateChart();
     updateButtonStates();
+    updateSliderState();
 
     if (isRunning) {
         animationId = setTimeout(step, 100);
@@ -274,6 +294,7 @@ function undoStep() {
         updateMetrics();
         updateChart();
         updateButtonStates();
+        updateSliderState();
     }
 }
 
@@ -410,10 +431,6 @@ document.querySelectorAll('input[type="range"]').forEach(slider => {
         // While simulation is NOT running, adjusting sliders updates the "Initial State"
         if (!isRunning && stateHistory.length <= 1) {
             syncFromUI();
-        } else {
-            // If simulation is running or has steps, we don't let sliders affect active state
-            // and we don't allow "Initial State" to be changed without a Reset.
-            // (Optional: we could disable sliders or show a warning)
         }
     });
 });
