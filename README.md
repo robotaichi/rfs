@@ -130,14 +130,27 @@ Located in `src/rfs_config/config/config.json`.
 | :--- | :--- | :--- |
 | **`language`** | String | Language code for interaction: `"en"` (English) or `"ja"` (Japanese). |
 | **`theme`** | String | The scenario or topic of conversation (e.g., "Christmas", "Moving Out"). |
+| **`chat_mode`** | Integer | Simulation mode: `0` (Normal), `1` (Terminal/LLM Only - no hardware). |
+| **`move`** | Integer | Enable toio robot movement: `1` (Enabled), `0` (Disabled). |
+| **`target_user`** | String | Name of the person the family is interacting with. |
+| **`family_config`** | List | List of active family member roles (e.g., `["father", "mother", "daughter"]`). |
+| **`toio_speaker_match`** | List | Hardware mapping for robots (`toio_id`) and audio outputs (`speaker_id`). |
 | **`learning_rate_scaling`** | Float | Base multiplier for therapeutic steering sensitivity (Default: `0.25`). |
 | **`w1`, `w2`, `w3`** | Float | Weights for the FACES IV evaluation model (Cohesion, Flexibility, Communication). |
 | **`turns_per_step`** | Integer | Number of conversation turns before an evaluation trigger. |
-| **`toio_speaker_match`** | List | Hardware mapping for robots (`toio_id`) and audio outputs (`speaker_id`). |
-| **`llm_model`** | String | The model used for family dialogue (Default: `"gpt-4o"`). |
-| **`llm_temperature`** | Float | Creativity factor for dialogue (Default: `1.0`). Higher is more varied. |
-| **`llm_evaluation_model`** | String | The model used for FACES IV self-assessment (Default: `"gpt-4o"`). |
-| **`llm_evaluation_temperature`** | Float | Stability factor for assessment (Default: `0.7`). Lower is more consistent. |
+| **`vad_aggressiveness`** | Integer | VAD sensitivity (0-3). Higher is more aggressive in filtering noise. |
+| **`silence_duration_s`** | Float | Seconds of silence required to end user speech detection. |
+| **`speech_trigger_frames`** | Integer | Consecutive frames of speech required to trigger recording. |
+| **`vad_debug`** | Boolean | Enable verbose VAD logging for troubleshooting audio issues. |
+| **`vad_energy_threshold`** | Float | Minimum RMS energy level to consider a frame as speech. |
+| **`llm_model`** | String | Model for family dialogue generation (Default: `"gpt-4o"`). |
+| **`llm_temperature`** | Float | Creativity factor for dialogue (Default: `1.0`). |
+| **`llm_evaluation_model`** | String | Model for FACES IV self-assessment (Default: `"gpt-4o"`). |
+| **`llm_evaluation_temperature`** | Float | Stability factor for assessment (Default: `0.7`). |
+| **`initial_coords`** | Object | Starting coordinates `{"x": 8.0, "y": 8.0}` on the Circumplex Model. |
+| **`experiment`** | String | Metadata tag for labeling experiment/session trials. |
+| **`terminal_mode`** | String | Terminal emulator to use for launching nodes (e.g., `"gnome-terminal"`). |
+| **`shutdown_timer_minutes`**| Integer | Automatic shutdown timer. `0` disables it. |
 
 ### LLM Selection & Guidance
 - **Default Model (`gpt-4o`)**: We use `gpt-4o` as the standard for its exceptional reasoning capabilities and nuanced understanding of human social dynamics. It effectively simulates the complex psychological archetypes required for this research.
