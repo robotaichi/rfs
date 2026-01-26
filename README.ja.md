@@ -68,8 +68,9 @@ pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py P
 
 toio™ ロボットの上にスピーカーを載せて移動させる場合、各 toio™ と Bluetooth スピーカーを正しく紐付ける必要があります。本システムでは [ELUT EMBS-HFSASBK](https://www.amazon.co.jp/ELUT-%E3%83%8F%E3%83%B3%E3%82%BA%E3%83%95%E3%83%AA%E3%83%BC%E3%83%BB%E3%82%B9%E3%83%9E%E3%83%BC%E3%83%88%E3%82%A2%E3%82%B7%E3%82%B9%E3%83%88%E3%82%B9%E3%83%94%E3%83%BC%E3%82%AB%E3%83%BC-%E3%83%96%E3%83%A9%E3%83%83%E3%82%AF-EMBS-HFSASBK-%EF%BC%BBBluetooth%E5%AF%BE%E5%BF%9C%EF%BC%BD/dp/B08CDQCWV8) のような小型 Bluetooth スピーカーの使用を想定しています。
 
-1.  **スピーカーのペアリング**: 使用するすべての Bluetooth スピーカーを Ubuntu PC とペアリングし、接続状態にしてください。
-2.  **紐付けスクリプトの実行**: 
+1.  **Toioの電源オン**: すべての toio™ の電源を入れます（背面にある電源ボタンを長押し）。
+2.  **スピーカーのペアリング**: 使用するすべての Bluetooth スピーカーを Ubuntu PC とペアリングし、接続状態にしてください。
+3.  **紐付けスクリプトの実行**: 
     ```bash
     cd ~/rfs
     python3 src/rfs_toio/rfs_toio/toio_speaker_match.py
