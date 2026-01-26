@@ -295,7 +295,7 @@ source ~/.bashrc
 > \end{aligned}
 > ```
 
-#### 4. 更新ルールと適応的学習率
+#### 4. 家族の状態の更新と学習率
 目標状態は反復的に更新されます。
 
 > [!NOTE]
@@ -310,7 +310,7 @@ source ~/.bashrc
 > \eta(Comm_t) = \frac{Comm_t}{100} \cdot 0.25
 > ```
 
-**0.25** は、家族療法的に家族タイプをバランスタイプに近づける度合い（`config.json` の `learning_rate_scaling` で設定可能）です。
+**0.25** は、家族タイプをバランスタイプに近づける度合い（`config.json` の `learning_rate_scaling` で設定可能）です。
 
 *このステップ幅（どのくらい点を動かすか）は、CommunicationがCohesionとFlexibilityの動きを促進するための **潤滑油** として機能することと対応しています。*
 

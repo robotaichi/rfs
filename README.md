@@ -295,7 +295,7 @@ Individual partial derivatives are calculated as follows:
 > \end{aligned}
 > ```
 
-#### 4. Update Rule & Learning Rate
+#### 4. Family State Update & Learning Rate
 The goal state is updated iteratively:
 
 > [!NOTE]
@@ -310,7 +310,7 @@ Where the learning rate $\eta (Comm_t)$ represents the **step width**:
 > \eta(Comm_t) = \frac{Comm_t}{100} \cdot 0.25
 > ```
 
-**0.25** is the degree to which the family type approaches the balanced type in a family therapy-like manner (configurable via `learning_rate_scaling` in `config.json`).
+**0.25** is the degree to which the family type approaches the balanced type (configurable via `learning_rate_scaling` in `config.json`).
 
 *This step width (how much to move the point) corresponds to Communication functioning as a **lubricant** to facilitate the movement of Cohesion and Flexibility.*
 
