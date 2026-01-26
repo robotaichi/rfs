@@ -95,29 +95,29 @@ Located in `src/rfs_config/config/config.json`.
 
 | Parameter | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| **`language`** | String | `"en"` | Interaction language: `"en"` (English) or `"ja"` (Japanese). |
-| **`theme`** | String | N/A | High-level topic of family conversation. |
-| **`chat_mode`** | Integer | `0` | `0` (Normal), `1` (Terminal mode - no hardware). |
+| **`language`** | String | `"en"` | Language of interaction: `"en"` (English) or `"ja"` (Japanese). |
+| **`theme`** | String | N/A | Topic of the robot family conversation. |
+| **`chat_mode`** | Integer | `0` | `0` (Normal), `1` (Chat screen display). |
 | **`toio_move`** | Integer | `0` | Enable toio movement: `1` (Enabled), `0` (Disabled). |
-| **`target_user`** | String | `"User"` | Name of the person interacting with the family. |
-| **`family_config`** | List | `["father", "mother", "daughter"]` | Active family roles for the simulation. |
-| **`toio_speaker_match`** | List | `[...]` | Hardware toio-to-speaker mapping configuration. |
-| **`learning_rate_scaling`** | Float | `0.25` | Base therapeutic steering sensitivity. |
-| **`w1`, `w2`, `w3`** | Float | `1.0, 1.0, 0.5` | Weights for Cohesion, Flexibility, and Communication. |
-| **`turns_per_step`** | Integer | `10` | Frequency of evaluation triggers (Unit: **Turns**). |
-| **`vad_aggressiveness`** | Integer | `3` | VAD sound filtering sensitivity (Range: 0-3). |
-| **`silence_duration_s`** | Float | `2.0` | Required silence to end speech (Unit: **Seconds**). |
+| **`target_user`** | String | `"User"` | User information interacting with the family (user name and other profiles). |
+| **`family_config`** | List | `["father", "mother", "daughter"]` | Composition (roles) of the robot family. |
+| **`toio_speaker_match`** | List | `[...]` | Mapping of Toio IDs and speaker IDs. |
+| **`learning_rate_scaling`** | Float | `0.25` | Step width for how much to approach the balanced type. |
+| **`w1`, `w2`, `w3`** | Float | `1.0, 1.0, 0.5` | Weights for each of Cohesion, Flexibility, and Communication. |
+| **`turns_per_step`** | Integer | `10` | Number of conversation turns at which the therapist node evaluates (Unit: **Turns**). |
+| **`vad_aggressiveness`** | Integer | `3` | Sensitivity of VAD (Voice Activity Detection) to judge the start of user speech (Range: 0-3). |
+| **`silence_duration_s`** | Float | `2.0` | Silence duration to judge the end of user speech (Unit: **Seconds**). |
 | **`speech_trigger_frames`** | Integer | `5` | Frames required to trigger recording (30ms/frame). |
-| **`vad_debug`** | Boolean | `false` | Enable verbose VAD logging for diagnostics. |
+| **`vad_debug`** | Boolean | `false` | Enable/disable VAD logs. |
 | **`vad_energy_threshold`** | Float | `2000.0` | Minimum RMS energy level for speech detection. |
-| **`llm_model`** | String | `"gpt-4o"` | Model for family dialogue generation. |
-| **`llm_temperature`** | Float | `1.0` | Creativity factor for dialogue. |
-| **`llm_evaluation_model`** | String | `"gpt-4o"` | Model for FACES IV self-assessment. |
-| **`llm_evaluation_temperature`** | Float | `0.7` | Stability factor for assessment. |
-| **`initial_coords`** | Object | `{"x": 8, "y": 8}` | Starting coordinates (Scale: **0-100 Percentile**). |
-| **`experiment`** | String | `""` | Optional tag for trial/experiment labeling. |
+| **`llm_model`** | String | `"gpt-4o"` | LLM model used for robot family conversation generation. |
+| **`llm_temperature`** | Float | `1.0` | Temperature that controls the balance between randomness and robustness of the LLM. |
+| **`llm_evaluation_model`** | String | `"gpt-4o"` | LLM model used for FACES IV evaluation. |
+| **`llm_evaluation_temperature`** | Float | `0.7` | Stability factor for FACES IV evaluation. |
+| **`initial_coords`** | Object | `{"x": 8, "y": 8}` | Coordinates of the initial point representing the family's initial state (Scale: **0-100 Percentile**). |
+| **`experiment`** | String | `""` | Label for collectively changing Theme and family composition according to the experiment. |
 | **`terminal_mode`** | String | `"gnome-terminal"` | Terminal used for launching nodes. |
-| **`shutdown_timer_minutes`** | Integer | `0` | Auto-shutdown timer. `0` (Disabled - infinite), `1+` (Minutes before shutdown). |
+| **`shutdown_timer_minutes`** | Integer | `0` | Auto-shutdown timer. `0` (Executes permanently without auto-shutdown), `1+` (Specifies minutes until shutdown). |
 
 ### LLM Selection
 - **Default Model (`gpt-4o`)**: We use `gpt-4o` as the standard for its balance of generation speed and accuracy. Change the LLM model in `config.json` as needed.
@@ -127,7 +127,7 @@ Located in `src/rfs_config/config/config.json`.
 
 ## 📊 FACES IV & Gradient Descent
 
-The **Therapist Node** evaluates the current state of the robot family using **FACES (Family Adaptability & Cohesion Evaluation Scales) IV**. If the robot family state is judged to be an unbalanced type, it uses **Gradient Descent** to calculate the optimal parameters to approach the balanced type, and provides feedback to the robot family members such as "Your family is in this state now, so please behave like this from the next conversation." Specifically, it calculates and plots target points so that the point on the Circumplex Model consisting of Cohesion and Flexibility approaches the center (50, 50), and gives instructions to the robot family members to carry out subsequent conversations based on this target point.
+The **Therapist Node** evaluates the current state of the robot family using **FACES (Family Adaptability & Cohesion Evaluation Scales) IV**. If the robot family state is judged to be an unbalanced type, it uses **Gradient Descent** to calculate the optimal parameters to approach the balanced type, and provides feedback to the robot family members such as "Your family is in this state now, so please behave like this from the next conversation." Specifically, it calculates and plots target points so that the point on the Circumplex Model consisting of Cohesion and Flexibility approaches the center (50, 50), and gives instructions to the robot family members to carry out the next conversation based on this target point.
 
 ### Interactive Simulation
 
@@ -280,7 +280,7 @@ The gradient vector $\nabla J(s_t)$ represents the direction of steepest increas
 > \nabla J(s_t) = \left[ \frac{\partial J}{\partial C_{bal}}, \dots, \frac{\partial J}{\partial Comm} \right]^T
 > ```
 
-Individual partial derivatives are calculated as follows (combining the Ratio and Centering terms):
+Individual partial derivatives are calculated as follows:
 
 > [!NOTE]
 > ```math
@@ -295,15 +295,15 @@ Individual partial derivatives are calculated as follows (combining the Ratio an
 > \end{aligned}
 > ```
 
-#### 4. Update Rule & Adaptive Learning Rate
-The target state is updated iteratively:
+#### 4. Update Rule & Learning Rate
+The goal state is updated iteratively:
 
 > [!NOTE]
 > ```math
 > s_{t+1} = s_t - \eta(Comm_t) \cdot \nabla J(s_t)
 > ```
 
-Where the adaptive learning rate $\eta (Comm_t)$ represents the **step width**:
+Where the learning rate $\eta (Comm_t)$ represents the **step width**:
 
 > [!NOTE]
 > ```math
