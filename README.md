@@ -2,7 +2,7 @@
 
 # RFS: Robot Family System
 
-RFS (Robot Family System) is a robot family system that aims to realize a "new family" composed of people and robots (agents) such as father robots, mother robots, and daughter robots. By interacting with a robot family, people feel a sense of warmth and a secure base, aiming to eventually reduce feelings of isolation and loneliness. It implements a family agent system that performs family-like conversations and behaviors using ROS2 and LLM. People can intervene at any time by speaking into a microphone during the robot family's conversation. In order to make the robot family's conversation more like that of a human family, RFS adjusts the behavior of the robot family based on Olson's Circumplex Model and its evaluation scale, FACES IV. Specifically, it visualizes the current state of the robot family by plotting it on Olson's Circumplex Model, and in the case of unbalanced types, uses Gradient Descent to approach an ideal balanced type of family. These adjustments are performed by a therapist node (agent) separate from the robot family members.
+RFS (Robot Family System) is a robot family system that aims to realize a "new family" composed of people and robots (agents) such as father robots, mother robots, and daughter robots. By interacting with a robot family, people feel a sense of warmth and a secure base, aiming to eventually reduce feelings of isolation and loneliness. It implements a multi-agent system that performs family-like conversations and behaviors using ROS2 and LLM. People can intervene at any time by speaking into a microphone during the robot family's conversation. In order to make the robot family's conversation more like that of a human family, RFS adjusts the behavior of the robot family based on Olson's Circumplex Model and its evaluation scale, FACES IV. Specifically, it visualizes the current state of the robot family by plotting it on Olson's Circumplex Model, and in the case of unbalanced types, uses Gradient Descent to approach an ideal balanced type of family. These adjustments are performed by a therapist node (agent) separate from the robot family members.
 
 This project is developed as part of the research at the **Fumihide Tanaka Laboratory** at the University of Tsukuba. Our lab mainly focuses on HRI (Human-Robot Interaction), conducting research to create intelligent agent technologies that are always by our side and help us in our lives.
 
@@ -10,7 +10,7 @@ This project is developed as part of the research at the **Fumihide Tanaka Labor
 
 ## 🌟 Key Features
 
-- **Family Agent Interaction**: Expresses the individuality of each family member (father, mother, daughter, etc.) using LLM. Also, synchronizes each agent's conversation using ROS2 to achieve family-like conversation.
+- **Multi-Agent Interaction**: Expresses the individuality of each family member (father, mother, daughter, etc.) using LLM. Also, synchronizes each agent's conversation using ROS2 to achieve family-like conversation.
 - **FACES IV Visualization**: Real-time plotting of the current and ideal states of the robot family on the axes of "Cohesion" and "Flexibility" of Olson's Circumplex Model.
 - **Physical Representation via Movement**: Integration with [toio™](https://toio.io/) robots allows robots to change the physical distance from people by moving.
 - **Interactive**: Real-time Speech-to-Text (STT) and Text-to-Speech (TTS) allow humans to intervene in the robot family's conversation.
