@@ -329,5 +329,5 @@ source ~/.bashrc
 ### [平野 太一 (Taichi Hirano)](https://github.com/robotaichi)
 筑波大学 理工情報生命学術院 システム情報工学研究群 知能機能システム学位プログラム の博士課程3年生。[田中文英研究室](https://www.ftl.iit.tsukuba.ac.jp/)に所属。父親・母親・娘といったロボット家族を作って一人暮らしの高齢者の孤独感を軽減する研究を行っている。JST Spring採択。大学のDXを推進するプロジェクトにも従事。
 
-## 🙏 謝辞 (Acknowledgments)
+## 🙏 謝辞
 このプロジェクトはJST SPRING JPMJSP2124、JSPS科研費23H00484、Cross-Pacific AI Initiative (X-PAI)の支援を受けたものです。
