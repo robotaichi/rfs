@@ -7,11 +7,13 @@ import subprocess
 import re
 import os
 import json
-from bleak import BleakScanner
+from typing import List, Tuple, Dict, Optional
 from toio import BLEScanner, ToioCoreCube
 
 # Configuration file path
 CONFIG_PATH = os.path.expanduser('~/rfs/src/rfs_config/config/config.json')
+DEVICE_NAME_UUID = "00002a00-0000-1000-8000-00805f9b34fb"  # Generic Access: Device Name
+CONNECT_TIMEOUT = 5
 
 class SystemTTS:
     def __init__(self, node: Node):
@@ -84,16 +86,84 @@ class ToioSpeakerMatcher(Node):
             self.get_logger().error(f"Failed to load config '{CONFIG_PATH}': {e}")
             return []
 
+    # --- Robust ID Utilities from toio_checkID.py ---
+    def _best_addr_name(self, dev) -> Tuple[Optional[str], Optional[str]]:
+        def _get_addr_name_from_obj(obj) -> Tuple[Optional[str], Optional[str]]:
+            addr = None
+            name = None
+            for a in ("address", "mac", "addr"):
+                if hasattr(obj, a):
+                    addr = getattr(obj, a) or addr
+            for n in ("name", "device_name"):
+                if hasattr(obj, n):
+                    name = getattr(obj, n) or name
+            if hasattr(obj, "__dict__"):
+                d = obj.__dict__
+                addr = d.get("address", addr)
+                name = d.get("name", name)
+            return addr, name
+
+        addr, name = _get_addr_name_from_obj(dev.device)
+        iface = getattr(dev, "interface", None)
+        if iface:
+            a2, n2 = _get_addr_name_from_obj(iface)
+            addr = a2 or addr
+            name = n2 or name
+            for inner in ("device", "peripheral", "client", "_device"):
+                inner_obj = getattr(iface, inner, None)
+                if inner_obj:
+                    a3, n3 = _get_addr_name_from_obj(inner_obj)
+                    addr = a3 or addr
+                    name = n3 or name
+        return addr, name
+
+    async def _fallback_query_name_addr(self, dev) -> Tuple[Optional[str], Optional[str]]:
+        try:
+            cube = ToioCoreCube(dev.interface)
+            await asyncio.wait_for(cube.connect(), timeout=CONNECT_TIMEOUT)
+            addr = None
+            client = getattr(cube, "client", None)
+            if client:
+                addr = getattr(client, "address", None)
+                if not addr:
+                    dev_inner = getattr(client, "_device", None)
+                    if dev_inner:
+                        addr = getattr(dev_inner, "address", None)
+            name = None
+            if client:
+                try:
+                    data = await asyncio.wait_for(client.read_gatt_char(DEVICE_NAME_UUID), timeout=CONNECT_TIMEOUT)
+                    if isinstance(data, (bytes, bytearray)):
+                        name = data.decode("utf-8", errors="ignore").strip("\x00").strip()
+                except Exception:
+                    pass
+            await cube.disconnect()
+            return addr, name
+        except Exception:
+            return None, None
+
     async def run_automatic_matching(self):
-        # 1. Device Scan
+        # 1. Robust Device Scan
         self.get_logger().info("Confirming Toio cube order via initial scan...")
         try:
-            self.get_logger().info("Scanning for all BLE devices...")
-            initial_toio_devices = await BLEScanner.scan(num=len(self.roles))
-            if not initial_toio_devices:
+            self.get_logger().info(f"Scanning for {len(self.roles)} Toio cubes...")
+            devs = await BLEScanner.scan(num=len(self.roles))
+            if not devs:
                 self.get_logger().error("No Toio cubes found. Aborting.")
                 return
-            toio_addresses = [dev.device.address for dev in initial_toio_devices]
+            
+            toio_info_list = []
+            for d in devs:
+                addr, name = self._best_addr_name(d)
+                if not name or name == "UNKNOWN":
+                    self.get_logger().info(f"Retrieving name for {addr} via connection...")
+                    addr2, name2 = await self._fallback_query_name_addr(d)
+                    addr = addr2 or addr
+                    name = name2 or "UNKNOWN"
+                toio_info_list.append({"address": addr, "name": name, "device": d})
+                self.get_logger().info(f"Found Toio: {name} ({addr})")
+
+            toio_addresses = [info["address"] for info in toio_info_list]
             self.get_logger().info(f"Confirmed Toio pairing order: {toio_addresses}")
         except Exception as e:
             self.get_logger().error(f"Error during initial scan: {e}")
@@ -107,32 +177,25 @@ class ToioSpeakerMatcher(Node):
         self.get_logger().info(f"Available speakers: {available_sinks}")
 
         match_list = []
-        
-        # 2. Automatic Pairing Based on Order
-        num_pairs = min(len(self.roles), len(toio_addresses), len(available_sinks))
+        num_pairs = min(len(self.roles), len(toio_info_list), len(available_sinks))
 
         for i in range(num_pairs):
             role = self.roles[i]
-            toio_address = toio_addresses[i]
+            toio_info = toio_info_list[i]
+            toio_address = toio_info["address"]
+            toio_name = toio_info["name"]
             sink = available_sinks[i]
 
-            self.get_logger().info(f"--- Pairing Start: Role='{role}', Toio='{toio_address}' ---")
+            self.get_logger().info(f"--- Pairing Start: Role='{role}', Toio='{toio_name} ({toio_address})' ---")
 
             connected_cube = None
-            for attempt in range(3): # Max 3 attempts
+            for attempt in range(3):
                 try:
-                    self.get_logger().info(f"Rescanning Toio {toio_address}... (Attempt {attempt + 1}/3)")
-                    fresh_devices = await BLEScanner.scan(num=len(self.roles), timeout=3.0)
-                    toio_dev = next((d for d in fresh_devices if d.device.address == toio_address), None)
-
-                    if toio_dev is None:
-                        raise ConnectionError(f"Toio {toio_address} not found in rescan.")
-
-                    self.get_logger().info(f"Connecting to Toio {toio_address}...")
-                    cube = ToioCoreCube(toio_dev.interface)
+                    self.get_logger().info(f"Connecting to Toio {toio_name} ({toio_address})... (Attempt {attempt + 1}/3)")
+                    cube = ToioCoreCube(toio_info["device"].interface)
                     await cube.connect()
                     connected_cube = cube
-                    self.get_logger().info(f"Successfully connected to Toio {toio_address}.")
+                    self.get_logger().info(f"Successfully connected to {toio_name}.")
                     break
                 except Exception as e:
                     self.get_logger().warn(f"Connection attempt failed: {e}")
@@ -141,22 +204,25 @@ class ToioSpeakerMatcher(Node):
             
             if connected_cube:
                 try:
-                    # Speech and motor control after successful connection
                     speech = f"Speaker {role}. Please place this speaker on the rotating Toio."
                     self.tts.speak(speech, sink)
                     await connected_cube.api.motor.motor_control(50, -50, 1000)
 
-                    # Add matching info to list
-                    match_info = { "role": role, "toio_id": toio_address, "speaker_id": sink }
+                    match_info = { 
+                        "role": role, 
+                        "toio_id": toio_address, 
+                        "toio_name": toio_name,
+                        "speaker_id": sink 
+                    }
                     match_list.append(match_info)
-                    self.get_logger().info(f"Pair confirmed: {role} <-> {toio_address} <-> {sink}")
+                    self.get_logger().info(f"Pair confirmed: {role} <-> {toio_name} ({toio_address}) <-> {sink}")
                 
                 finally:
                     await connected_cube.disconnect()
-                    self.get_logger().info(f"Disconnected Toio {toio_address}.")
+                    self.get_logger().info(f"Disconnected {toio_name}.")
                     await asyncio.sleep(1)
             else:
-                self.get_logger().error(f"Failed to connect to Toio {toio_address}. Skipping this pair.")
+                self.get_logger().error(f"Failed to connect to {toio_name}. Skipping this pair.")
 
         # 3. Save Results
         if not match_list:
