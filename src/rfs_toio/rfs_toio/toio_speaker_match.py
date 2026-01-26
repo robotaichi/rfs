@@ -142,7 +142,7 @@ class ToioSpeakerMatcher(Node):
             if connected_cube:
                 try:
                     # Speech and motor control after successful connection
-                    speech = f"Speaker {role}"
+                    speech = f"Speaker {role}. Please place this speaker on the rotating Toio."
                     self.tts.speak(speech, sink)
                     await connected_cube.api.motor.motor_control(50, -50, 1000)
 
