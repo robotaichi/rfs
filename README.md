@@ -141,7 +141,8 @@ The **Circumplex Model of Marital and Family Systems** (developed by David H. Ol
 
 1.  **Cohesion**: The emotional bonding that couple and family members have toward one another.
 2.  **Flexibility**: The amount of change in its leadership, role relationships, and relationship rules in response to situational and developmental stress.
-3.  **Communication**: The third dimension in the Circumplex Model and is considered a facilitating dimension, which means that good communication helps couples and families alter their levels of cohesion and flexibility to better deal with developmental or situational demands. It is not drawn on Olson's Circumplex Model.
+3.  **Communication**: The third dimension in the Circumplex Model and is considered a facilitating dimension, which means that good communication helps couples and families alter their levels of cohesion and flexibility to better deal with developmental or situational demands.
+    **※It is not drawn on Olson's Circumplex Model.**
 
 The model classifies family states into **Balanced** (Healthy/Functional) and **Unbalanced** (Extreme/Dysfunctional) regions. Our Therapist Node uses this model to steer the unbalanced robot family back towards the balanced type.
 

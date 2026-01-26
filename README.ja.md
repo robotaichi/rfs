@@ -141,7 +141,8 @@ source ~/.bashrc
 
 1.  **Cohesion（凝集性）**: 家族成員が持つ情緒的なつながり（the emotional bonding that couple and family members have toward one another）。
 2.  **Flexibility（適応性）**: 状況的・発達的危機（ストレス）に対して、家族システムの勢力構造や役割関係などを変化させる能力（the amount of change in its leadership, role relationships, and relationship rules）。
-3.  **Communication（コミュニケーション）**: CohesionとFlexibilityの動きを促進する第三の次元（the third dimension in the Circumplex Model and is considered a facilitating dimension, which means that good communication helps couples and families alter their levels of cohesion and flexibility to better deal with developmental or situational demands）。Olsonの家族円環モデル上には描画されない。
+3.  **Communication（コミュニケーション）**: CohesionとFlexibilityの動きを促進する第三の次元（the third dimension in the Circumplex Model and is considered a facilitating dimension, which means that good communication helps couples and families alter their levels of cohesion and flexibility to better deal with developmental or situational demands）。
+    **※Olsonの家族円環モデル上には描画されない。**
 
 このモデルでは、家族の状態を **「バランス (Balanced)」**（健康的・機能的）な領域と、**「アンバランス (Unbalanced)」**（極端・不全）な領域に分類します。本システムのセラピストノードは、このモデルに基づき、アンバランスな状態にあるロボット家族をバランスタイプへと導きます。
 
