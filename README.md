@@ -2,24 +2,22 @@
 
 # RFS: Robot Family System
 
-RFS (Robot Family System) is a ROS2-based research and educational simulation platform for family therapy and family psychology. It leverages Multiple LLM-based agents to simulate complex family dynamics, visualizes psychological states on the FACES IV circumplex model, and uses Gradient Descent to suggest AI-driven therapeutic interventions.
+RFS (Robot Family System) is a robot family system that aims to realize a "new family" composed of people and robots (agents) such as father robots, mother robots, and daughter robots. By interacting with a robot family, people feel a sense of warmth and a secure base, aiming to eventually reduce feelings of isolation and loneliness. It implements a family agent system that performs family-like conversations and behaviors using ROS2 and LLM. People can intervene at any time by speaking into a microphone during the robot family's conversation. In order to make the robot family's conversation more like that of a human family, RFS adjusts the behavior of the robot family based on Olson's Circumplex Model and its evaluation scale, FACES IV. Specifically, it visualizes the current state of the robot family by plotting it on Olson's Circumplex Model, and in the case of unbalanced types, uses Gradient Descent to approach an ideal balanced type of family. These adjustments are performed by a therapist node (agent) separate from the robot family members.
 
-This project is developed as part of the research at the **Fumihide Tanaka Laboratory** at the University of Tsukuba. Our research focuses on the intersection of human-robot interaction, social psychology, and advanced AI to design systems that enhance human well-being and social harmony.
+This project is developed as part of the research at the **Fumihide Tanaka Laboratory** at the University of Tsukuba. Our lab mainly focuses on HRI (Human-Robot Interaction), conducting research to create intelligent agent technologies that are always by our side and help us in our lives.
 
 🔗 **Learn more about our research**: [Fumihide Tanaka Laboratory - Projects](https://www.ftl.iit.tsukuba.ac.jp/projects/)
 
 ## 🌟 Key Features
 
-- **Multi-Agent Simulation**: Simulates distinct family member personalities (Father, Mother, Daughter, Son) using advanced LLMs.
-- **FACES IV Visualization**: Real-time mapping of family dynamics onto Cohesion and Flexibility axes.
-- **Dual Trajectory Tracking**: Visualizes both the "Actual Family State" and the "Therapeutic Target" on the same plot.
-- **Predictive Interaction**: Implements "Background Scenario Generation" to pre-generate agent responses, significantly reducing latency.
-- **Physical Representation**: Integration with [toio™](https://toio.io/) robots for tangible representation of interpersonal distances.
-- **Interactive Audio**: Real-time Speech-to-Text (STT) and Text-to-Speech (TTS) capabilities for optional human intervention.
+- **Family Agent Interaction**: Expresses the individuality of each family member (father, mother, daughter, etc.) using LLM. Also, synchronizes each agent's conversation using ROS2 to achieve family-like conversation.
+- **FACES IV Visualization**: Real-time plotting of the current and ideal states of the robot family on the axes of "Cohesion" and "Flexibility" of Olson's Circumplex Model.
+- **Physical Representation via Movement**: Integration with [toio™](https://toio.io/) robots allows robots to change the physical distance from people by moving.
+- **Interactive**: Real-time Speech-to-Text (STT) and Text-to-Speech (TTS) allow humans to intervene in the robot family's conversation.
 
 ## 🏗 System Architecture & Processing Flow
 
-The system operates in a closed-loop cycle where the **AI Therapist** (`rfs_therapist`) steers family members toward a healthy, balanced state according to Olson's Circumplex Model. The **Human User** can optionally intervene in the family dialogue to influence the simulation.
+RFS operates in a closed-loop cycle where the **Therapist Node** (`rfs_therapist`) leads the robot family members toward a balanced type according to Olson's Circumplex Model. **People (Users)** can intervene in the robot family's conversation at any time to influence it.
 
 ![System Architecture](docs/images/architecture.png)
 
@@ -27,13 +25,13 @@ The system operates in a closed-loop cycle where the **AI Therapist** (`rfs_ther
 
 | Node | Responsibility | Key Function |
 | :--- | :--- | :--- |
-| **`rfs_therapist`** | Therapeutic Steering | Promotes transitions toward the Balanced Center using Gradient Descent. |
-| **`rfs_family`** | Family Members | Simulates personalities (Father, Mother, etc.) using LLMs. |
-| **`rfs_stt`** | Audio Input | Real-time Speech-to-Text for human intervention via Gemini Live. |
-| **`rfs_tts`** | Audio Output | Multi-sink synchronized Text-to-Speech for family dialogue. |
-| **`rfs_toio`** | Physical Layer | Interpersonal distance representation using [toio™](https://toio.io/) robots. |
-| **`rfs_viewer`** | Visualization | Real-time GUI for plotting psychological trajectories. |
-| **`rfs_evaluation`** | Map & Assess | Aggregates logs and maps them to the FACES IV circumplex. |
+| **`rfs_family`** | Robot Family Node | Simulates robot family personalities (Father, Mother, Daughter, etc.) using LLM. |
+| **`rfs_tts`** | Text-to-Speech Node | Performs speech synthesis for robot family members to speak. |
+| **`rfs_toio`** | Toio Robot Node| Assigns robot family members to each [toio™](https://toio.io/) robot to enable physical movement. |
+| **`rfs_therapist`** | Therapist Node | Guides the robot family toward the balanced type using Gradient Descent. |
+| **`rfs_viewer`** | Circumplex Model Visualization Node | Plots the state (trajectory) of the robot family on the Circumplex Model. |
+| **`rfs_evaluation`** | FACES IV Evaluation Node | Evaluates FACES IV based on the robot family's conversation logs. |
+| **`rfs_stt`** | Speech-to-Text Node | Performs real-time speech recognition for human intervention using Gemini Live. |
 
 ## 🚀 Getting Started
 
@@ -44,7 +42,7 @@ The system operates in a closed-loop cycle where the **AI Therapist** (`rfs_ther
 
 ### Requirements
 
-Before building the project, ensure you have the necessary system and Python libraries installed:
+Before building the RFS repository, ensure you have the necessary system and Python libraries installed:
 
 **1. System Dependencies**
 ```bash
@@ -68,7 +66,7 @@ pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py P
 
 ### Configuration
 
-The system requires valid API keys. For a persistent setup, add them to your `~/.bashrc`:
+Before starting RFS, you need to set a valid API key to use the LLM. To persist the settings, add them to your `~/.bashrc`:
 
 ```bash
 # 1. Open .bashrc
@@ -85,7 +83,7 @@ source ~/.bashrc
 - [**`OPENAI_API_KEY`**](https://platform.openai.com/api-keys): Essential for LLM-based dialogue generation and psychological mapping.
 - [**`GEMINI_API_KEY`**](https://aistudio.google.com/app/apikey): Required for Gemini Live-based audio transcription.
 
-2. **Launch**:
+2. **Launch RFS (Launch all necessary nodes at once)**:
    ```bash
    ros2 launch rfs_bringup rfs_all.launch.py
    ```
@@ -121,43 +119,43 @@ Located in `src/rfs_config/config/config.json`.
 | **`terminal_mode`** | String | `"gnome-terminal"` | Terminal used for launching nodes. |
 | **`shutdown_timer_minutes`** | Integer | `0` | Auto-shutdown timer. `0` (Disabled - infinite), `1+` (Minutes before shutdown). |
 
-### LLM Selection & Guidance
-- **Default Model (`gpt-4o`)**: We use `gpt-4o` as the standard for its exceptional reasoning capabilities and nuanced understanding of human social dynamics. It effectively simulates the complex psychological archetypes required for this research.
+### LLM Selection
+- **Default Model (`gpt-4o`)**: We use `gpt-4o` as the standard for its balance of generation speed and accuracy. Change the LLM model in `config.json` as needed.
 - **Temperature Settings**:
-  - **Dialogue (`1.0`)**: A higher temperature is used for turn-taking to ensure natural, varied, and creative conversation that reflects the dynamic nature of family interactions.
-  - **Evaluation (`0.7`)**: A slightly lower temperature is used for psychological assessment to ensure reliable and consistent scoring while still allowing the LLM to capture the "subjective feel" of the simulated member.
+  - **Dialogue (`1.0`)**: A default setting of 1.0 is used for turn-taking to ensure natural, varied, and creative conversation that reflects the dynamic nature of robot family interactions. Adjust in `config.json` if necessary.
+  - **Evaluation (`0.7`)**: A slightly lower 0.7 is used for psychological assessment to ensure reliable and consistent scoring while still capturing the subjective feel of the robot family members. Adjust in `config.json` if necessary.
 
-## 📊 FACES IV Model & Gradient Descent
+## 📊 FACES IV & Gradient Descent
 
-The system treats therapeutic intervention as an optimization problem. If a family state is identified as "Disengaged" or "Enmeshed", the **AI Therapist** calculates the optimal path toward health using **Gradient Descent**.
+The **Therapist Node** evaluates the current state of the robot family using **FACES (Family Adaptability & Cohesion Evaluation Scales) IV**. If the robot family state is judged to be an unbalanced type, it uses **Gradient Descent** to calculate the optimal parameters to approach the balanced type, and provides feedback to the robot family members such as "Your family is in this state now, so please behave like this from the next conversation." Specifically, it calculates and plots target points so that the point on the Circumplex Model consisting of Cohesion and Flexibility approaches the center (50, 50), and gives instructions to the robot family members to carry out subsequent conversations based on this target point.
 
 ### Interactive Simulation
 
-You can visualize how the AI Therapist steers the family state towards the Balanced Center using our interactive simulation tool.
+You can visually confirm how the Therapist Node steers the family state towards the Balanced Center with a simple interactive simulation.
 
 👉 **[Launch Interactive Simulation](https://robotaichi.github.io/rfs/simulation/index.html)**
 
-### Olson's Circumplex Model
+### Olson's Family Circumplex Model
 
-The **Circumplex Model of Marital and Family Systems** (developed by David H. Olson) provides a framework for understanding family dynamics across three dimensions: **Cohesion**, **Flexibility**, and **Communication**.
+The **Circumplex Model of Marital and Family Systems** (developed by David H. Olson) provides a framework for understanding family dynamics across three major dimensions: **Cohesion**, **Flexibility**, and **Communication**.
 
-1.  **Cohesion**: Measures the emotional bonding and sense of togetherness.
-2.  **Flexibility**: Measures the quality of leadership, role relationships, and ability to adapt to stress.
-3.  **Communication**: A facilitating dimension that enables families to adjust their levels of cohesion and flexibility.
+1.  **Cohesion**: The emotional bonding that couple and family members have toward one another.
+2.  **Flexibility**: The amount of change in its leadership, role relationships, and relationship rules in response to situational and developmental stress.
+3.  **Communication**: The third dimension in the Circumplex Model and is considered a facilitating dimension, which means that good communication helps couples and families alter their levels of cohesion and flexibility to better deal with developmental or situational demands. It is not drawn on Olson's Circumplex Model.
 
-The model classifies family states into **Balanced** (Healthy/Functional) and **Unbalanced** (Extreme/Dysfunctional) regions. Our AI Therapist uses this model to steer the simulated family from unbalanced "corners" (e.g., Rigid-Disengaged or Chaotic-Enmeshed) back towards the **Balanced Center**.
+The model classifies family states into **Balanced** (Healthy/Functional) and **Unbalanced** (Extreme/Dysfunctional) regions. Our Therapist Node uses this model to steer the unbalanced robot family back towards the balanced type.
 
 ![Olson's Circumplex Model](docs/images/circumplex_model.png)
 
 ### Percentile Conversion
 
-Before any mathematical processing or plotting, the system converts the **Raw Scores** obtained from assessments into **Percentile Scores**. This conversion is essential for standardized mapping onto the Circumplex Model and ensures that the Gradient Descent operates on a normalized scale ($0$ to $100$).
+Before any mathematical calculation or plotting on the Circumplex Model, the system converts the **Raw Scores** obtained from FACES IV assessments into **Percentile Scores**. This conversion is essential for plotting on the Circumplex Model and ensures normalized scale ($0$ to $100$).
 
 The following conversion charts, based on standard FACES IV norms, are used by the system.
 
-#### 1. Balanced & Unbalanced Scales (Cohesion & Flexibility)
+#### 1. Balanced & Unbalanced Scales
 
-| Raw Score | Balanced Percentile (C/F) | Unbalanced Percentile (D/E/R/C) |
+| Raw Score | Balanced Percentile (Cohesion/Flexibility) | Unbalanced Percentile (Disengaged/Enmeshed/Rigid/Chaotic) |
 | :--- | :--- | :--- |
 | **7** | 16 | 10 |
 | **8** | 18 | 12 |
@@ -191,28 +189,42 @@ The following conversion charts, based on standard FACES IV norms, are used by t
 
 #### 2. Family Communication
 
-| Raw Score | Percentile || Raw Score | Percentile |
-| :--- | :--- | :--- | :--- | :--- |
-| **10-23** | 10 || **37** | 58 |
-| **24** | 12 || **38** | 62 |
-| **25** | 13 || **39** | 65 |
-| **26** | 14 || **40** | 70 |
-| **27** | 15 || **41** | 74 |
-| **28** | 18 || **42** | 80 |
-| **29** | 21 || **43** | 83 |
-| **30** | 24 || **44** | 86 |
-| **31** | 28 || **45** | 88 |
-| **32** | 32 || **46** | 90 |
-| **33** | 36 || **47** | 94 |
-| **34** | 40 || **48** | 96 |
-| **35** | 44 || **49** | 97 |
-| **36** | 50 || **50** | 99 |
+| Raw Score | Percentile |
+| :--- | :--- |
+| **10-23** | 10 |
+| **24** | 12 |
+| **25** | 13 |
+| **26** | 14 |
+| **27** | 15 |
+| **28** | 18 |
+| **29** | 21 |
+| **30** | 24 |
+| **31** | 28 |
+| **32** | 32 |
+| **33** | 36 |
+| **34** | 40 |
+| **35** | 44 |
+| **36** | 50 |
+| **37** | 58 |
+| **38** | 62 |
+| **39** | 65 |
+| **40** | 70 |
+| **41** | 74 |
+| **42** | 80 |
+| **43** | 83 |
+| **44** | 86 |
+| **45** | 88 |
+| **46** | 90 |
+| **47** | 94 |
+| **48** | 96 |
+| **49** | 97 |
+| **50** | 99 |
 
 ### Ratio Scores
 
-The system also calculates **Ratio Scores** to assess the overall health of the family system. A Ratio Score greater than 1 typically indicates a healthy, balanced system, while a score less than 1 suggests an unbalanced (unhealthy) system.
+The system also calculates **Ratio Scores** to assess the family state simply. A Ratio Score greater than 1 typically indicates a healthy, balanced system, while a score less than 1 suggests an unbalanced (unhealthy) system.
 
-These are calculated using the converted **Percentile Scores**:
+These are calculated using the converted **Percentile Scores** from the charts above:
 
 1. **Cohesion Ratio**
 > [!NOTE]
@@ -232,24 +244,24 @@ These are calculated using the converted **Percentile Scores**:
 > \text{Total Ratio} = \frac{\text{Cohesion Ratio} + \text{Flexibility Ratio}}{2}
 > ```
 
-### Mathematical Foundation
+### Gradient Descent
 
-The AI Therapist calculates the optimal therapeutic path using Gradient Descent on the family state vector.
+The **Therapist Node** calculates target points by performing Gradient Descent on the robot family state vector, providing a guide for the robot family to approach the balanced type.
 
-#### 1. State Vector ($x_t$)
+#### 1. State Vector ($s_t$)
 The family state at turn $t$ is represented as a 7-dimensional vector consisting of the converted **Percentile Scores**:
 
 > [!NOTE]
 > ```math
-> x_t = \begin{bmatrix} C_{bal} \\ C_{dis} \\ C_{enm} \\ F_{bal} \\ F_{rig} \\ F_{cha} \\ Comm \end{bmatrix} = [C_{bal}, \dots, Comm]^T
+> s_t = \begin{bmatrix} C_{bal} \\ C_{dis} \\ C_{enm} \\ F_{bal} \\ F_{rig} \\ F_{cha} \\ Comm \end{bmatrix} = [C_{bal}, \dots, Comm]^T
 > ```
 
-#### 2. Objective Function ($J(x_t)$)
-The goal is to minimize a cost function that balances the FACES IV Ratio (Health) and Centering (Stability):
+#### 2. Cost Function ($J(s_t)$)
+The goal is to minimize the cost function:
 
 > [!NOTE]
 > ```math
-> J(x_t) = \omega_1 \frac{U}{2B} - \omega_2 Comm_t + \frac{\omega_3}{2} \left[ (x - 50)^2 + (y - 50)^2 \right]
+> J(s_t) = \omega_1 \frac{U}{2B} - \omega_2 Comm_t + \frac{\omega_3}{2} \left[ (x - 50)^2 + (y - 50)^2 \right]
 > ```
 Where:
 - $B = C_{bal} + F_{bal}$ (Balanced Sum)
@@ -260,12 +272,12 @@ Where:
 > x = C_{bal} + \frac{C_{enm} - C_{dis}}{2}, \quad y = F_{bal} + \frac{F_{cha} - F_{rig}}{2}
 > ```
 
-#### 3. Gradient Calculation ($\nabla J(x_t)$)
-The gradient vector $\nabla J(x_t)$ represents the direction of steepest increase for the cost function:
+#### 3. Gradient Calculation ($\nabla J(s_t)$)
+The gradient vector $\nabla J(s_t)$ represents the direction of steepest increase for the cost function:
 
 > [!NOTE]
 > ```math
-> \nabla J(x_t) = \left[ \frac{\partial J}{\partial C_{bal}}, \dots, \frac{\partial J}{\partial Comm} \right]^T
+> \nabla J(s_t) = \left[ \frac{\partial J}{\partial C_{bal}}, \dots, \frac{\partial J}{\partial Comm} \right]^T
 > ```
 
 Individual partial derivatives are calculated as follows (combining the Ratio and Centering terms):
@@ -288,7 +300,7 @@ The target state is updated iteratively:
 
 > [!NOTE]
 > ```math
-> x_{t+1} = x_t - \eta(Comm_t) \cdot \nabla J(x_t)
+> s_{t+1} = s_t - \eta(Comm_t) \cdot \nabla J(s_t)
 > ```
 
 Where the adaptive learning rate $\eta (Comm_t)$ represents the **step width**:
@@ -298,11 +310,11 @@ Where the adaptive learning rate $\eta (Comm_t)$ represents the **step width**:
 > \eta(Comm_t) = \frac{Comm_t}{100} \cdot 0.25
 > ```
 
-Where **0.25** is the base scaling factor (configurable via `learning_rate_scaling` in `config.json`) that determines the overall sensitivity of the therapeutic steering.
+**0.25** is the degree to which the family type approaches the balanced type in a family therapy-like manner (configurable via `learning_rate_scaling` in `config.json`).
 
-*This step width, along with the Communication dimension, acts as the **driving force** for promoting Cohesion and Flexibility.*
+*This step width (how much to move the point) corresponds to Communication functioning as a **lubricant** to facilitate the movement of Cohesion and Flexibility.*
 
-The resulting vector adjusts the **Behavioral Steering Prompts** for individual family members, pulling the system towards the **Balanced Center (50, 50)**.
+The resulting vector adjusts the behavior (conversation content, etc.) for individual family members, guiding the system towards the **Balanced Center (50, 50)**.
 
 ## 📚 References
 - **Olson's Circumplex Model**: [Circumplex Model: An Update (Prepare/Enrich)](https://www.prepare-enrich.com/wp-content/uploads/2022/08/Circumplex-Model-An-Update.pdf)
