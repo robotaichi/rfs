@@ -326,4 +326,4 @@ This project is licensed under the MIT License.
 ## 👤 Administrator
 
 ### [Taichi Hirano](https://github.com/robotaichi)
-A 3rd-year PhD student in the Intelligent and Functional Systems Program at the Graduate School of Science and Technology, University of Tsukuba. He is a member of the Fumihide Tanaka Laboratory, which focuses on HRI (Human-Robot Interaction). His research involves developing robot families (father, mother, and daughter) to reduce loneliness among elderly people living alone. He is a recipient of JST SPRING. He is also engaged in projects promoting University DX (Digital Transformation).
+A 3rd-year PhD student in the Intelligent and Functional Systems Program at the Graduate School of Science and Technology, University of Tsukuba. He is a member of the [Fumihide Tanaka Laboratory](https://www.ftl.iit.tsukuba.ac.jp/), which focuses on HRI (Human-Robot Interaction). His research involves developing robot families (father, mother, and daughter) to reduce loneliness among elderly people living alone. He is a recipient of JST SPRING. He is also engaged in projects promoting University DX (Digital Transformation).
