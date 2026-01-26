@@ -64,6 +64,18 @@ pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py P
    source install/setup.bash
    ```
 
+### Bluetooth Speaker Connection & Setup (Optional)
+
+If you plan to place speakers on top of [toio™](https://toio.io/) robots for physical movement, you must correctly map each toio™ cube to its corresponding Bluetooth speaker. This system is designed for small Bluetooth speakers like the [ELUT EMBS-HFSASBK](https://www.amazon.co.jp/ELUT-%E3%83%8F%E3%83%B3%E3%82%BA%E3%83%95%E3%83%AA%E3%83%BC%E3%83%BB%E3%82%B9%E3%83%9E%E3%83%BC%E3%83%88%E3%82%A2%E3%82%B7%E3%82%B9%E3%83%88%E3%82%B9%E3%83%94%E3%83%BC%E3%82%AB%E3%83%BC-%E3%83%96%E3%83%A9%E3%83%83%E3%82%AF-EMBS-HFSASBK-%EF%BC%BBBluetooth%E5%AF%BE%E5%BF%9C%EF%BC%BD/dp/B08CDQCWV8).
+
+1.  **Speaker Pairing**: Pair all Bluetooth speakers you intend to use with your Ubuntu PC and ensure they are "Connected".
+2.  **Run Mapping Script**: 
+    ```bash
+    python3 src/rfs_toio/rfs_toio/toio_speaker_match.py
+    ```
+3.  **Role Assignment**: When you run the script, each speaker will announce "Speaker [Role Name]" (e.g., "Speaker Father") and the corresponding toio™ cube will rotate. Place the speaker where the voice came from onto the moving toio™.
+4.  **Save Configuration**: Once all pairs are confirmed, the IDs will be automatically saved to `config.json`.
+
 ### Configuration
 
 Before starting RFS, you need to set a valid API key to use the LLM. To persist the settings, add them to your `~/.bashrc`:
