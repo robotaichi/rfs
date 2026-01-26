@@ -74,7 +74,7 @@ If you plan to place speakers on top of [toio™](https://toio.io/) robots for p
     cd ~/rfs
     python3 src/rfs_toio/rfs_toio/toio_speaker_match.py
     ```
-3.  **Role Assignment (Sequential)**: When you run the script, one of the speakers will announce "Speaker [Role Name]. Please place this speaker on the rotating Toio." Immediately after the announcement, the corresponding toio™ cube will rotate; place that specific speaker onto the moving toio™. This process repeats for each speaker until all are paired.
+3.  **Role Assignment (Sequential)**: When you run the script, one of the speakers will announce "Speaker [Role Name]. Please place this speaker on the rotating Toio." Immediately after the announcement, the corresponding toio™ cube will rotate; place that specific speaker onto the moving toio™. As the next speaker plays its audio, repeat this process for each remaining speaker.
 4.  **Save Configuration**: Once all pairs are confirmed, the IDs will be automatically saved to `config.json`.
 
 ### Configuration
