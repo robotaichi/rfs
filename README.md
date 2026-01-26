@@ -259,6 +259,29 @@ These are calculated using the converted **Percentile Scores** from the charts a
 > \text{Total Ratio} = \frac{\text{Cohesion Ratio} + \text{Flexibility Ratio}}{2}
 > ```
 
+### Dimension Scores
+
+These scores are used to plot the point $(Cohesion, Flexibility)$ on the Olson Circumplex Model. They are calculated by substituting the **Percentile Scores** from the charts above into the following formulas.
+
+1. **Cohesion Dimension Score ($x$)**
+> [!NOTE]
+> ```math
+> x = C_{bal} + \frac{C_{enm} - C_{dis}}{2}
+> ```
+
+2. **Flexibility Dimension Score ($y$)**
+> [!NOTE]
+> ```math
+> y = F_{bal} + \frac{F_{cha} - F_{rig}}{2}
+> ```
+
+The Dimension Scores are constrained to the following range to ensure consistent plotting:
+
+> [!NOTE]
+> ```math
+> \text{Dimension Score} = \begin{cases} 5 & (\text{Score} < 5) \\ \text{Score} & (5 \le \text{Score} \le 95) \\ 95 & (\text{Score} > 95) \end{cases}
+> ```
+
 ### Gradient Descent
 
 The **Therapist Node** calculates target points by performing Gradient Descent on the robot family state vector, providing a guide for the robot family to approach the balanced type.

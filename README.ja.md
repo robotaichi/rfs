@@ -259,6 +259,29 @@ source ~/.bashrc
 > \text{Total Ratio} = \frac{\text{Cohesion Ratio} + \text{Flexibility Ratio}}{2}
 > ```
 
+### ディメンションスコア (Dimension Scores)
+
+家族円環モデル図上に点 $(Cohesion, Flexibility)$ をプロットするために用いられるスコアです。これらは、上記の変換チャートで変換された **パーセンタイルスコア** を以下の数式に代入することで算出されます。
+
+1. **Cohesion Dimension Score ($x$)**
+> [!NOTE]
+> ```math
+> x = C_{bal} + \frac{C_{enm} - C_{dis}}{2}
+> ```
+
+2. **Flexibility Dimension Score ($y$)**
+> [!NOTE]
+> ```math
+> y = F_{bal} + \frac{F_{cha} - F_{rig}}{2}
+> ```
+
+また、ディメンションスコアは、プロットの整合性を保つために以下の範囲に収まるように制限されます。
+
+> [!NOTE]
+> ```math
+> \text{Dimension Score} = \begin{cases} 5 & (\text{Score} < 5) \\ \text{Score} & (5 \le \text{Score} \le 95) \\ 95 & (\text{Score} > 95) \end{cases}
+> ```
+
 ### 最急降下法
 
 **セラピストノード**は、ロボット家族の状態ベクトルに対して勾配降下法を行い、目標となる点を計算し、ロボット家族がバランスタイプに近づくための道しるべを与えます。
