@@ -71,6 +71,7 @@ If you plan to place speakers on top of [toio™](https://toio.io/) robots for p
 1.  **Speaker Pairing**: Pair all Bluetooth speakers you intend to use with your Ubuntu PC and ensure they are "Connected".
 2.  **Run Mapping Script**: 
     ```bash
+    cd ~/rfs
     python3 src/rfs_toio/rfs_toio/toio_speaker_match.py
     ```
 3.  **Role Assignment**: When you run the script, each speaker will announce "Speaker [Role Name]" (e.g., "Speaker Father") and the corresponding toio™ cube will rotate. Place the speaker where the voice came from onto the moving toio™.
