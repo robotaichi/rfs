@@ -304,11 +304,7 @@ The goal is to minimize the cost function:
 Where:
 - $B = C_{bal} + F_{bal}$ (Balanced Sum)
 - $U = C_{dis} + C_{enm} + F_{rig} + F_{cha}$ (Unbalanced Sum)
-
-> [!NOTE]
-> ```math
-> x = C_{bal} + \frac{C_{enm} - C_{dis}}{2}, \quad y = F_{bal} + \frac{F_{cha} - F_{rig}}{2}
-> ```
+- $x, y$: Dimension Scores (see above)
 
 #### 3. Gradient Calculation ($\nabla J(s_t)$)
 The gradient vector $\nabla J(s_t)$ represents the direction of steepest increase for the cost function:

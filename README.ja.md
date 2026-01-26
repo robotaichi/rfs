@@ -304,11 +304,7 @@ source ~/.bashrc
 ここで:
 - $B = C_{bal} + F_{bal}$ (バランス尺度の和)
 - $U = C_{dis} + C_{enm} + F_{rig} + F_{cha}$ (アンバランス尺度の和)
-
-> [!NOTE]
-> ```math
-> x = C_{bal} + \frac{C_{enm} - C_{dis}}{2}, \quad y = F_{bal} + \frac{F_{cha} - F_{rig}}{2}
-> ```
+- $x, y$: ディメンションスコア (前項参照)
 
 #### 3. 勾配計算 ($\nabla J(s_t)$)
 勾配ベクトル $\nabla J(s_t)$ は、コスト関数が最も急激に増加する方向を表します。
