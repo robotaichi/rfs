@@ -104,10 +104,13 @@ def generate_launch_description():
     # --- Pre-launch Cleanup ---
     print("[rfs_launch] Cleaning up previous RFS processes and audio tasks...")
     # Kill any existing ffplay or spd-say processes that might be orphaned
-    # Also kill any previous rfs_* nodes that might be stuck in the background
+    # Use specific patterns to avoid killing the current launch process
     subprocess.run(["pkill", "-f", "ffplay"], stderr=subprocess.DEVNULL)
     subprocess.run(["pkill", "-f", "spd-say"], stderr=subprocess.DEVNULL)
-    subprocess.run(["pkill", "-f", "rfs_"], stderr=subprocess.DEVNULL)
+    # Kill RFS nodes specifically by name, avoiding "rfs_bringup" and "rfs_all.launch.py"
+    rfs_nodes = ["rfs_family_member", "rfs_therapist", "rfs_stt", "rfs_tts", "rfs_toio", "rfs_evaluation", "rfs_viewer"]
+    for node in rfs_nodes:
+        subprocess.run(["pkill", "-f", node], stderr=subprocess.DEVNULL)
     # --------------------------
 
     if os.path.exists(HISTORY_FILE): os.remove(HISTORY_FILE)
