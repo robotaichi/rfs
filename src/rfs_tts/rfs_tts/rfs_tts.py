@@ -292,6 +292,7 @@ class RFSTTS(Node):
             voice_id = parts[4].strip() if len(parts) > 4 else self.speaker_map.get(role, 'Kore')
 
             # Start audio generation IMMEDIATELY in the background (Parallel)
+            self.get_logger().info(f"Starting background audio synthesis for {role}...")
             gen_task = self.loop.create_task(self.client.generate_audio(text_to_speak, voice_id))
             
             # Put the metadata and the future-task into the playback queue

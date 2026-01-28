@@ -406,6 +406,7 @@ class RFSFamilyMember(Node):
         self.update_history(self.pending_scenario_conversation)
         
         # Enforce fixed voice
+        self.get_logger().info(f"[{self.role}] Requesting background audio synthesis...")
         self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
         self.family_publisher.publish(String(data=self.pending_scenario_conversation))
         
