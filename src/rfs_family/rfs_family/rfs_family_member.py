@@ -159,9 +159,6 @@ class RFSFamilyMember(Node):
         self.pending_move_command = None
         self.pending_scenario_conversation = None
         self.pending_scenario_move = None
-        self.is_my_turn_next = False
-        self.intervention_started_this_round = False
-        self.scenario_generated_for_this_intervention = False
         self.is_user_intervention_active_for_publishing_block = False
         self.pending_delay = 1.0
         
@@ -170,10 +167,7 @@ class RFSFamilyMember(Node):
         self.turns_per_step = 10
         self.initial_coords = {"x": 8.0, "y": 8.0}
         self.pending_intervention_text = None
-        self.last_triggered_step = -1
-        self.last_evaluated_step = -1
         self.pending_relay_recipient = None
-        self.is_it_my_turn_soon = False  # Track if we should pre-generate
         self.pending_eval_step_id = None # Track if we are the one to trigger evaluation
         self.language = "en"
         self.llm_model = "gpt-4o"
@@ -220,9 +214,9 @@ class RFSFamilyMember(Node):
         self.create_subscription(String, 'rfs_toio_position', self.toio_position_callback, 10)
         self.create_subscription(String, 'rfs_evaluation_complete', self.evaluation_complete_callback, 10)
         self.create_subscription(String, 'rfs_request_member_evaluation', self.request_member_evaluation_callback, 10)
-        self.create_subscription(String, 'rfs_toio_status', self.toio_status_callback, qos_tl)
         self.create_subscription(String, 'rfs_tts_initialization', self.tts_initialization_callback, qos_tl)
         self.create_subscription(String, 'rfs_toio_move_finished', self.move_finished_callback, 10)
+        self.create_subscription(String, 'rfs_tts_status', self.tts_status_callback, 10)
 
         self.tts = TTSClient(node_name=self.role)
         self.get_logger().info(f"[{self.role}] Node started")
@@ -317,7 +311,6 @@ class RFSFamilyMember(Node):
         if not self.initialization_done or (self.is_scenario_generation_paused and not is_intervention): return
         
         if self.waiting_for_evaluation:
-            self.is_my_turn_next = True
             self.am_i_intervention_responder = is_intervention
             self.pending_intervention_text = intervention_text
             self.get_logger().info(f"[{self.role}] Deferred generation due to evaluation.")
@@ -359,11 +352,6 @@ class RFSFamilyMember(Node):
             self.get_logger().warn(f"[{self.role}] No pending conversation to publish.")
             return
 
-        # If this is a pre-generation call and it's not actually our turn yet, just store and return
-        if not force_publish and self.is_it_my_turn_soon and not from_leader_instruction:
-            self.get_logger().info(f"[{self.role}] Pre-generation complete. Waiting for predecessor to finish...")
-            return
-
         # Parse recipient for turn-taking
         recipient_role = "family"
         try:
@@ -396,37 +384,12 @@ class RFSFamilyMember(Node):
 
         self.update_history(self.pending_scenario_conversation)
         
-        # PROACTIVE EVALUATION TRIGGER:
-        is_evaluation_period = False
-        turns = self._get_turn_count()
-        if turns > 0 and turns % self.turns_per_step == 0:
-            step_idx = turns // self.turns_per_step
-            step_id = f"S{step_idx}"
-            if step_idx > self.last_triggered_step:
-                self.get_logger().info(f"[{self.role}] Turn {turns} threshold reached. Evaluation {step_id} pending after audio.")
-                self.waiting_for_evaluation = True
-                self.last_triggered_step = step_idx
-                # Defer trigger until audio/move finishes
-                self.pending_eval_step_id = step_id
-                # Ensure relay is cleared
-                self.pending_relay_recipient = None
-            is_evaluation_period = True
-
-        # EARLY RELAY: If not evaluation phase, notify next person immediately
-        if not is_evaluation_period and self.pending_relay_recipient:
-            self.get_logger().info(f"[{self.role}] Early relay to {self.pending_relay_recipient}")
-            t_msg = String()
-            t_msg.data = f"{self.role},{self.pending_relay_recipient},prepare_turn"
-            self.family_publisher.publish(t_msg)
-            self.pending_relay_recipient = None
-
         self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
         self.family_publisher.publish(String(data=self.pending_scenario_conversation))
         
         if self.pending_scenario_move:
             self.pending_move_command = self.pending_scenario_move
-        
-        # Clear buffer but keep it if we are just pre-generating (handled by early return at start of function)
+
         self.pending_scenario_conversation = None
         self.pending_scenario_move = None
         if from_leader_instruction: self.stt_resume_pub.publish(String(data="resume"))
@@ -518,15 +481,43 @@ Generate actions for your role considering dialogue history, available voices, a
             
             # Decentralized autonomous model: trigger on prepare_turn or resume_turn
             if target == self.role:
-                if cmd == 'prepare_turn':
-                    self.get_logger().info(f"[{self.role}] Turn signal received. Pre-generating next scenario...")
-                    self.is_it_my_turn_soon = True
-                    self.trigger_scenario_generation(force_publish=False)
-                elif cmd == 'resume_turn':
-                    self.get_logger().info(f"[{self.role}] Resume signal received. Generating and publishing...")
-                    self.is_it_my_turn_soon = False  # Ensure it publishes
-                    self.trigger_scenario_generation(force_publish=True)
+                if cmd == 'prepare_turn' or cmd == 'resume_turn':
+                    force = (cmd == 'resume_turn')
+                    self.get_logger().info(f"[{self.role}] Turn signal '{cmd}' received. Generating scenario...")
+                    self.trigger_scenario_generation(force_publish=force)
         except: pass
+
+    def tts_status_callback(self, msg: String):
+        try:
+            # Format: start,role,text,muted
+            parts = msg.data.split(',')
+            if parts[0] == 'start':
+                speaker = parts[1].lower()
+                if speaker == self.role:
+                    self.get_logger().info(f"[{self.role}] I started playing. Checking for relay or evaluation...")
+                    
+                    # 1. EVALUATION CHECK
+                    turns = self._get_turn_count()
+                    if turns > 0 and turns % self.turns_per_step == 0:
+                        step_idx = turns // self.turns_per_step
+                        step_id = f"S{step_idx}"
+                        if step_idx > self.last_triggered_step:
+                            self.get_logger().info(f"[{self.role}] Threshold reached. Global evaluation {step_id} will be triggered after audio/move.")
+                            self.waiting_for_evaluation = True
+                            self.last_triggered_step = step_idx
+                            self.pending_eval_step_id = step_id
+                            self.pending_relay_recipient = None # Stop relay if evaluation is pending
+                    
+                    # 2. EARLY RELAY (Only if NOT evaluation period)
+                    if not self.waiting_for_evaluation and self.pending_relay_recipient:
+                        next_target = self.pending_relay_recipient
+                        self.get_logger().info(f"[{self.role}] Relaying preparation to {next_target}")
+                        t_msg = String()
+                        t_msg.data = f"{self.role},{next_target},prepare_turn"
+                        self.family_publisher.publish(t_msg)
+                        self.pending_relay_recipient = None
+        except Exception as e:
+            self.get_logger().error(f"Error in tts_status_callback: {e}")
 
     def tts_finished_callback(self, msg: String):
         try:
