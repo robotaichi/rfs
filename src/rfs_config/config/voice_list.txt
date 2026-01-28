@@ -1,74 +1,66 @@
 [
   {
-    "name": "alloy",
-    "overview": "Neutral and balanced voice",
-    "gender": "Neutral",
-    "styles": [
-      { "name": "Normal", "id": "alloy" }
-    ]
-  },
-  {
-    "name": "ash",
-    "overview": "Deep and versatile voice",
-    "gender": "Neutral",
-    "styles": [
-      { "name": "Normal", "id": "ash" }
-    ]
-  },
-  {
-    "name": "coral",
-    "overview": "Expressive and warm female voice",
+    "name": "Kore",
+    "overview": "Bright and professional female voice",
     "gender": "Female",
     "styles": [
-      { "name": "Normal", "id": "coral" }
+      { "name": "Normal", "id": "Kore" }
     ]
   },
   {
-    "name": "echo",
-    "overview": "Warm and relaxed voice",
-    "gender": "Neutral",
-    "styles": [
-      { "name": "Normal", "id": "echo" }
-    ]
-  },
-  {
-    "name": "fable",
-    "overview": "Narrative and expressive voice",
-    "gender": "Neutral",
-    "styles": [
-      { "name": "Normal", "id": "fable" }
-    ]
-  },
-  {
-    "name": "onyx",
-    "overview": "Deep and authoritative voice",
+    "name": "Puck",
+    "overview": "Friendly and youthful male voice",
     "gender": "Male",
     "styles": [
-      { "name": "Normal", "id": "onyx" }
+      { "name": "Normal", "id": "Puck" }
     ]
   },
   {
-    "name": "nova",
-    "overview": "Bright and energy-filled voice",
+    "name": "Zephyr",
+    "overview": "Warm and gentle female voice",
     "gender": "Female",
     "styles": [
-      { "name": "Normal", "id": "nova" }
+      { "name": "Normal", "id": "Zephyr" }
     ]
   },
   {
-    "name": "sage",
-    "overview": "Experienced and thoughtful voice",
-    "gender": "Neutral",
+    "name": "Charon",
+    "overview": "Deep and calm male voice",
+    "gender": "Male",
     "styles": [
-      { "name": "Normal", "id": "sage" }
+      { "name": "Normal", "id": "Charon" }
     ]
   },
   {
-    "name": "shimmer",
-    "overview": "Clear and professional voice",
+    "name": "Aoede",
+    "overview": "Melodic and clear female voice",
     "gender": "Female",
     "styles": [
-      { "name": "Normal", "id": "shimmer" }
+      { "name": "Normal", "id": "Aoede" }
+    ]
+  },
+  {
+    "name": "Fenrir",
+    "overview": "Strong and authoritative male voice",
+    "gender": "Male",
+    "styles": [
+      { "name": "Normal", "id": "Fenrir" }
+    ]
+  },
+  {
+    "name": "Leda",
+    "overview": "Soft and nurturing female voice",
+    "gender": "Female",
+    "styles": [
+      { "name": "Normal", "id": "Leda" }
+    ]
+  },
+  {
+    "name": "Schedar",
+    "overview": "Mature and stable male voice",
+    "gender": "Male",
+    "styles": [
+      { "name": "Normal", "id": "Schedar" }
     ]
   }
 ]

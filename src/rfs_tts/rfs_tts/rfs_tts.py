@@ -17,7 +17,9 @@ import subprocess
 import re
 import csv
 import io
-import openai
+import google.genai as genai
+from google.genai import types
+import wave
 from typing import Optional
 from ament_index_python.packages import get_package_share_directory
 
@@ -31,34 +33,55 @@ CONFIG_FILE = os.path.join(SAVE_DIR, 'config.json')
 HISTORY_FILE = os.path.join(SAVE_DIR, 'conversation_history.txt')
 SINGLE_MEMBER_ROLE = 'androgynous_communication_robot'
 
-class OpenAITTS:
+class GeminiTTS:
     def __init__(self, logger):
         self.logger = logger
-        if not os.environ.get("OPENAI_API_KEY"):
-            self.logger.error("OPENAI_API_KEY environment variable is not set.")
-            raise RuntimeError("OPENAI_API_KEY is missing")
-        self.client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        self.api_key = os.environ.get("GEMINI_API_KEY")
+        if not self.api_key:
+            self.logger.error("GEMINI_API_KEY environment variable is not set.")
+            raise RuntimeError("GEMINI_API_KEY is missing")
+        self.client = genai.Client(api_key=self.api_key)
+        self.model_id = "gemini-2.5-flash-preview-tts"
         self._current_playback_process = None
 
     async def generate_audio(self, text: str, voice: str) -> Optional[str]:
         try:
-            valid_voices = ["alloy", "ash", "coral", "echo", "fable", "onyx", "nova", "sage", "shimmer"]
+            # Valid Gemini voices from voice_list.txt
+            valid_voices = ["Kore", "Puck", "Zephyr", "Charon", "Aoede", "Fenrir", "Leda", "Schedar"]
             if voice not in valid_voices:
-                self.logger.warn(f"Invalid voice '{voice}' requested. Defaulting to 'alloy'.")
-                voice = "alloy"
+                self.logger.warn(f"Invalid voice '{voice}' requested. Defaulting to 'Kore'.")
+                voice = "Kore"
 
             def _api_call():
-                return self.client.audio.speech.create(
-                    model="tts-1",
-                    voice=voice,
-                    input=text,
+                return self.client.models.generate_content(
+                    model=self.model_id,
+                    contents=text,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["AUDIO"],
+                        speech_config=types.SpeechConfig(
+                            voice_config=types.VoiceConfig(
+                                prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                    voice_name=voice,
+                                )
+                            )
+                        ),
+                    )
                 )
 
             # Run blocking API call in an executor
             response = await asyncio.get_event_loop().run_in_executor(None, _api_call)
             
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
-                response.stream_to_file(f.name)
+            # The SDK returns binary data for the audio content
+            audio_data = response.candidates[0].content.parts[0].inline_data.data
+            
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
+                # Gemini TTS returns PCM data (24kHz, mono, 16-bit)
+                # We wrap it in a WAV header for easier playback
+                with wave.open(f.name, "wb") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(24000)
+                    wf.writeframes(audio_data)
                 return f.name
         except Exception as e:
             self.logger.error(f"Error during generate_audio: {e}")
@@ -66,6 +89,7 @@ class OpenAITTS:
 
     async def play_audio(self, filename: str, sink: str = None):
         try:
+            # Use ffplay to play the wav file
             play_command = ["ffplay", "-nodisp", "-autoexit", filename]
             env = os.environ.copy()
             if sink:
@@ -122,7 +146,7 @@ class RFSTTS(Node):
         self.initialization_pub.publish(String(data="tts_initialized"))
         self.get_logger().info("RFS TTS Started.")
         
-        self.client = OpenAITTS(self.get_logger())
+        self.client = GeminiTTS(self.get_logger())
         self.load_config()
         self._get_initial_sink_volumes()
         self.loop.create_task(self._playback_worker())
@@ -250,7 +274,7 @@ class RFSTTS(Node):
             parts = next(reader)
             role = parts[0].lower()
             text_to_speak = parts[3]
-            voice_id = parts[4].strip() if len(parts) > 4 else self.speaker_map.get(role, 'alloy')
+            voice_id = parts[4].strip() if len(parts) > 4 else self.speaker_map.get(role, 'Kore')
 
             self.loop.call_soon_threadsafe(self.playback_queue.put_nowait, (role, text_to_speak, voice_id, is_leader_response, request.delay))
             response.success = True

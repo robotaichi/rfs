@@ -13,7 +13,7 @@ This project is developed as part of the research at the **Fumihide Tanaka Labor
 - **Multi-Agent Interaction**: Expresses the individuality of each family member (father, mother, daughter, etc.) using LLM. Also, synchronizes each agent's conversation using ROS2 to achieve family-like conversation.
 - **FACES IV Visualization**: Real-time plotting of the current and ideal states of the robot family on the axes of "Cohesion" and "Flexibility" of Olson's Circumplex Model.
 - **Physical Representation via Movement**: Integration with [toio™](https://toio.io/) robots allows robots to change the physical distance from a person by moving.
-- **Interactive**: Real-time Speech-to-Text (STT) and Text-to-Speech (TTS) allow the user to intervene in the robot family's conversation.
+- **Interactive**: Real-time Speech-to-Text (STT) and Text-to-Speech (TTS) using Gemini Live allow the user to intervene in the robot family's conversation.
 
 ## 🏗 System Architecture & Processing Flow
 
@@ -26,7 +26,7 @@ RFS operates in a closed-loop cycle where the **Therapist Node** (`rfs_therapist
 | Node | Responsibility | Key Function |
 | :--- | :--- | :--- |
 | **`rfs_family`** | Robot Family Node | Simulates robot family personalities (Father, Mother, Daughter, etc.) using LLM. |
-| **`rfs_tts`** | Text-to-Speech Node | Performs speech synthesis for robot family members to speak. |
+| **`rfs_tts`** | Text-to-Speech Node | Performs speech synthesis using Gemini Live for robot family members. |
 | **`rfs_toio`** | Toio Robot Node| Assigns robot family members to each [toio™](https://toio.io/) robot to enable physical movement. |
 | **`rfs_therapist`** | Therapist Node | Guides the robot family toward the balanced type using Gradient Descent. |
 | **`rfs_viewer`** | Circumplex Model Visualization Node | Plots the state (trajectory) of the robot family on the Circumplex Model. |
@@ -95,7 +95,7 @@ source ~/.bashrc
 ```
 
 - [**`OPENAI_API_KEY`**](https://platform.openai.com/api-keys): Essential for LLM-based dialogue generation and psychological mapping.
-- [**`GEMINI_API_KEY`**](https://aistudio.google.com/app/apikey): Required for Gemini Live-based audio transcription.
+- [**`GEMINI_API_KEY`**](https://aistudio.google.com/app/apikey): Required for Gemini Live-based audio transcription (STT) and low-latency speech generation (TTS).
 
 2. **Launch RFS (Launch all necessary nodes at once)**:
    ```bash
