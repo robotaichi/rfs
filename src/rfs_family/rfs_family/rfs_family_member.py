@@ -174,6 +174,7 @@ class RFSFamilyMember(Node):
         self.llm_temperature = 1.0
         self.llm_evaluation_model = "gpt-4o"
         self.llm_evaluation_temperature = 0.7
+        self.next_turn_recipient = None
         
         # --- Unique Fixed Voice Assignment ---
         self.assigned_voice_id = self._assign_voice_llm()
@@ -501,12 +502,14 @@ Generate actions for your role considering dialogue history, available voices, a
             cmd = parts[2].lower()
             target = parts[1].lower()
             
-            # Decentralized autonomous model: trigger on prepare_turn or resume_turn
+            # Decentralized autonomous model: trigger on prepare_turn, start_turn or resume_turn
             if target == self.role:
-                if cmd == 'prepare_turn' or cmd == 'resume_turn':
-                    force = (cmd == 'resume_turn')
-                    self.get_logger().info(f"[{self.role}] Turn signal '{cmd}' received. Generating scenario...")
-                    self.trigger_scenario_generation(force_publish=force)
+                if cmd == 'prepare_turn':
+                    self.get_logger().info(f"[{self.role}] Preparation signal received. Generating scenario...")
+                    self.trigger_scenario_generation(force_publish=False)
+                elif cmd == 'start_turn' or cmd == 'resume_turn':
+                    self.get_logger().info(f"[{self.role}] Start signal '{cmd}' received. Publishing scenario...")
+                    self.publish_pending_scenario(force_publish=True)
         except: pass
 
     def tts_status_callback(self, msg: String):
@@ -537,6 +540,7 @@ Generate actions for your role considering dialogue history, available voices, a
                         t_msg = String()
                         t_msg.data = f"{self.role},{next_target},prepare_turn"
                         self.family_publisher.publish(t_msg)
+                        self.next_turn_recipient = next_target # Store for later start_turn
                         self.pending_relay_recipient = None
         except Exception as e:
             self.get_logger().error(f"Error in tts_status_callback: {e}")
@@ -585,11 +589,19 @@ Generate actions for your role considering dialogue history, available voices, a
             return
 
         # Relay to next robot now that I am finished
-        if self.pending_relay_recipient:
-            next_target = self.pending_relay_recipient
-            self.get_logger().info(f"[{self.role}] Move finished. Relaying turn to {next_target}")
+        if self.next_turn_recipient:
+            next_target = self.next_turn_recipient
+            self.get_logger().info(f"[{self.role}] Turn complete. Signaling GO to {next_target}")
             t_msg = String()
-            t_msg.data = f"{self.role},{next_target},prepare_turn"
+            t_msg.data = f"{self.role},{next_target},start_turn"
+            self.family_publisher.publish(t_msg)
+            self.next_turn_recipient = None
+        elif self.pending_relay_recipient:
+            # Fallback if audio never started status
+            next_target = self.pending_relay_recipient
+            self.get_logger().info(f"[{self.role}] Turn complete (fallback). Signaling GO to {next_target}")
+            t_msg = String()
+            t_msg.data = f"{self.role},{next_target},start_turn"
             self.family_publisher.publish(t_msg)
             self.pending_relay_recipient = None
 
@@ -755,17 +767,19 @@ Output in the following JSON format:
             if not candidates: candidates = v_list
             
             # Use LLM to pick the best match for the role and theme
-            prompt = f"Role: {self.role}\nTheme: {self.theme}\nVoices: {[{'name':v['name'], 'overview':v['overview']} for v in candidates]}\n\nPick the most suitable voice name for this role. Output ONLY the name."
+            prompt = f"Role: {self.role}\nTheme: {self.theme}\nGender Requirement: {gender}\nAvailable Voices: {[{'name':v['name'], 'overview':v['overview']} for v in candidates]}\n\nPick the most suitable voice name for this role from the list above. You MUST pick one of the names from 'Available Voices'. Output ONLY the name."
             response = client.chat.completions.create(
                 model="gpt-4o",
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=10
+                max_tokens=20
             )
-            v_name = response.choices[0].message.content.strip()
-            if any(v['name'] == v_name for v in v_list):
+            v_name = response.choices[0].message.content.strip().replace('"', '').replace("'", "")
+            if any(v['name'] == v_name for v in candidates):
                 return v_name
             return random.choice(candidates)["name"]
-        except: return "Kore"
+        except Exception as e:
+            self.get_logger().error(f"Voice assignment error: {e}")
+            return "Kore"
 
 def main():
     parser = argparse.ArgumentParser()
