@@ -310,6 +310,12 @@ class RFSTTS(Node):
             while not self.playback_queue.empty():
                 try: self.playback_queue.get_nowait(); self.playback_queue.task_done()
                 except asyncio.QueueEmpty: break
+    def destroy_node(self):
+        """Explicitly cleanup audio processes on node shutdown."""
+        self.get_logger().info("Shutting down TTS node and cleaning up audio processes...")
+        if hasattr(self, 'client'):
+            self.client.stop()
+        super().destroy_node()
 
     def _get_available_sinks(self) -> list[str]:
         try:

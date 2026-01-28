@@ -9,6 +9,7 @@ import datetime
 import re
 from launch import LaunchDescription
 from launch.actions import OpaqueFunction, ExecuteProcess
+import subprocess
 from ament_index_python.packages import get_package_share_directory
 
 # Config paths
@@ -100,6 +101,15 @@ def generate_launch_description():
     roles = config.get('family_config', [])
     theme = config.get('theme', '')
     
+    # --- Pre-launch Cleanup ---
+    print("[rfs_launch] Cleaning up previous RFS processes and audio tasks...")
+    # Kill any existing ffplay or spd-say processes that might be orphaned
+    # Also kill any previous rfs_* nodes that might be stuck in the background
+    subprocess.run(["pkill", "-f", "ffplay"], stderr=subprocess.DEVNULL)
+    subprocess.run(["pkill", "-f", "spd-say"], stderr=subprocess.DEVNULL)
+    subprocess.run(["pkill", "-f", "rfs_"], stderr=subprocess.DEVNULL)
+    # --------------------------
+
     if os.path.exists(HISTORY_FILE): os.remove(HISTORY_FILE)
     
     # Reset trajectory with S0
