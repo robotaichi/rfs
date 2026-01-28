@@ -79,15 +79,20 @@ class GeminiTTS:
             # The SDK returns binary data for the audio content
             audio_data = response.candidates[0].content.parts[0].inline_data.data
             
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
-                # Gemini TTS returns PCM data (24kHz, mono, 16-bit)
-                # We wrap it in a WAV header for easier playback
-                with wave.open(f.name, "wb") as wf:
-                    wf.setnchannels(1)
-                    wf.setsampwidth(2)
-                    wf.setframerate(24000)
-                    wf.writeframes(audio_data)
-                return f.name
+            # Create a unique temporary file for this specific audio task
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav", dir=tempfile.gettempdir()) as f:
+                temp_filename = f.name
+                
+            # Gemini TTS returns PCM data (24kHz, mono, 16-bit)
+            # We wrap it in a WAV header for easier playback
+            with wave.open(temp_filename, "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(24000)
+                wf.writeframes(audio_data)
+            
+            self.logger.info(f"Audio pre-generated and saved to: {temp_filename}")
+            return temp_filename
         except Exception as e:
             self.logger.error(f"Error during generate_audio: {e}")
             return None
