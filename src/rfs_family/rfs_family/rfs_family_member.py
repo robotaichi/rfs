@@ -546,13 +546,7 @@ Generate actions for your role considering dialogue history, available voices, a
             finished_role = data.get("role", "").lower()
         except: return
 
-        # If SOMEONE ELSE finished and I am "soon", then it's my turn to actually publish
         if finished_role != self.role:
-            if self.is_it_my_turn_soon and self.pending_scenario_conversation:
-                self.get_logger().info(f"[{self.role}] Predecessor {finished_role} finished. Publishing my turn.")
-                # We turn OFF is_it_my_turn_soon to allow publish_pending_scenario to proceed
-                self.is_it_my_turn_soon = False 
-                self.publish_pending_scenario(force_publish=True)
             return
 
         # I AM THE ONE WHO FINISHED
