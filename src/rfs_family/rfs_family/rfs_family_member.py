@@ -205,7 +205,6 @@ class RFSFamilyMember(Node):
         self.family_publisher = self.create_publisher(String, 'rfs_family_actions', 10)
         self.initial_scenario_pub = self.create_publisher(String, 'rfs_initial_scenario_generated', qos_tl)
         self.stt_resume_pub = self.create_publisher(String, 'rfs_stt_resume', 10)
-        self.trigger_evaluation_pub = self.create_publisher(String, 'rfs_trigger_evaluation', 10)
         self.interrupt_tts_pub = self.create_publisher(String, 'rfs_interrupt_tts', 10)
         self.user_intervention_toio_move_pub = self.create_publisher(String, 'rfs_user_intervention_toio_move', 10)
         self.toio_move_script_pub = self.create_publisher(String, 'rfs_toio_move_script', 10)
@@ -514,11 +513,19 @@ Generate actions for your role considering dialogue history, available voices, a
         try:
             reader = csv.reader(io.StringIO(msg.data), skipinitialspace=True)
             parts = next(reader)
-            # Decentralized autonomous model: trigger on prepare_turn
-            if parts[2].lower() == 'prepare_turn' and parts[1].lower() == self.role:
-                self.get_logger().info(f"[{self.role}] Turn signal received. Pre-generating next scenario...")
-                self.is_it_my_turn_soon = True
-                self.trigger_scenario_generation(force_publish=False)
+            cmd = parts[2].lower()
+            target = parts[1].lower()
+            
+            # Decentralized autonomous model: trigger on prepare_turn or resume_turn
+            if target == self.role:
+                if cmd == 'prepare_turn':
+                    self.get_logger().info(f"[{self.role}] Turn signal received. Pre-generating next scenario...")
+                    self.is_it_my_turn_soon = True
+                    self.trigger_scenario_generation(force_publish=False)
+                elif cmd == 'resume_turn':
+                    self.get_logger().info(f"[{self.role}] Resume signal received. Generating and publishing...")
+                    self.is_it_my_turn_soon = False  # Ensure it publishes
+                    self.trigger_scenario_generation(force_publish=True)
         except: pass
 
     def tts_finished_callback(self, msg: String):
@@ -599,10 +606,52 @@ Generate actions for your role considering dialogue history, available voices, a
         self.get_logger().info(f"[{self.role}] Evaluation complete for {msg.data}.")
         self.waiting_for_evaluation = False
         
-        # Leader resumes the conversation to start the new session
+        # Leader coordinates the resumption of the conversation
         if self.role == self.family_config[0]:
-            self.get_logger().info(f"[{self.role}] Resuming conversation for new session...")
-            self.trigger_scenario_generation(force_publish=True)
+            self.get_logger().info(f"[{self.role}] Evaluation complete. Coordinating session resume...")
+            
+            history = self.load_full_history()
+            if not history:
+                self.trigger_scenario_generation(force_publish=True)
+                return
+
+            last_lines = history.strip().split('\n')
+            last_conv_line = None
+            for line in reversed(last_lines):
+                if "," in line and "_T" in line:
+                    last_conv_line = line
+                    break
+
+            if not last_conv_line:
+                self.trigger_scenario_generation(force_publish=True)
+                return
+
+            try:
+                reader = csv.reader(io.StringIO(last_conv_line), skipinitialspace=True)
+                parts = next(reader)
+                if len(parts) < 3:
+                     self.trigger_scenario_generation(force_publish=True); return
+                
+                last_speaker = parts[1].strip().lower()
+                last_recipient = parts[2].strip().lower()
+                
+                if last_recipient in self.family_config and last_recipient != last_speaker:
+                    next_speaker = last_recipient
+                else:
+                    others = [m for m in self.family_config if m != last_speaker]
+                    next_speaker = others[0] if others else self.role
+                
+                self.get_logger().info(f"[{self.role}] Resuming: last speaker was '{last_speaker}', relaying to '{next_speaker}'.")
+                
+                if next_speaker == self.role:
+                    self.trigger_scenario_generation(force_publish=True)
+                else:
+                    t_msg = String()
+                    t_msg.data = f"{self.role},{next_speaker},resume_turn"
+                    self.family_publisher.publish(t_msg)
+            except Exception as e:
+                self.get_logger().error(f"Error resuming conversation: {e}")
+                self.trigger_scenario_generation(force_publish=True)
 
     def request_member_evaluation_callback(self, msg: String):
         step_id = msg.data
