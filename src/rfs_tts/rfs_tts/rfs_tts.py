@@ -228,7 +228,7 @@ class RFSTTS(Node):
     async def _playback_worker(self):
         while rclpy.ok():
             try:
-                role, text, voice_id, is_leader_response, delay = await self.playback_queue.get()
+                role, text, voice_id, is_leader_response, delay, gen_task = await self.playback_queue.get()
                 self.current_speaker_role = role
 
                 if delay > 0:
@@ -240,10 +240,15 @@ class RFSTTS(Node):
                 sink = self.hdmi_sink if (self.chat_mode == 1 or self.use_hdmi_fallback) else self.role_map.get(role)
 
                 if sink is None:
+                    # Cancel the ongoing generation task to save API usage
+                    if not gen_task.done():
+                        gen_task.cancel()
                     self.playback_queue.task_done()
                     continue
 
-                audio_file = await self.client.generate_audio(text, voice_id)
+                # Wait for the pre-generation task to finish (or it might be already done)
+                audio_file = await gen_task
+                
                 if audio_file:
                     text_for_publish = text.replace(',', ';')
                     is_muted_by_intervention_str = "true" if self.muted_sinks_original_volumes else "false"
@@ -281,7 +286,14 @@ class RFSTTS(Node):
             text_to_speak = parts[3]
             voice_id = parts[4].strip() if len(parts) > 4 else self.speaker_map.get(role, 'Kore')
 
-            self.loop.call_soon_threadsafe(self.playback_queue.put_nowait, (role, text_to_speak, voice_id, is_leader_response, request.delay))
+            # Start audio generation IMMEDIATELY in the background (Parallel)
+            gen_task = self.loop.create_task(self.client.generate_audio(text_to_speak, voice_id))
+            
+            # Put the metadata and the future-task into the playback queue
+            self.loop.call_soon_threadsafe(
+                self.playback_queue.put_nowait, 
+                (role, text_to_speak, voice_id, is_leader_response, request.delay, gen_task)
+            )
             response.success = True
         except Exception as e:
             self.get_logger().error(f"Error in speak_text_callback: {e}")
@@ -300,7 +312,11 @@ class RFSTTS(Node):
                     except Exception: pass
             
             while not self.playback_queue.empty():
-                try: self.playback_queue.get_nowait(); self.playback_queue.task_done()
+                try: 
+                    item = self.playback_queue.get_nowait()
+                    if len(item) > 5 and hasattr(item[5], 'cancel'):
+                        item[5].cancel()
+                    self.playback_queue.task_done()
                 except asyncio.QueueEmpty: break
         elif msg.data == "resume_all":
             self._restore_volume()
@@ -308,7 +324,11 @@ class RFSTTS(Node):
             if self._current_playback_task and not self._current_playback_task.done():
                 self._current_playback_task.cancel()
             while not self.playback_queue.empty():
-                try: self.playback_queue.get_nowait(); self.playback_queue.task_done()
+                try: 
+                    item = self.playback_queue.get_nowait()
+                    if len(item) > 5 and hasattr(item[5], 'cancel'):
+                        item[5].cancel()
+                    self.playback_queue.task_done()
                 except asyncio.QueueEmpty: break
     def destroy_node(self):
         """Explicitly cleanup audio processes on node shutdown."""
