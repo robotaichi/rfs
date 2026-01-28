@@ -174,6 +174,18 @@ class RFSFamilyMember(Node):
         self.llm_temperature = 1.0
         self.llm_evaluation_model = "gpt-4o"
         self.llm_evaluation_temperature = 0.7
+        
+        # --- Unique Fixed Voice Assignment ---
+        self.assigned_voice_id = "Kore"
+        try:
+            with open(VOICE_LIST_FILE, 'r', encoding='utf-8') as f:
+                v_list = json.load(f)
+                role_idx = self.family_config.index(self.role) if self.role in self.family_config else 0
+                # Assign unique voice based on index
+                self.assigned_voice_id = v_list[role_idx % len(v_list)]["name"]
+        except Exception as e:
+            self.get_logger().error(f"Voice assignment error: {e}")
+        self.get_logger().info(f"[{self.role}] Assigned fixed voice: {self.assigned_voice_id}")
 
         # Leader startup sequence
         if self.role == self.family_config[0]:
@@ -374,16 +386,27 @@ class RFSFamilyMember(Node):
 
                 # Prepare for relay
                 next_target = recipient_role
-                if next_target not in self.family_config or next_target == self.role or next_target in ['user', 'family', 'everyone']:
+                OUTSIDERS = ['user', 'family', 'everyone', 'all', 'おじいちゃん', 'おばあちゃん', 'お父さん', 'お母さん', 'お兄さん', 'お姉さん', 'お兄ちゃん', 'お姉ちゃん', '弟', '妹', '祖父', '祖母', 'おじいさん', 'おばあさん', 'ゲスト', 'guest']
+                if next_target not in self.family_config or next_target == self.role or next_target in OUTSIDERS:
                     others = [m for m in self.family_config if m != self.role]
                     if others: next_target = random.choice(others)
                     else: next_target = self.role
                 self.pending_relay_recipient = next_target
+                
+                # Enforce fixed voice id in the scenario string for TTS
+                if len(parts) > 5:
+                    parts[4] = self.assigned_voice_id
+                    parts[5] = self.assigned_voice_id
+                    output = io.StringIO()
+                    writer = csv.writer(output)
+                    writer.writerow(parts)
+                    self.pending_scenario_conversation = output.getvalue().strip()
         except Exception as e:
             self.get_logger().error(f"Error in publish_pending_scenario: {e}")
 
         self.update_history(self.pending_scenario_conversation)
         
+        # Enforce fixed voice
         self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
         self.family_publisher.publish(String(data=self.pending_scenario_conversation))
         
@@ -447,6 +470,7 @@ Generate actions for your role considering dialogue history, available voices, a
 - Cohesion: Reflect bond strength (Enmeshed/Disengaged/etc).
 - Flexibility: Reflect leadership/rules (Rigid/Chaotic/etc).
 # Constraints
+- Your assigned voice is "{self.assigned_voice_id}". Always use this voice for your responses.
 - LANGUAGE: Output dialogue ("Text" field) in { "Japanese" if self.language == "ja" else "English" }. Rationale and other internal fields must remain in English.
 - Behave human-like despite being a robot.
 - Correct mishearings.
