@@ -363,19 +363,18 @@ class RFSFamilyMember(Node):
             self.get_logger().warn(f"[{self.role}] No pending conversation to publish.")
             return
 
-        # Parse recipient for turn-taking
-        recipient_role = "family"
         try:
             reader = csv.reader(io.StringIO(self.pending_scenario_conversation), skipinitialspace=True)
             parts = next(reader)
             if len(parts) > 1:
-                recipient_role = parts[1].lower()
+                # recipient_role is correctly stored in parts[1], not parts[2]
+                recipient_role = parts[1].strip().lower()
                 
-                # Color-coded display
-                color = self.COLOR_MAP.get(self.role, "\033[96m")
-                reset = self.COLOR_MAP["reset"]
+                # Internal turn-tracking and history update
                 turns = self._get_turn_count()
                 step_idx = turns // self.turns_per_step
+                color = self.COLOR_MAP.get(self.role, "")
+                reset = self.COLOR_MAP.get("reset", "")
                 
                 print(f"{color}\n[{self.role} -> {recipient_role}]")
                 dialogue = parts[3] if len(parts) > 3 else "..."
@@ -759,14 +758,25 @@ Output in the following JSON format:
             with open(VOICE_LIST_FILE, 'r', encoding='utf-8') as f:
                 v_list = json.load(f)
             
-            # Filter voices by gender if possible
+            # Robust gender detection (Supporting EN/JP and common family roles)
             gender = "female"
-            if any(m in self.role for m in ["father", "son", "brother", "grandpa", "uncle", "男", "父", "兄"]):
+            male_keywords = ["father", "son", "brother", "grandpa", "grandfather", "uncle", "boy", "man", "male", 
+                             "父", "父さん", "お父さん", "パパ", "息子", "兄", "弟", "おじいさん", "おじいちゃん", "祖父", "叔父", "伯父", "男"]
+            if any(k in self.role.lower() for k in male_keywords):
                 gender = "male"
+            
+            # Additional heuristic: roles containing 'daughter', 'mother', 'girl', etc are always female
+            female_keywords = ["mother", "daughter", "sister", "grandma", "grandmother", "aunt", "girl", "woman", "female",
+                               "母", "母さん", "お母さん", "ママ", "娘", "姉", "妹", "おばあさん", "おばあちゃん", "祖母", "叔母", "伯母", "女"]
+            if gender == "male" and any(k in self.role.lower() for k in female_keywords):
+                # If there's a conflict, default to female (usually safer for ambiguous roles)
+                gender = "female"
             
             candidates = [v for v in v_list if v.get("gender", "").lower() == gender]
             if not candidates: candidates = v_list
             
+            self.get_logger().info(f"[{self.role}] Detected gender: {gender}. Filtering {len(candidates)} candidates.")
+
             # Use LLM to pick the best match for the role and theme
             prompt = f"Role: {self.role}\nTheme: {self.theme}\nGender Requirement: {gender}\nAvailable Voices: {[{'name':v['name'], 'overview':v['overview']} for v in candidates]}\n\nPick the most suitable voice name for this role from the list above. You MUST pick one of the names from 'Available Voices'. Output ONLY the name."
             response = client.chat.completions.create(
@@ -775,9 +785,15 @@ Output in the following JSON format:
                 max_tokens=20
             )
             v_name = response.choices[0].message.content.strip().replace('"', '').replace("'", "")
-            if any(v['name'] == v_name for v in candidates):
-                return v_name
-            return random.choice(candidates)["name"]
+            
+            # Strict validation
+            found_voice = next((v for v in candidates if v['name'].lower() == v_name.lower()), None)
+            if found_voice:
+                return found_voice['name']
+            
+            # Fallback to first suitable gendered voice
+            self.get_logger().warn(f"[{self.role}] LLM provided invalid voice name '{v_name}'. Falling back.")
+            return candidates[0]["name"]
         except Exception as e:
             self.get_logger().error(f"Voice assignment error: {e}")
             return "Kore"
