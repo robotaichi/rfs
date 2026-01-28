@@ -176,15 +176,7 @@ class RFSFamilyMember(Node):
         self.llm_evaluation_temperature = 0.7
         
         # --- Unique Fixed Voice Assignment ---
-        self.assigned_voice_id = "Kore"
-        try:
-            with open(VOICE_LIST_FILE, 'r', encoding='utf-8') as f:
-                v_list = json.load(f)
-                role_idx = self.family_config.index(self.role) if self.role in self.family_config else 0
-                # Assign unique voice based on index
-                self.assigned_voice_id = v_list[role_idx % len(v_list)]["name"]
-        except Exception as e:
-            self.get_logger().error(f"Voice assignment error: {e}")
+        self.assigned_voice_id = self._assign_voice_llm()
         self.get_logger().info(f"[{self.role}] Assigned fixed voice: {self.assigned_voice_id}")
 
         # Leader startup sequence
@@ -232,6 +224,10 @@ class RFSFamilyMember(Node):
 
         self.tts = TTSClient(node_name=self.role)
         self.get_logger().info(f"[{self.role}] Node started")
+        
+        # Immediate check for startup if leader
+        if self.start_pending:
+            self.create_timer(1.0, self._check_initialization)
 
     def _load_config(self):
         try:
@@ -268,13 +264,15 @@ class RFSFamilyMember(Node):
         except: pass
 
     def _check_initialization(self):
-        if (self.chat_mode == 1 or self.move_enabled == 0) and not self.toios_ready:
+        if (self.chat_mode == 1 or self.move_enabled == 0):
             self.toios_ready = True
         if self.tts_ready and self.toios_ready and not self.initialization_done:
             self.initialization_done = True
             if self.start_pending:
-                self.trigger_scenario_generation(is_initial_statement=True)
+                self.get_logger().info(f"[{self.role}] Initialization complete. Starting first turn...")
+                self.trigger_scenario_generation(is_initial_statement=True, force_publish=True)
                 self.initial_scenario_pub.publish(String(data="completed"))
+                self.start_pending = False
 
     def initial_startup_check(self):
         # Check if history is empty to start S0_T1
@@ -742,6 +740,32 @@ Output in the following JSON format:
     def reset_intervention_state(self):
         self.is_scenario_generation_paused = False
         self.intervention_resolved_pub.publish(String(data="resolved"))
+
+    def _assign_voice_llm(self) -> str:
+        try:
+            with open(VOICE_LIST_FILE, 'r', encoding='utf-8') as f:
+                v_list = json.load(f)
+            
+            # Filter voices by gender if possible
+            gender = "female"
+            if any(m in self.role for m in ["father", "son", "brother", "grandpa", "uncle", "男", "父", "兄"]):
+                gender = "male"
+            
+            candidates = [v for v in v_list if v.get("gender", "").lower() == gender]
+            if not candidates: candidates = v_list
+            
+            # Use LLM to pick the best match for the role and theme
+            prompt = f"Role: {self.role}\nTheme: {self.theme}\nVoices: {[{'name':v['name'], 'overview':v['overview']} for v in candidates]}\n\nPick the most suitable voice name for this role. Output ONLY the name."
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=10
+            )
+            v_name = response.choices[0].message.content.strip()
+            if any(v['name'] == v_name for v in v_list):
+                return v_name
+            return random.choice(candidates)["name"]
+        except: return "Kore"
 
 def main():
     parser = argparse.ArgumentParser()
