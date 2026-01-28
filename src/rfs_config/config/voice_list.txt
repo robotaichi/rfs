@@ -1,66 +1,32 @@
 [
-  {
-    "name": "Kore",
-    "overview": "Bright and professional female voice",
-    "gender": "Female",
-    "styles": [
-      { "name": "Normal", "id": "Kore" }
-    ]
-  },
-  {
-    "name": "Puck",
-    "overview": "Friendly and youthful male voice",
-    "gender": "Male",
-    "styles": [
-      { "name": "Normal", "id": "Puck" }
-    ]
-  },
-  {
-    "name": "Zephyr",
-    "overview": "Warm and gentle female voice",
-    "gender": "Female",
-    "styles": [
-      { "name": "Normal", "id": "Zephyr" }
-    ]
-  },
-  {
-    "name": "Charon",
-    "overview": "Deep and calm male voice",
-    "gender": "Male",
-    "styles": [
-      { "name": "Normal", "id": "Charon" }
-    ]
-  },
-  {
-    "name": "Aoede",
-    "overview": "Melodic and clear female voice",
-    "gender": "Female",
-    "styles": [
-      { "name": "Normal", "id": "Aoede" }
-    ]
-  },
-  {
-    "name": "Fenrir",
-    "overview": "Strong and authoritative male voice",
-    "gender": "Male",
-    "styles": [
-      { "name": "Normal", "id": "Fenrir" }
-    ]
-  },
-  {
-    "name": "Leda",
-    "overview": "Soft and nurturing female voice",
-    "gender": "Female",
-    "styles": [
-      { "name": "Normal", "id": "Leda" }
-    ]
-  },
-  {
-    "name": "Schedar",
-    "overview": "Mature and stable male voice",
-    "gender": "Male",
-    "styles": [
-      { "name": "Normal", "id": "Schedar" }
-    ]
-  }
+  { "name": "Zephyr", "overview": "Bright female voice", "gender": "Female", "styles": [{ "name": "Normal", "id": "Zephyr" }] },
+  { "name": "Puck", "overview": "Upbeat male voice", "gender": "Male", "styles": [{ "name": "Normal", "id": "Puck" }] },
+  { "name": "Charon", "overview": "Informative male voice", "gender": "Male", "styles": [{ "name": "Normal", "id": "Charon" }] },
+  { "name": "Kore", "overview": "Firm female voice", "gender": "Female", "styles": [{ "name": "Normal", "id": "Kore" }] },
+  { "name": "Fenrir", "overview": "Excitable male voice", "gender": "Male", "styles": [{ "name": "Normal", "id": "Fenrir" }] },
+  { "name": "Leda", "overview": "Youthful female voice", "gender": "Female", "styles": [{ "name": "Normal", "id": "Leda" }] },
+  { "name": "Orus", "overview": "Firm male voice", "gender": "Male", "styles": [{ "name": "Normal", "id": "Orus" }] },
+  { "name": "Aoede", "overview": "Breezy female voice", "gender": "Female", "styles": [{ "name": "Normal", "id": "Aoede" }] },
+  { "name": "Callirrhoe", "overview": "Easy-going female voice", "gender": "Female", "styles": [{ "name": "Normal", "id": "Callirrhoe" }] },
+  { "name": "Autonoe", "overview": "Bright female voice", "gender": "Female", "styles": [{ "name": "Normal", "id": "Autonoe" }] },
+  { "name": "Enceladus", "overview": "Breathy male voice", "gender": "Male", "styles": [{ "name": "Normal", "id": "Enceladus" }] },
+  { "name": "Iapetus", "overview": "Clear male voice", "gender": "Male", "styles": [{ "name": "Normal", "id": "Iapetus" }] },
+  { "name": "Umbriel", "overview": "Easy-going male voice", "gender": "Male", "styles": [{ "name": "Normal", "id": "Umbriel" }] },
+  { "name": "Algieba", "overview": "Smooth male voice", "gender": "Male", "styles": [{ "name": "Normal", "id": "Algieba" }] },
+  { "name": "Despina", "overview": "Smooth female voice", "gender": "Female", "styles": [{ "name": "Normal", "id": "Despina" }] },
+  { "name": "Erinome", "overview": "Clear female voice", "gender": "Female", "styles": [{ "name": "Normal", "id": "Erinome" }] },
+  { "name": "Algenib", "overview": "Gravelly male voice", "gender": "Male", "styles": [{ "name": "Normal", "id": "Algenib" }] },
+  { "name": "Rasalgethi", "overview": "Informative male voice", "gender": "Male", "styles": [{ "name": "Normal", "id": "Rasalgethi" }] },
+  { "name": "Laomedeia", "overview": "Upbeat female voice", "gender": "Female", "styles": [{ "name": "Normal", "id": "Laomedeia" }] },
+  { "name": "Achernar", "overview": "Soft female voice", "gender": "Female", "styles": [{ "name": "Normal", "id": "Achernar" }] },
+  { "name": "Alnilam", "overview": "Firm male voice", "gender": "Male", "styles": [{ "name": "Normal", "id": "Alnilam" }] },
+  { "name": "Schedar", "overview": "Even male voice", "gender": "Male", "styles": [{ "name": "Normal", "id": "Schedar" }] },
+  { "name": "Gacrux", "overview": "Mature female voice", "gender": "Female", "styles": [{ "name": "Normal", "id": "Gacrux" }] },
+  { "name": "Pulcherrima", "overview": "Expressive female voice", "gender": "Female", "styles": [{ "name": "Normal", "id": "Pulcherrima" }] },
+  { "name": "Achird", "overview": "Friendly male voice", "gender": "Male", "styles": [{ "name": "Normal", "id": "Achird" }] },
+  { "name": "Zubenelgenubi", "overview": "Casual male voice", "gender": "Male", "styles": [{ "name": "Normal", "id": "Zubenelgenubi" }] },
+  { "name": "Vindemiatrix", "overview": "Gentle female voice", "gender": "Female", "styles": [{ "name": "Normal", "id": "Vindemiatrix" }] },
+  { "name": "Sadachbia", "overview": "Lively male voice", "gender": "Male", "styles": [{ "name": "Normal", "id": "Sadachbia" }] },
+  { "name": "Sadaltager", "overview": "Knowledgeable male voice", "gender": "Male", "styles": [{ "name": "Normal", "id": "Sadaltager" }] },
+  { "name": "Sulafat", "overview": "Warm female voice", "gender": "Female", "styles": [{ "name": "Normal", "id": "Sulafat" }] }
 ]

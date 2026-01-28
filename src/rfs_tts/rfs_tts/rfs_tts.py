@@ -47,7 +47,12 @@ class GeminiTTS:
     async def generate_audio(self, text: str, voice: str) -> Optional[str]:
         try:
             # Valid Gemini voices from voice_list.txt
-            valid_voices = ["Kore", "Puck", "Zephyr", "Charon", "Aoede", "Fenrir", "Leda", "Schedar"]
+            valid_voices = [
+                "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede", "Callirrhoe",
+                "Autonoe", "Enceladus", "Iapetus", "Umbriel", "Algieba", "Despina", "Erinome",
+                "Algenib", "Rasalgethi", "Laomedeia", "Achernar", "Alnilam", "Schedar", "Gacrux",
+                "Pulcherrima", "Achird", "Zubenelgenubi", "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat"
+            ]
             if voice not in valid_voices:
                 self.logger.warn(f"Invalid voice '{voice}' requested. Defaulting to 'Kore'.")
                 voice = "Kore"
