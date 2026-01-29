@@ -41,7 +41,7 @@ class GeminiTTS:
             self.logger.error("GEMINI_API_KEY environment variable is not set.")
             raise RuntimeError("GEMINI_API_KEY is missing")
         self.client = genai.Client(api_key=self.api_key)
-        self.model_id = "gemini-2.0-flash"
+        self.model_id = "gemini-2.5-flash-preview-tts"
         self._current_playback_process = None
 
     async def generate_audio(self, text: str, voice: str) -> Optional[str]:
