@@ -13,12 +13,12 @@ class PlotViewerGUI:
     def __init__(self, master, initial_plot_path):
         self.master = master
         self.master.title("RFS FACES IV Plot Viewer")
-        self.master.geometry("800x800")
         self.label = tk.Label(self.master)
         self.label.pack(fill=tk.BOTH, expand=True)
         self.plot_path = initial_plot_path
         self.bg_path = initial_plot_path.replace(".png", "_bg.png")
         self.show_bg = False
+        self.master.update_idletasks()
         self.update_image()
         self.blink_active = True
         self.master.after(1000, self.toggle_blink)

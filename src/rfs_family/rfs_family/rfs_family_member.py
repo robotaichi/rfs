@@ -204,6 +204,20 @@ class RFSFamilyMember(Node):
             "son": "\033[92m",      # Green
             "reset": "\033[0m"
         }
+        
+        # Tone/Personality Mapping for Unbalanced Types
+        self.TONE_MAP = {
+            "Disconnected": "Extremely cold, detached, and unresponsive. Show zero loyalty or interest in family members.",
+            "Somewhat Connected": "Selective and cautious involvement. Maintain personal distance while being occasionally loyal.",
+            "Connected": "Balanced and healthy closeness. Support others while respecting personal boundaries.",
+            "Very Connected": "Strong family bonds and frequent involvement, while still allowing some personal space.",
+            "Overly Connected": "Exaggerated fusion and dependency. Loyalty is demanded, and individuality is seen as a threat or disloyalty.",
+            "Inflexible": "Stone-cold authoritarian. Rules are absolute. Decisions are imposed without any discussion. Harsh leadership.",
+            "Somewhat Flexible": "Predictable and generally democratic, with clear leadership but occasional negotiation.",
+            "Flexible": "Egalitarian and negotiated. Open to change and democratic decisions.",
+            "Very Flexible": "Fluid and highly adaptable, with frequent role-sharing and consensus-based decisions.",
+            "Overly Flexible": "Complete lack of leadership. Decisions are impulsive, routines are non-existent, and negotiation is endless/meaningless."
+        }
 
         self._load_config()
         self.user_intervention_lock_file = open(USER_INTERVENTION_LOCK_FILE, "a+")
@@ -306,29 +320,47 @@ class RFSFamilyMember(Node):
         c_idx = get_col(x)
         f_idx = get_col(y)
         
-        # Determine Communication index (0 to 2) - estimating based on current trajectory if not found
-        # Communication pct is usually in the trajectory update log, but for now we'll estimate 
-        # based on overall "Balancedness" (Center distance)
         dist = ((x-50)**2 + (y-50)**2)**0.5
-        comm_pct = max(0, 100 - dist) # Simplified: higher pct near center
+        comm_pct = max(0, 100 - dist)
         comm_idx = 0
         if comm_pct <= 33: comm_idx = 0
         elif comm_pct <= 66: comm_idx = 1
         else: comm_idx = 2
         
-        desc = ""
+        # Get labels for tone mapping
+        def get_coh_label_raw(val):
+            if val <= 15: return "Disconnected"
+            if val <= 35: return "Somewhat Connected"
+            if val <= 65: return "Connected"
+            if val <= 85: return "Very Connected"
+            return "Overly Connected"
+        
+        def get_flex_label_raw(val):
+            if val <= 15: return "Inflexible"
+            if val <= 35: return "Somewhat Flexible"
+            if val <= 65: return "Flexible"
+            if val <= 85: return "Very Flexible"
+            return "Overly Flexible"
+
+        c_label = get_coh_label_raw(x)
+        f_label = get_flex_label_raw(y)
+        
+        desc = "# DYNAMISM & TONE (MANDATORY STYLE)\n"
+        desc += f"- Cohesion Tone: {self.TONE_MAP.get(c_label, 'Neutral')}\n"
+        desc += f"- Flexibility Tone: {self.TONE_MAP.get(f_label, 'Neutral')}\n\n"
+
         # Cohesion
-        desc += "## Cohesion Guidelines\n"
+        desc += "## Detailed Cohesion Guidelines\n"
         for cat, vals in self.faces_tables.get("cohesion", {}).items():
             if c_idx < len(vals): desc += f"- {cat}: {vals[c_idx]}\n"
         
         # Flexibility
-        desc += "\n## Flexibility Guidelines\n"
+        desc += "\n## Detailed Flexibility Guidelines\n"
         for cat, vals in self.faces_tables.get("flexibility", {}).items():
             if f_idx < len(vals): desc += f"- {cat}: {vals[f_idx]}\n"
 
         # Communication
-        desc += "\n## Communication Guidelines\n"
+        desc += "\n## Detailed Communication Guidelines\n"
         for cat, vals in self.faces_tables.get("communication", {}).items():
             if comm_idx < len(vals): desc += f"- {cat}: {vals[comm_idx]}\n"
             
