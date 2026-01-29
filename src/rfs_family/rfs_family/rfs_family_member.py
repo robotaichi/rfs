@@ -547,6 +547,17 @@ class RFSFamilyMember(Node):
         if self.pending_scenario_move:
             self.pending_move_command = self.pending_scenario_move
 
+        # 2. RELAY PREPARATION (Early preparation for next speaker)
+        if self.pending_relay_recipient and not self.waiting_for_evaluation:
+            next_target = self.pending_relay_recipient
+            self.get_logger().info(f"[{self.role}] Early relaying preparation to {next_target}")
+            t_msg = String()
+            t_msg.data = f"{self.role},{next_target},prepare_turn"
+            self.family_publisher.publish(t_msg)
+            self.next_turn_recipient = next_target # Store for later start_turn relay
+            # Note: Do not clear self.pending_relay_recipient yet, 
+            # it's needed for fallback in move_finished_callback if next_turn_recipient is lost.
+        
         self.pending_scenario_conversation = None
         self.pending_scenario_move = None
         self.audio_synthesis_requested = False
@@ -679,15 +690,6 @@ Generate actions for your role considering dialogue history, available voices, a
                             self.pending_eval_step_id = step_id
                             self.pending_relay_recipient = None # Stop relay if evaluation is pending
                     
-                    # 2. EARLY RELAY (Only if NOT evaluation period)
-                    if not self.waiting_for_evaluation and self.pending_relay_recipient:
-                        next_target = self.pending_relay_recipient
-                        self.get_logger().info(f"[{self.role}] Relaying preparation to {next_target}")
-                        t_msg = String()
-                        t_msg.data = f"{self.role},{next_target},prepare_turn"
-                        self.family_publisher.publish(t_msg)
-                        self.next_turn_recipient = next_target # Store for later start_turn
-                        self.pending_relay_recipient = None
         except Exception as e:
             self.get_logger().error(f"Error in tts_status_callback: {e}")
 
@@ -742,6 +744,7 @@ Generate actions for your role considering dialogue history, available voices, a
             t_msg.data = f"{self.role},{next_target},start_turn"
             self.family_publisher.publish(t_msg)
             self.next_turn_recipient = None
+            self.pending_relay_recipient = None
         elif self.pending_relay_recipient:
             # Fallback if audio never started status
             next_target = self.pending_relay_recipient

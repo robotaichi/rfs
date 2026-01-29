@@ -35,9 +35,9 @@ This file contains detailed behavioral descriptions for each level of Cohesion, 
 
 | Category | Low (1-2) | Facilitating (3-4) | High (5-6) |
 | :--- | :--- | :--- | :--- |
-| **Listener's Skills** | Seldom evident (Empathy/Attentive listening). | Sometimes evident. | Often evident. |
-| **Speaker's Skills** | Seldom evident. *Often evident (reversed) (Speaking for self/others). | Sometimes evident. | Often evident. Seldom evident (Speaking for others). |
+| **Listener's Skills** | Seldom evident (Empathy/Attentive listening). | Sometimes evident (Empathy/Attentive listening). | Often evident (Empathy/Attentive listening). |
+| **Speaker's Skills** | Seldom evident (Speaking for self). \*Often evident (Speaking for others, \*Note reverse scoring). | Sometimes evident (Speaking for self/others). | Often evident (Speaking for self). Seldom evident (Speaking for others). |
 | **Self-disclosure** | Infrequent discussion of self, feelings, and relationships. | Some discussion of self, feelings, and relationships. | Open discussion of self, feelings, and relationships. |
-| **Clarity** | Inconsistent/unclear verbal messages. Frequent incongruence. | Some degree of clarity, not consistent across time/members. | Verbal messages very clear. Generally congruent. |
-| **Continuity/Tracking** | Little continuity. Irrelevant/distracting nonverbals. | Some continuity, not consistent across time/members. | Members consistently tracking. Facilitative nonverbals. |
-| **Respect and Regard** | Lack of respect for feelings/messages. Possibly disrespectful. | Somewhat respectful of others, not consistent across time/members. | Consistently respectful of other's feelings/messages. |
+| **Clarity** | Inconsistent and/or unclear verbal messages. Frequent incongruences between verbal and nonverbal messages. | Some degree of clarity, but not consistent across time or across all members. Some incongruent messages. | Verbal messages very clear. Generally congruent messages. |
+| **Continuity/Tracking** | Little continuity of content. Irrelevant/distracting nonverbals and asides frequently occur. Frequent/inappropriate topic changes. | Some continuity, but not consistent across time or across all members. Some irrelevant/distracting nonverbals and asides. Topic changes not consistently appropriate. | Members consistently tracking. Few irrelevant/distracting nonverbals and asides. Facilitative nonverbals. Appropriate topic changes |
+| **Respect and Regard** | Lack of respect for feelings or message of other(s). Possibly overtly disrespectful or belittling attitude. | Somewhat respectful of others, but not consistent across time or across all members. Some incongruent messages. | Consistently appears respectful of other's feelings and messages. Few incongruent messages. |

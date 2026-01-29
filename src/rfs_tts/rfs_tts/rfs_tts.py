@@ -41,7 +41,7 @@ class GeminiTTS:
             self.logger.error("GEMINI_API_KEY environment variable is not set.")
             raise RuntimeError("GEMINI_API_KEY is missing")
         self.client = genai.Client(api_key=self.api_key)
-        self.model_id = "gemini-2.5-flash-preview-tts"
+        self.model_id = "gemini-2.0-flash"
         self._current_playback_process = None
 
     async def generate_audio(self, text: str, voice: str) -> Optional[str]:
@@ -252,22 +252,32 @@ class RFSTTS(Node):
                     continue
 
                 # Wait for the pre-generation task to finish (or it might be already done)
-                audio_file = await gen_task
-                
-                if audio_file:
+                audio_file = None
+                try:
+                    audio_file = await gen_task
+                except Exception as e:
+                    self.get_logger().error(f"Generation task failed for {role}: {e}")
+
+                if audio_file and os.path.exists(audio_file):
                     text_for_publish = text.replace(',', ';')
                     is_muted_by_intervention_str = "true" if self.muted_sinks_original_volumes else "false"
                     self.tts_status_pub.publish(String(data=f"start,{role},{text_for_publish},{is_muted_by_intervention_str}"))
                     
+                    self.get_logger().info(f"Playing audio for {role} on sink {sink}...")
                     self._current_playback_task = asyncio.create_task(self.client.play_audio(audio_file, sink))
                     await self._current_playback_task
                     os.remove(audio_file)
+                    
+                    self.tts_status_pub.publish(String(data=f"end,{role}"))
+                    self.tts_finished_pub.publish(String(data=f"finished,{role}"))
+                else:
+                    self.get_logger().error(f"Synthesis failed or audio file missing for {role}. Skipping playback.")
+                    # Still publish finished so the state machine doesn't hang, 
+                    # but since no 'start' was sent, family_member will use fallback relay.
+                    self.tts_finished_pub.publish(String(data=f"finished,{role}"))
             except Exception as e:
                 self.get_logger().error(f"Error in playback worker: {e}")
             finally:
-                if 'role' in locals():
-                    self.tts_status_pub.publish(String(data=f"end,{role}"))
-                    self.tts_finished_pub.publish(String(data=f"finished,{role}"))
                 self.current_speaker_role = None
                 self.playback_queue.task_done()
 
