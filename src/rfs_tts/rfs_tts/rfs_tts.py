@@ -59,20 +59,16 @@ class GeminiTTS:
                 self.logger.warn(f"Invalid voice '{voice}' requested. Defaulting to 'Kore'.")
                 voice = "Kore"
 
-            def _api_call():
-                return self.client.models.generate_content(
-                    model=self.model_id,
-                    contents=text,
-                    config=types.GenerateContentConfig(
-                        response_modalities=["AUDIO"],
-                        speech_config=types.SpeechConfig(
-                            voice_config=types.VoiceConfig(
-                                prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                                    voice_name=voice,
-                                )
+            def _get_config():
+                return types.GenerateContentConfig(
+                    response_modalities=["AUDIO"],
+                    speech_config=types.SpeechConfig(
+                        voice_config=types.VoiceConfig(
+                            prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                voice_name=voice,
                             )
-                        ),
-                    )
+                        )
+                    ),
                 )
 
             # Narrowed semaphore scope to strictly wrap the API call and retry logic
@@ -80,14 +76,18 @@ class GeminiTTS:
             last_error = None
             
             async with self._synthesis_semaphore:
-                self.logger.info(f"Generating audio for voice '{voice}' via {self.model_id}...")
+                self.logger.info(f"Generating audio for voice '{voice}' via {self.model_id} (Native Async)...")
                 for attempt in range(2):
                     try:
-                        self.logger.info(f"API attempt {attempt+1} starting for {voice} on explicit loop...")
-                        # Run blocking API call in the node's loop executor
+                        self.logger.info(f"API attempt {attempt+1} starting for {voice}...")
+                        # Native async call using client.aio
                         response = await asyncio.wait_for(
-                            self.loop.run_in_executor(None, _api_call),
-                            timeout=50.0
+                            self.client.aio.models.generate_content(
+                                model=self.model_id,
+                                contents=text,
+                                config=_get_config()
+                            ),
+                            timeout=25.0
                         )
                         if response: 
                             self.logger.info(f"API attempt {attempt+1} SUCCESS for {voice}.")
@@ -95,7 +95,7 @@ class GeminiTTS:
                     except Exception as e:
                         last_error = e
                         self.logger.warn(f"Gemini TTS attempt {attempt+1} failed: {e}")
-                        if "500" in str(e):
+                        if "500" in str(e) or "429" in str(e):
                             await asyncio.sleep(1.0)
                         else:
                             break

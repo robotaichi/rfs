@@ -91,11 +91,14 @@ def main():
     node = RFSViewer(gui)
     
     def spin():
+        if not rclpy.ok():
+            node.get_logger().info("Viewer: rclpy is not ok, stopping spin loop.")
+            return
         try:
             # Non-blocking spin
             rclpy.spin_once(node, timeout_sec=0)
-        except Exception:
-            pass
+        except Exception as e:
+            node.get_logger().error(f"Viewer spin error: {e}")
         root.after(100, spin)
     
     root.after(100, spin)
