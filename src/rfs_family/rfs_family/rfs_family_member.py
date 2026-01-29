@@ -16,6 +16,9 @@ import csv
 import io
 import fcntl
 import threading
+import signal
+import shutil
+from datetime import datetime
 from rfs_interfaces.srv import TTSService
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
@@ -249,9 +252,27 @@ class RFSFamilyMember(Node):
             self.get_logger().error(f"Config load error: {e}")
 
     def destroy_node(self):
+        # Only the leader archives the history to avoid multiple copies
+        if self.role == self.family_config[0]:
+            self._archive_history()
+            
         if hasattr(self, 'user_intervention_lock_file') and not self.user_intervention_lock_file.closed:
             self.user_intervention_lock_file.close()
         super().destroy_node()
+
+    def _archive_history(self):
+        try:
+            if not os.path.exists(HISTORY_FILE) or os.path.getsize(HISTORY_FILE) == 0:
+                return
+            
+            # 2026_0129_143500.txt format
+            timestamp = datetime.now().strftime("%Y_%m%d_%H%M%S")
+            archive_path = os.path.join(DB_DIR, f"{timestamp}.txt")
+            
+            shutil.copy2(HISTORY_FILE, archive_path)
+            self.get_logger().info(f"[{self.role}] History archived to: {archive_path}")
+        except Exception as e:
+            self.get_logger().error(f"Failed to archive history: {e}")
 
     def tts_initialization_callback(self, msg: String):
         if msg.data.lower() == "tts_initialized":
