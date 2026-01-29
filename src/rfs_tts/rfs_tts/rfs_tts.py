@@ -41,8 +41,7 @@ class GeminiTTS:
             self.logger.error("GEMINI_API_KEY environment variable is not set.")
             raise RuntimeError("GEMINI_API_KEY is missing")
         self.client = genai.Client(api_key=self.api_key)
-        # Use the established flash model for better stability in conversational turn transitions
-        self.model_id = "gemini-2.0-flash-exp" 
+        self.model_id = "gemini-2.5-flash-preview-tts" 
         self._current_playback_process = None
         self._synthesis_semaphore = asyncio.Semaphore(1)
 
