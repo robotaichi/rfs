@@ -175,6 +175,9 @@ class RFSFamilyMember(Node):
         self.llm_evaluation_model = "gpt-4o"
         self.llm_evaluation_temperature = 0.7
         self.next_turn_recipient = None
+        self.generation_lock = threading.Lock()
+        self.is_generating_scenario = False
+        self.start_signal_deferred = False
         
         # --- Unique Fixed Voice Assignment ---
         self.assigned_voice_id = self._assign_voice_llm()
@@ -326,11 +329,21 @@ class RFSFamilyMember(Node):
             self.pending_intervention_text = intervention_text
             self.get_logger().info(f"[{self.role}] Deferred generation due to evaluation.")
             return
-        scenario = self.generate_scenario(is_initial_statement=is_initial_statement, intervention_text=intervention_text)
-        if not scenario: return
-        if is_intervention:
-            self.update_history(scenario, is_leader_response=True)
-            try:
+
+        with self.generation_lock:
+            self.is_generating_scenario = True
+            self.start_signal_deferred = False
+
+        try:
+            scenario = self.generate_scenario(is_initial_statement=is_initial_statement, intervention_text=intervention_text)
+            if not scenario: 
+                with self.generation_lock: self.is_generating_scenario = False
+                return
+            
+            # Post-generation handling
+            if is_intervention:
+                self.update_history(scenario, is_leader_response=True)
+                # ... existing intervention logic ...
                 reader = csv.reader(io.StringIO(scenario), skipinitialspace=True)
                 row = next(reader)
                 resp = row[0].lower()
@@ -340,32 +353,50 @@ class RFSFamilyMember(Node):
                     self.publish_pending_scenario(from_leader_instruction=True)
                 else:
                     self.get_logger().info(f"Relaying to {resp}")
-            except: pass
-        else:
-            lines = scenario.strip().split('\n')
-            for line in lines:
-                try:
-                    reader = csv.reader(io.StringIO(line), skipinitialspace=True)
-                    parts = next(reader)
-                    if len(parts) > 2:
-                        type_tag = parts[2].lower()
-                        if 'conversation' in type_tag: self.pending_scenario_conversation = line
-                        elif 'move' in type_tag: self.pending_scenario_move = line
-                except:
-                    if 'conversation' in line: self.pending_scenario_conversation = line
-                    elif 'move' in line: self.pending_scenario_move = line
-            if is_initial_statement or force_publish: 
-                self.publish_pending_scenario(force_publish=True)
             else:
-                # BACKGROUND MODE: Start audio synthesis immediately but do not publish action yet
-                if self.pending_scenario_conversation:
-                    self.get_logger().info(f"[{self.role}] Text generation complete. Starting background audio synthesis...")
-                    self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
-                    self.audio_synthesis_requested = True
+                lines = scenario.strip().split('\n')
+                for line in lines:
+                    try:
+                        reader = csv.reader(io.StringIO(line), skipinitialspace=True)
+                        parts = next(reader)
+                        if len(parts) > 2:
+                            type_tag = parts[2].lower()
+                            if 'conversation' in type_tag: self.pending_scenario_conversation = line
+                            elif 'move' in type_tag: self.pending_scenario_move = line
+                    except:
+                        if 'conversation' in line: self.pending_scenario_conversation = line
+                        elif 'move' in line: self.pending_scenario_move = line
+                
+                # Check for publication triggers
+                should_publish_now = False
+                with self.generation_lock:
+                    self.is_generating_scenario = False
+                    if is_initial_statement or force_publish or self.start_signal_deferred:
+                        should_publish_now = True
+                        self.start_signal_deferred = False
+                    
+                if should_publish_now:
+                    self.get_logger().info(f"[{self.role}] Generation complete. Publishing (Triggered by {'initial/force' if not self.start_signal_deferred else 'deferred start'}).")
+                    self.publish_pending_scenario(force_publish=True)
+                else:
+                    # BACKGROUND MODE: Start audio synthesis immediately but do not publish action yet
+                    if self.pending_scenario_conversation:
+                        self.get_logger().info(f"[{self.role}] Text generation complete. Pre-synthesizing background audio...")
+                        self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
+                        self.audio_synthesis_requested = True
+        except Exception as e:
+            self.get_logger().error(f"Error in background generation task: {e}")
+            with self.generation_lock: self.is_generating_scenario = False
 
     def publish_pending_scenario(self, from_leader_instruction: bool = False, force_publish: bool = False):
         if self.waiting_for_evaluation and not from_leader_instruction: return
         
+        with self.generation_lock:
+            if self.is_generating_scenario:
+                self.get_logger().info(f"[{self.role}] Publish requested while still generating. Deferring start.")
+                self.start_signal_deferred = True
+                return
+
         if self.pending_scenario_conversation is None:
             self.get_logger().warn(f"[{self.role}] No pending conversation to publish.")
             return
