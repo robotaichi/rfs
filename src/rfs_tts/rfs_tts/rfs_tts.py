@@ -313,6 +313,11 @@ class RFSTTS(Node):
             self._set_sink_volume(sink, original_volume)
         self.muted_sinks_original_volumes.clear()
 
+    async def _queue_audio_task(self, role, text, voice_id, is_leader_response, delay):
+        """Helper to create task and put it in queue within the event loop's thread."""
+        gen_task = asyncio.create_task(self.client.generate_audio(text, voice_id))
+        self.playback_queue.put_nowait((role, text, voice_id, is_leader_response, delay, gen_task))
+
     def speak_text_callback(self, request, response):
         try:
             text_with_marker = request.text.strip()
@@ -327,14 +332,10 @@ class RFSTTS(Node):
             text_to_speak = parts[3]
             voice_id = parts[4].strip() if len(parts) > 4 else self.speaker_map.get(role, 'Kore')
 
-            # Start audio generation IMMEDIATELY in the background (Parallel)
-            self.get_logger().info(f"Starting background audio synthesis for {role}...")
-            gen_task = self.loop.create_task(self.client.generate_audio(text_to_speak, voice_id))
-            
-            # Put the metadata and the future-task into the playback queue
+            self.get_logger().info(f"Scheduling background audio synthesis for {role}...")
+            # Schedule the task creation and queuing in the loop thread safely
             self.loop.call_soon_threadsafe(
-                self.playback_queue.put_nowait, 
-                (role, text_to_speak, voice_id, is_leader_response, request.delay, gen_task)
+                lambda: asyncio.create_task(self._queue_audio_task(role, text_to_speak, voice_id, is_leader_response, request.delay))
             )
             response.success = True
         except Exception as e:

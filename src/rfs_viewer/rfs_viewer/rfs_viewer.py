@@ -86,7 +86,7 @@ def main():
     if args.geometry:
         root.geometry(args.geometry)
     else:
-        root.geometry("500x500")
+        root.geometry("200x200")
     gui = PlotViewerGUI(root, default_plot_path)
     node = RFSViewer(gui)
     
