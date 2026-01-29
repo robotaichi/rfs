@@ -513,7 +513,8 @@ class RFSFamilyMember(Node):
                 return
 
         if self.pending_scenario_conversation is None:
-            self.get_logger().warn(f"[{self.role}] No pending conversation to publish.")
+            self.get_logger().warn(f"[{self.role}] No pending conversation to publish. Triggering fresh generation.")
+            self.trigger_scenario_generation(force_publish=True)
             return
 
         try:
@@ -666,7 +667,7 @@ Generate actions for your role considering dialogue history, available voices, a
                 {"role": "system", "content": f"History: {current_history}"},
                 {"role": "user", "content": prompt_base}
             ]
-            response = client.chat.completions.create(model=self.llm_model, messages=messages, temperature=self.llm_temperature)
+            response = client.chat.completions.create(model=self.llm_model, messages=messages, temperature=self.llm_temperature, timeout=60.0)
             scenario_output = response.choices[0].message.content.strip()
             if scenario_output.startswith("```"): scenario_output = scenario_output.strip("`").strip()
             return scenario_output
@@ -690,7 +691,7 @@ Generate actions for your role considering dialogue history, available voices, a
                     self.trigger_scenario_generation(force_publish=False)
                 elif cmd == 'start_turn' or cmd == 'resume_turn':
                     self.get_logger().info(f"[{self.role}] Start signal '{cmd}' received from {sender}. Publishing scenario...")
-                    self.publish_pending_scenario(force_publish=True)
+                    self.publish_pending_scenario(from_leader_instruction=True, force_publish=True)
                 elif cmd == 'conversation':
                     # Log but do not act on other's conversation messages
                     pass
@@ -800,16 +801,23 @@ Generate actions for your role considering dialogue history, available voices, a
 
 
     def evaluation_complete_callback(self, msg: String):
-        self.get_logger().info(f"[{self.role}] Evaluation complete for {msg.data}.")
+        self.get_logger().info(f"[{self.role}] Evaluation complete for {msg.data}. Resetting pending states for new step.")
         self.waiting_for_evaluation = False
         
+        # Clear any pending scenario to force fresh generation for the new step guidelines
+        self.pending_scenario_conversation = None
+        self.pending_scenario_move = None
+        self.audio_synthesis_requested = False
+
         # Leader coordinates the resumption of the conversation
         if self.role == self.family_config[0]:
             self.get_logger().info(f"[{self.role}] Evaluation complete. Coordinating session resume...")
+            # Brief delay to ensure all nodes have cleared their status
+            time.sleep(1.0)
             
             history = self.load_full_history()
             if not history:
-                self.trigger_scenario_generation(force_publish=True)
+                self.trigger_scenario_generation(is_initial_statement=True, force_publish=True)
                 return
 
             last_lines = history.strip().split('\n')
@@ -820,7 +828,7 @@ Generate actions for your role considering dialogue history, available voices, a
                     break
 
             if not last_conv_line:
-                self.trigger_scenario_generation(force_publish=True)
+                self.trigger_scenario_generation(is_initial_statement=True, force_publish=True)
                 return
 
             try:
@@ -829,6 +837,7 @@ Generate actions for your role considering dialogue history, available voices, a
                 if len(parts) < 3:
                      self.trigger_scenario_generation(force_publish=True); return
                 
+                # S0_T10,daughter,mother,conversation,... -> parts[1] is daughter, parts[2] is mother
                 last_speaker = parts[1].strip().lower()
                 last_recipient = parts[2].strip().lower()
                 
@@ -838,7 +847,7 @@ Generate actions for your role considering dialogue history, available voices, a
                     others = [m for m in self.family_config if m != last_speaker]
                     next_speaker = others[0] if others else self.role
                 
-                self.get_logger().info(f"[{self.role}] Resuming: last speaker was '{last_speaker}', relaying to '{next_speaker}'.")
+                self.get_logger().info(f"[{self.role}] Resuming: last speaker was '{last_speaker}', next is '{next_speaker}'.")
                 
                 if next_speaker == self.role:
                     self.trigger_scenario_generation(force_publish=True)
@@ -864,19 +873,27 @@ Generate actions for your role considering dialogue history, available voices, a
         self.last_evaluated_step = step_idx
         self.waiting_for_evaluation = True # Ensure flag is set if we got request without trigger
 
-        # Running LLM evaluation (blocking)
-        results = self.perform_faces_evaluation()
-        
-        if results:
-            response = {
-                "step_id": step_id,
-                "role": self.role,
-                "results": results
-            }
-            res_msg = String()
-            res_msg.data = json.dumps(response)
-            self.member_eval_pub.publish(res_msg)
-            self.get_logger().info(f"[{self.role}] Evaluation results sent for {step_id}")
+        def evaluation_task():
+            # Running LLM evaluation (blocking call in its own thread)
+            results = self.perform_faces_evaluation()
+            
+            if results:
+                response = {
+                    "step_id": step_id,
+                    "role": self.role,
+                    "results": results
+                }
+                res_msg = String()
+                res_msg.data = json.dumps(response)
+                self.member_eval_pub.publish(res_msg)
+                self.get_logger().info(f"[{self.role}] Evaluation results sent for {step_id}")
+            else:
+                # If failed, send empty results so aggregation doesn't hang
+                self.get_logger().error(f"[{self.role}] Evaluation FAILED for {step_id}. Sending dummy response.")
+                response = {"step_id": step_id, "role": self.role, "results": {}}
+                self.member_eval_pub.publish(String(data=json.dumps(response)))
+
+        threading.Thread(target=evaluation_task, daemon=True).start()
 
     def perform_faces_evaluation(self):
         history = self.load_full_history()
@@ -919,7 +936,8 @@ Output in the following JSON format:
                 model=self.llm_evaluation_model,
                 messages=[{"role": "user", "content": prompt}],
                 response_format={ "type": "json_object" },
-                temperature=self.llm_evaluation_temperature
+                temperature=self.llm_evaluation_temperature,
+                timeout=60.0
             )
             content_res = response.choices[0].message.content.strip()
             return json.loads(content_res)
