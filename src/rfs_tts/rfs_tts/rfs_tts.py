@@ -37,17 +37,19 @@ class GeminiTTS:
     def __init__(self, logger, loop):
         self.logger = logger
         self.loop = loop
-        self.api_key = os.environ.get("GEMINI_API_KEY")
-        if not self.api_key:
-            self.logger.error("GEMINI_API_KEY environment variable is not set.")
-            raise RuntimeError("GEMINI_API_KEY is missing")
-        self.client = genai.Client(api_key=self.api_key)
         self.model_id = "gemini-2.5-flash-preview-tts" 
+        self.client = None # Lazy init within the loop's thread
         self._current_playback_process = None
         self._synthesis_semaphore = asyncio.Semaphore(1)
 
+    def _ensure_client(self):
+        if self.client is None:
+            self.logger.info(f"Initializing Gemini Client for thread {threading.get_ident()}...")
+            self.client = genai.Client(api_key=self.api_key)
+
     async def generate_audio(self, text: str, voice: str) -> Optional[str]:
         try:
+            self._ensure_client()
             # Valid Gemini voices from voice_list.txt
             valid_voices = [
                 "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede", "Callirrhoe",
@@ -186,14 +188,21 @@ class RFSTTS(Node):
         self.get_logger().info("RFS TTS Started.")
         
         self.client = GeminiTTS(self.get_logger(), self.loop)
-        self.load_config()
-        self._get_initial_sink_volumes()
+        
+        # Defer config loading and volume detection to the event loop
+        self.loop.create_task(self._async_init())
         self.loop.create_task(self._playback_worker())
 
-    def _get_initial_sink_volumes(self):
-        available_sinks = self._get_available_sinks()
+    async def _async_init(self):
+        """Async initialization for config and pulse sinks."""
+        await self.load_config()
+        await self._get_initial_sink_volumes()
+        self.get_logger().info("TTS Node Async Initialization Complete.")
+
+    async def _get_initial_sink_volumes(self):
+        available_sinks = await self._get_available_sinks()
         for sink in available_sinks:
-            volume = self._get_raw_sink_volume(sink)
+            volume = await self._get_raw_sink_volume(sink)
             if volume is not None:
                 self.initial_sink_volumes[sink] = volume
 
@@ -220,7 +229,7 @@ class RFSTTS(Node):
             except asyncio.QueueEmpty:
                 break
 
-    def load_config(self):
+    async def load_config(self):
         self.role_map = {}
         self.speaker_map = {}
         self.family_roles = []
@@ -239,7 +248,7 @@ class RFSTTS(Node):
                 if 'voicevox_speaker_id' in item:
                     self.speaker_map[role_lower] = item['voicevox_speaker_id']
 
-            available_sinks = self._get_available_sinks()
+            available_sinks = await self._get_available_sinks()
             self.hdmi_sink = self._find_hdmi_sink(available_sinks) or self.hdmi_sink
             
             if self.chat_mode != 1:
@@ -269,7 +278,7 @@ class RFSTTS(Node):
                     await asyncio.sleep(delay)
 
                 if is_leader_response:
-                    self._restore_volume()
+                    await self._restore_volume()
                 
                 sink = self.hdmi_sink if (self.chat_mode == 1 or self.use_hdmi_fallback) else self.role_map.get(role)
 
@@ -285,6 +294,7 @@ class RFSTTS(Node):
                 try:
                     self.get_logger().info(f"Playback worker: Waiting for synthesis task for {role}...")
                     audio_file = await asyncio.wait_for(gen_task, timeout=70.0)
+                    self.get_logger().info(f"Playback worker: synthesis RESUMED/READY for {role}.")
                 except asyncio.TimeoutError:
                     self.get_logger().error(f"Playback worker: synthesis TIMEOUT for {role}. Abandoning.")
                 except Exception as e:
@@ -315,10 +325,10 @@ class RFSTTS(Node):
                 self.current_speaker_role = None
                 self.playback_queue.task_done()
 
-    def _restore_volume(self):
+    async def _restore_volume(self):
         volumes_to_restore = self.muted_sinks_original_volumes or self.initial_sink_volumes
         for sink, original_volume in volumes_to_restore.items():
-            self._set_sink_volume(sink, original_volume)
+            await self._set_sink_volume(sink, original_volume)
         self.muted_sinks_original_volumes.clear()
 
     async def _queue_audio_task(self, role, text, voice_id, is_leader_response, delay):
@@ -357,16 +367,19 @@ class RFSTTS(Node):
             response.success = False
         return response
 
+    async def _mute_sinks(self, sinks):
+        for sink in sinks:
+            try:
+                v = await self._get_raw_sink_volume(sink)
+                if v is not None: self.muted_sinks_original_volumes[sink] = v
+                await self._set_sink_volume(sink, 0)
+            except Exception: pass
+
     def interrupt_tts_callback(self, msg: String):
         if msg.data == "stop_all":
             if not self.muted_sinks_original_volumes:
                 sinks_to_mute = set([self.hdmi_sink]) if self.chat_mode == 1 else set(self.role_map.values())
-                for sink in sinks_to_mute:
-                    try:
-                        v = self._get_raw_sink_volume(sink)
-                        if v is not None: self.muted_sinks_original_volumes[sink] = v
-                        self._set_sink_volume(sink, 0)
-                    except Exception: pass
+                self.loop.create_task(self._mute_sinks(sinks_to_mute))
             
             while not self.playback_queue.empty():
                 try: 
@@ -376,7 +389,7 @@ class RFSTTS(Node):
                     self.playback_queue.task_done()
                 except asyncio.QueueEmpty: break
         elif msg.data == "resume_all":
-            self._restore_volume()
+            self.loop.create_task(self._restore_volume())
         else:
             if self._current_playback_task and not self._current_playback_task.done():
                 self._current_playback_task.cancel()
@@ -394,24 +407,42 @@ class RFSTTS(Node):
             self.client.stop()
         super().destroy_node()
 
-    def _get_available_sinks(self) -> list[str]:
+    async def _get_available_sinks(self) -> list[str]:
         try:
-            result = subprocess.run(["pactl", "list", "sinks", "short"], capture_output=True, text=True, check=True, env={"LANG": "C"}, timeout=2.0)
-            return [line.split('\t')[1] for line in result.stdout.splitlines() if len(line.split('\t')) > 1]
+            proc = await asyncio.create_subprocess_exec(
+                "pactl", "list", "sinks", "short",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env={"LANG": "C"}
+            )
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=2.0)
+            if proc.returncode != 0: return []
+            return [line.decode().split('\t')[1] for line in stdout.splitlines() if len(line.decode().split('\t')) > 1]
         except Exception as e:
             self.get_logger().warn(f"Failed to get sinks: {e}")
             return []
 
-    def _set_sink_volume(self, sink: str, volume: int):
+    async def _set_sink_volume(self, sink: str, volume: int):
         try:
-            subprocess.run(["pactl", "set-sink-volume", sink, str(volume)], check=True, env={"LANG": "C"}, timeout=2.0)
+            proc = await asyncio.create_subprocess_exec(
+                "pactl", "set-sink-volume", sink, str(volume),
+                env={"LANG": "C"}
+            )
+            await asyncio.wait_for(proc.wait(), timeout=2.0)
         except Exception as e:
             self.get_logger().warn(f"Failed to set volume for {sink}: {e}")
 
-    def _get_raw_sink_volume(self, sink: str) -> Optional[int]:
+    async def _get_raw_sink_volume(self, sink: str) -> Optional[int]:
         try:
-            result = subprocess.run(["pactl", "list", "sinks"], check=True, capture_output=True, text=True, env={"LANG": "C"}, timeout=2.0)
-            m = re.search(rf"Name: {re.escape(sink)}[\s\S]*?Volume:.*?(front-left|mono): (\d+) /", result.stdout)
+            proc = await asyncio.create_subprocess_exec(
+                "pactl", "list", "sinks",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env={"LANG": "C"}
+            )
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=2.0)
+            if proc.returncode != 0: return None
+            m = re.search(rf"Name: {re.escape(sink)}[\s\S]*?Volume:.*?(front-left|mono): (\d+) /", stdout.decode())
             return int(m.group(2)) if m else None
         except Exception as e:
             self.get_logger().warn(f"Failed to get volume for {sink}: {e}")
@@ -439,7 +470,10 @@ def main():
         executor.spin()
     except KeyboardInterrupt: pass
     finally:
-        node._restore_volumes_on_exit()
+        # Restore original volumes on exit (fire and forget)
+        if hasattr(node, '_restore_volumes_on_exit'):
+            loop.create_task(node._restore_volumes_on_exit())
+            
         loop.call_soon_threadsafe(loop.stop)
         t.join(timeout=1.0)
         node.destroy_node()
