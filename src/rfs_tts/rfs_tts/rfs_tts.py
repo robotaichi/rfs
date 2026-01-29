@@ -37,6 +37,10 @@ class GeminiTTS:
     def __init__(self, logger, loop):
         self.logger = logger
         self.loop = loop
+        self.api_key = os.environ.get("GEMINI_API_KEY")
+        if not self.api_key:
+            self.logger.error("GEMINI_API_KEY environment variable is not set.")
+            raise RuntimeError("GEMINI_API_KEY is missing")
         self.model_id = "gemini-2.5-flash-preview-tts" 
         self.client = None # Lazy init within the loop's thread
         self._current_playback_process = None
