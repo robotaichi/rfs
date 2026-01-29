@@ -61,9 +61,8 @@ class GeminiTTS:
             def _api_call():
                 return self.client.models.generate_content(
                     model=self.model_id,
-                    contents=text,
+                    contents=f"READ_ALOUD: {text}",
                     config=types.GenerateContentConfig(
-                        system_instruction="You are a dedicated text-to-speech engine. Your sole task is to take the provided text and convert it into audio exactly as written. Do not generate any text response, explanation, or commentary. Output ONLY audio.",
                         response_modalities=["AUDIO"],
                         speech_config=types.SpeechConfig(
                             voice_config=types.VoiceConfig(
@@ -77,11 +76,27 @@ class GeminiTTS:
 
             async with self._synthesis_semaphore:
                 self.logger.info(f"Generating audio for voice '{voice}'...")
-                # Run blocking API call in an executor with a more generous timeout
-                response = await asyncio.wait_for(
-                    asyncio.get_event_loop().run_in_executor(None, _api_call),
-                    timeout=60.0
-                )
+                
+                response = None
+                last_error = None
+                for attempt in range(2):
+                    try:
+                        # Run blocking API call with timeout
+                        response = await asyncio.wait_for(
+                            asyncio.get_event_loop().run_in_executor(None, _api_call),
+                            timeout=60.0
+                        )
+                        if response: break
+                    except Exception as e:
+                        last_error = e
+                        self.logger.warn(f"Gemini TTS attempt {attempt+1} failed: {e}")
+                        if "500" in str(e):
+                            await asyncio.sleep(1.0) # Brief pause before retry for 500
+                        else:
+                            break # Don't retry for 400 or other fatal errors
+                
+                if not response:
+                    raise last_error or RuntimeError("Failed to generate audio after retries")
             
             # The SDK returns binary data for the audio content
             audio_data = response.candidates[0].content.parts[0].inline_data.data
