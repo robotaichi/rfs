@@ -76,10 +76,10 @@ class GeminiTTS:
 
             async with self._synthesis_semaphore:
                 self.logger.info(f"Generating audio for voice '{voice}'...")
-                # Run blocking API call in an executor with a tighter timeout
+                # Run blocking API call in an executor with a more generous timeout
                 response = await asyncio.wait_for(
                     asyncio.get_event_loop().run_in_executor(None, _api_call),
-                    timeout=30.0
+                    timeout=60.0
                 )
             
             # The SDK returns binary data for the audio content
@@ -260,7 +260,7 @@ class RFSTTS(Node):
                 # Wait with a timeout to prevent worker lockup
                 audio_file = None
                 try:
-                    audio_file = await asyncio.wait_for(asyncio.shield(gen_task), timeout=35.0)
+                    audio_file = await asyncio.wait_for(asyncio.shield(gen_task), timeout=65.0)
                 except asyncio.TimeoutError:
                     self.get_logger().error(f"Playback worker: synthesis TIMEOUT for {role}. Skipping audio.")
                 except Exception as e:
@@ -281,8 +281,9 @@ class RFSTTS(Node):
                     self.tts_finished_pub.publish(String(data=f"finished,{role}"))
                 else:
                     self.get_logger().error(f"Synthesis failed or audio file missing for {role}. Skipping playback.")
-                    # Still publish finished so the state machine doesn't hang, 
-                    # but since no 'start' was sent, family_member will use fallback relay.
+                    # Ensure status machine knows we hit the 'end' point of the attempt
+                    self.tts_status_pub.publish(String(data=f"end,{role}"))
+                    # Still publish finished so the state machine doesn't hang
                     self.tts_finished_pub.publish(String(data=f"finished,{role}"))
             except Exception as e:
                 self.get_logger().error(f"Error in playback worker: {e}")

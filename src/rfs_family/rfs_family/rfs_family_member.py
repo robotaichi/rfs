@@ -182,6 +182,8 @@ class RFSFamilyMember(Node):
         self.generation_lock = threading.Lock()
         self.is_generating_scenario = False
         self.start_signal_deferred = False
+        self.is_turn_active = False
+        self.pending_tts_finish = False
         
         # --- Unique Fixed Voice Assignment ---
         self.assigned_voice_id = self._assign_voice_llm()
@@ -567,6 +569,9 @@ class RFSFamilyMember(Node):
 
         self.family_publisher.publish(String(data=self.pending_scenario_conversation))
         
+        # Turn is now officially started
+        self.is_turn_active = True
+
         if self.pending_scenario_move:
             self.pending_move_command = self.pending_scenario_move
 
@@ -578,9 +583,13 @@ class RFSFamilyMember(Node):
             t_msg.data = f"{self.role},{next_target},prepare_turn"
             self.family_publisher.publish(t_msg)
             self.next_turn_recipient = next_target # Store for later start_turn relay
-            # Note: Do not clear self.pending_relay_recipient yet, 
-            # it's needed for fallback in move_finished_callback if next_turn_recipient is lost.
         
+        # Handle deferred finish if TTS finished before we started
+        if self.pending_tts_finish:
+            self.get_logger().info(f"[{self.role}] TTS finished early. Triggering completion now.")
+            self.pending_tts_finish = False
+            self.tts_finished_callback(String(data=f"finished,{self.role}"))
+
         self.pending_scenario_conversation = None
         self.pending_scenario_move = None
         self.audio_synthesis_requested = False
@@ -729,6 +738,11 @@ Generate actions for your role considering dialogue history, available voices, a
             parts = msg.data.split(',')
             sender = parts[1].lower()
             if sender != self.role: return
+            
+            if not self.is_turn_active:
+                self.get_logger().info(f"[{self.role}] Received early TTS finish signal. Deferring.")
+                self.pending_tts_finish = True
+                return
         except: return
 
         if self.pending_move_command and self.pending_move_command.lower() != 'none':
@@ -783,6 +797,9 @@ Generate actions for your role considering dialogue history, available voices, a
             t_msg.data = f"{self.role},{next_target},start_turn"
             self.family_publisher.publish(t_msg)
             self.pending_relay_recipient = None
+        
+        # Turn officially over
+        self.is_turn_active = False
 
     def user_intervention_callback(self, msg: String):
         text = msg.data.strip()
