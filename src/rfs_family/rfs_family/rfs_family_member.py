@@ -702,7 +702,7 @@ Generate actions for your role considering dialogue history, available voices, a
 # Constraints
 - PRIORITY: Prioritize natural dialogue between robot family members ({', '.join(self.family_config)}). 
 - OUTSIDER: Treat "{self.target_user}" (the user/grandfather) as an observer. Only address them if they intervene or if it's exceptionally natural for the current psychological state. The primary recipient of your turn should almost always be a family member.
-- CONCISENESS: Output **extremely short, snappy** dialogue. Each utterance must be a single sentence or a brief phrase (approx. 10-30 characters in Japanese). **FORBIDDEN**: Do not provide multiple sentences or monologues. Family members talk in quick bursts, not long speeches.
+- CONCISENESS: Output **natural and concise** dialogue. Each utterance should be around 1-2 sentences (approx. 30-50 characters in Japanese). Avoid extremely short fragments that might lead to excessive turns, but keep it snappy enough for a family setting. **FORBIDDEN**: Do not provide long monologues.
 - Your assigned voice is "{self.assigned_voice_id}". Always use this voice for your responses.
 - LANGUAGE: Output dialogue ("Text" field) in { "Japanese" if self.language == "ja" else "English" }. Rationale and other internal fields must remain in English.
 - Behave human-like despite being a robot.
