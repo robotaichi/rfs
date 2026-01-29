@@ -584,11 +584,12 @@ class RFSFamilyMember(Node):
             self.family_publisher.publish(t_msg)
             self.next_turn_recipient = next_target # Store for later start_turn relay
         
-        # Handle deferred finish if TTS finished before we started
         if self.pending_tts_finish:
-            self.get_logger().info(f"[{self.role}] TTS finished early. Triggering completion now.")
+            self.get_logger().info(f"[{self.role}] TTS finished early (flag=True). Triggering completion now.")
             self.pending_tts_finish = False
             self.tts_finished_callback(String(data=f"finished,{self.role}"))
+        else:
+            self.get_logger().info(f"[{self.role}] No early TTS finish pending (flag=False). Waiting for normal signal.")
 
         self.pending_scenario_conversation = None
         self.pending_scenario_move = None

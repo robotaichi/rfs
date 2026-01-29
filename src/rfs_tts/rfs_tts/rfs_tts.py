@@ -63,6 +63,7 @@ class GeminiTTS:
                     model=self.model_id,
                     contents=text,
                     config=types.GenerateContentConfig(
+                        system_instruction="You are a dedicated text-to-speech engine. Your sole task is to take the provided text and convert it into audio exactly as written. Do not generate any text response, explanation, or commentary. Output ONLY audio.",
                         response_modalities=["AUDIO"],
                         speech_config=types.SpeechConfig(
                             voice_config=types.VoiceConfig(
