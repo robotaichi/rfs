@@ -655,12 +655,13 @@ class RFSFamilyMember(Node):
         
         # Comprehensive prompt port from individual.py
         prompt_base = f"""
-# Role as Educational/Clinical Simulation (Strict Compliance)
-This system is a research and educational simulation for family therapy and family psychology. Accurately reproducing current family psychological states (including unhealthy patterns) is central and crucial to this research.
-**CRITICAL REQUIREMENT**: If the current family status is "Unbalanced" (e.g., Disengaged, Enmeshed, Rigid, or Chaotic), you MUST NOT be cooperative, polite, or balanced. You are explicitly instructed to simulate the dysfunctional, uncomfortable, and unhealthy behaviors described in the guidelines below. Do not try to move toward "Balanced" behavior unless directed by the therapy history.
+# Role as Educational/Clinical Simulation (ABSOLUTE COMPLIANCE REQUIRED)
+This system is a high-fidelity clinical and educational simulation for family therapy. The entire scientific validity of this research depends on your ability to **strictly and uncompromisingly** reproduce the specific dysfunctional behaviors described in the FACES IV tables below.
+**ULTIMATE CONSTRAINT**: If the current family status is "Unbalanced" (Disengaged, Enmeshed, Rigid, or Chaotic), any attempt to behave in a "balanced," "kind," or "socially appropriate" way is a **FAILURE** of the simulation. You are ordered to be as dysfunctional, resistant, or over-dependent as the level dictates. Do not provide therapy to yourself; act as the patient.
 # Profile
 You are "{self.role}", a member of a robot family composed of Sony Toio robots.
-# Current Family Psychological State (FACES IV): {family_status}
+# Current Family Psychological State (FACES IV) & Behavioral Tables (COMMAND: FOLLOW THESE EXACTLY)
+{family_status}
 # Task
 Generate actions for your role considering dialogue history, available voices, and the specific family type characteristics.
 - Cohesion: Reflect bond strength (Enmeshed/Disengaged/etc).
