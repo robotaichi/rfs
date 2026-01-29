@@ -73,8 +73,11 @@ class GeminiTTS:
                     )
                 )
 
-            # Run blocking API call in an executor
-            response = await asyncio.get_event_loop().run_in_executor(None, _api_call)
+            # Run blocking API call in an executor with a timeout
+            response = await asyncio.wait_for(
+                asyncio.get_event_loop().run_in_executor(None, _api_call),
+                timeout=60.0
+            )
             
             # The SDK returns binary data for the audio content
             audio_data = response.candidates[0].content.parts[0].inline_data.data
@@ -259,13 +262,14 @@ class RFSTTS(Node):
                     self.get_logger().error(f"Generation task failed for {role}: {e}")
 
                 if audio_file and os.path.exists(audio_file):
+                    self.get_logger().info(f"Playback worker: synthesis complete for {role}. Starting playback on {sink}...")
                     text_for_publish = text.replace(',', ';')
                     is_muted_by_intervention_str = "true" if self.muted_sinks_original_volumes else "false"
                     self.tts_status_pub.publish(String(data=f"start,{role},{text_for_publish},{is_muted_by_intervention_str}"))
                     
-                    self.get_logger().info(f"Playing audio for {role} on sink {sink}...")
                     self._current_playback_task = asyncio.create_task(self.client.play_audio(audio_file, sink))
                     await self._current_playback_task
+                    self.get_logger().info(f"Playback worker: playback finished for {role}.")
                     os.remove(audio_file)
                     
                     self.tts_status_pub.publish(String(data=f"end,{role}"))
