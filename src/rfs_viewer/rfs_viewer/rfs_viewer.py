@@ -101,8 +101,9 @@ def main():
     finally:
         # Graceful shutdown to prevent 'terminate' crash
         try:
-            node.destroy_node()
             rclpy.shutdown()
+            t.join(timeout=1.0)
+            node.destroy_node()
         except Exception:
             pass
 

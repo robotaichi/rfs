@@ -34,8 +34,9 @@ HISTORY_FILE = os.path.join(SAVE_DIR, 'conversation_history.txt')
 SINGLE_MEMBER_ROLE = 'androgynous_communication_robot'
 
 class GeminiTTS:
-    def __init__(self, logger):
+    def __init__(self, logger, loop):
         self.logger = logger
+        self.loop = loop
         self.api_key = os.environ.get("GEMINI_API_KEY")
         if not self.api_key:
             self.logger.error("GEMINI_API_KEY environment variable is not set.")
@@ -82,11 +83,11 @@ class GeminiTTS:
                 self.logger.info(f"Generating audio for voice '{voice}' via {self.model_id}...")
                 for attempt in range(2):
                     try:
-                        self.logger.info(f"API attempt {attempt+1} starting for {voice}...")
-                        # Run blocking API call in an executor with a tighter per-attempt timeout
+                        self.logger.info(f"API attempt {attempt+1} starting for {voice} on explicit loop...")
+                        # Run blocking API call in the node's loop executor
                         response = await asyncio.wait_for(
-                            asyncio.get_event_loop().run_in_executor(None, _api_call),
-                            timeout=45.0
+                            self.loop.run_in_executor(None, _api_call),
+                            timeout=50.0
                         )
                         if response: 
                             self.logger.info(f"API attempt {attempt+1} SUCCESS for {voice}.")
@@ -184,7 +185,7 @@ class RFSTTS(Node):
         self.initialization_pub.publish(String(data="tts_initialized"))
         self.get_logger().info("RFS TTS Started.")
         
-        self.client = GeminiTTS(self.get_logger())
+        self.client = GeminiTTS(self.get_logger(), self.loop)
         self.load_config()
         self._get_initial_sink_volumes()
         self.loop.create_task(self._playback_worker())
