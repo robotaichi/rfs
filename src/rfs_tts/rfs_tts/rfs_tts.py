@@ -396,20 +396,26 @@ class RFSTTS(Node):
 
     def _get_available_sinks(self) -> list[str]:
         try:
-            result = subprocess.run(["pactl", "list", "sinks", "short"], capture_output=True, text=True, check=True, env={"LANG": "C"})
+            result = subprocess.run(["pactl", "list", "sinks", "short"], capture_output=True, text=True, check=True, env={"LANG": "C"}, timeout=2.0)
             return [line.split('\t')[1] for line in result.stdout.splitlines() if len(line.split('\t')) > 1]
-        except Exception: return []
+        except Exception as e:
+            self.get_logger().warn(f"Failed to get sinks: {e}")
+            return []
 
     def _set_sink_volume(self, sink: str, volume: int):
-        try: subprocess.run(["pactl", "set-sink-volume", sink, str(volume)], check=True, env={"LANG": "C"})
-        except Exception: pass
+        try:
+            subprocess.run(["pactl", "set-sink-volume", sink, str(volume)], check=True, env={"LANG": "C"}, timeout=2.0)
+        except Exception as e:
+            self.get_logger().warn(f"Failed to set volume for {sink}: {e}")
 
     def _get_raw_sink_volume(self, sink: str) -> Optional[int]:
         try:
-            result = subprocess.run(["pactl", "list", "sinks"], check=True, capture_output=True, text=True, env={"LANG": "C"})
+            result = subprocess.run(["pactl", "list", "sinks"], check=True, capture_output=True, text=True, env={"LANG": "C"}, timeout=2.0)
             m = re.search(rf"Name: {re.escape(sink)}[\s\S]*?Volume:.*?(front-left|mono): (\d+) /", result.stdout)
             return int(m.group(2)) if m else None
-        except Exception: return None
+        except Exception as e:
+            self.get_logger().warn(f"Failed to get volume for {sink}: {e}")
+            return None
 
     def _restore_volumes_on_exit(self):
         for sink, v in self.muted_sinks_original_volumes.items():

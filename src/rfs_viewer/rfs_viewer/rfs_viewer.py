@@ -90,20 +90,25 @@ def main():
     gui = PlotViewerGUI(root, default_plot_path)
     node = RFSViewer(gui)
     
-    # Run rclpy.spin in a separate thread but keep a reference to node
-    t = threading.Thread(target=lambda: rclpy.spin(node), daemon=True)
-    t.start()
+    def spin():
+        try:
+            # Non-blocking spin
+            rclpy.spin_once(node, timeout_sec=0)
+        except Exception:
+            pass
+        root.after(100, spin)
+    
+    root.after(100, spin)
     
     try:
         root.mainloop()
     except KeyboardInterrupt:
         pass
     finally:
-        # Graceful shutdown to prevent 'terminate' crash
+        # Graceful shutdown
         try:
-            rclpy.shutdown()
-            t.join(timeout=1.0)
             node.destroy_node()
+            rclpy.shutdown()
         except Exception:
             pass
 
