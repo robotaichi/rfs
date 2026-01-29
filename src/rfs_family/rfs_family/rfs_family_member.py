@@ -588,6 +588,13 @@ class RFSFamilyMember(Node):
                     else: next_target = self.role
                 self.pending_relay_recipient = next_target
                 
+                # Boundary check: if this is the last turn of the step, suppress pre-fetching the next speaker
+                turns_after = turns + 1 # We are about to write this turn
+                if turns_after > 0 and turns_after % self.turns_per_step == 0:
+                    self.get_logger().info(f"[{self.role}] Step boundary reached ({turns_after} turns). Evaluation will follow. Early relay suppressed.")
+                    self.waiting_for_evaluation = True
+                    self.pending_relay_recipient = None
+                
                 # Enforce fixed voice id in the scenario string for TTS
                 if len(parts) > 5:
                     parts[4] = self.assigned_voice_id
