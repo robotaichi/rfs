@@ -61,7 +61,7 @@ class GeminiTTS:
             def _api_call():
                 return self.client.models.generate_content(
                     model=self.model_id,
-                    contents=f"READ_ALOUD: {text}",
+                    contents=text,
                     config=types.GenerateContentConfig(
                         response_modalities=["AUDIO"],
                         speech_config=types.SpeechConfig(

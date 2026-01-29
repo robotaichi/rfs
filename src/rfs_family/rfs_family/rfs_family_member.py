@@ -471,16 +471,18 @@ class RFSFamilyMember(Node):
                 else:
                     lines = scenario.strip().split('\n')
                     for line in lines:
+                        line = line.strip()
+                        if not line or not (line.startswith('S') and '_T' in line): continue
                         try:
+                            # Stricter CSV parsing to avoid Rationale lines
                             reader = csv.reader(io.StringIO(line), skipinitialspace=True)
                             parts = next(reader)
-                            if len(parts) > 2:
+                            if len(parts) >= 4:
                                 type_tag = parts[2].lower()
                                 if 'conversation' in type_tag: self.pending_scenario_conversation = line
                                 elif 'move' in type_tag: self.pending_scenario_move = line
                         except:
-                            if 'conversation' in line: self.pending_scenario_conversation = line
-                            elif 'move' in line: self.pending_scenario_move = line
+                            continue
                     
                     # Check for publication triggers
                     should_publish_now = False
