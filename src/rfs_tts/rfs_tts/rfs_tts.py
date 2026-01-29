@@ -41,7 +41,8 @@ class GeminiTTS:
             self.logger.error("GEMINI_API_KEY environment variable is not set.")
             raise RuntimeError("GEMINI_API_KEY is missing")
         self.client = genai.Client(api_key=self.api_key)
-        self.model_id = "gemini-2.5-flash-preview-tts"
+        # Use the established flash model for better stability in conversational turn transitions
+        self.model_id = "gemini-2.0-flash-exp" 
         self._current_playback_process = None
         self._synthesis_semaphore = asyncio.Semaphore(1)
 
@@ -74,49 +75,55 @@ class GeminiTTS:
                     )
                 )
 
+            # Narrowed semaphore scope to strictly wrap the API call and retry logic
+            response = None
+            last_error = None
+            
             async with self._synthesis_semaphore:
-                self.logger.info(f"Generating audio for voice '{voice}'...")
-                
-                response = None
-                last_error = None
+                self.logger.info(f"Generating audio for voice '{voice}' via {self.model_id}...")
                 for attempt in range(2):
                     try:
-                        # Run blocking API call with timeout
+                        self.logger.info(f"API attempt {attempt+1} starting for {voice}...")
+                        # Run blocking API call in an executor with a tighter per-attempt timeout
                         response = await asyncio.wait_for(
                             asyncio.get_event_loop().run_in_executor(None, _api_call),
-                            timeout=60.0
+                            timeout=45.0
                         )
-                        if response: break
+                        if response: 
+                            self.logger.info(f"API attempt {attempt+1} SUCCESS for {voice}.")
+                            break
                     except Exception as e:
                         last_error = e
                         self.logger.warn(f"Gemini TTS attempt {attempt+1} failed: {e}")
                         if "500" in str(e):
-                            await asyncio.sleep(1.0) # Brief pause before retry for 500
+                            await asyncio.sleep(1.0)
                         else:
-                            break # Don't retry for 400 or other fatal errors
+                            break
                 
                 if not response:
-                    raise last_error or RuntimeError("Failed to generate audio after retries")
-            
+                    self.logger.error(f"Failed to generate audio after all attempts: {last_error}")
+                    return None
+
             # The SDK returns binary data for the audio content
+            self.logger.info(f"Extracting audio data for {voice}...")
             audio_data = response.candidates[0].content.parts[0].inline_data.data
             
-            # Create a unique temporary file for this specific audio task
+            # Create a unique temporary file
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav", dir=tempfile.gettempdir()) as f:
                 temp_filename = f.name
                 
+            self.logger.info(f"Writing WAV file to {temp_filename}...")
             # Gemini TTS returns PCM data (24kHz, mono, 16-bit)
-            # We wrap it in a WAV header for easier playback
             with wave.open(temp_filename, "wb") as wf:
                 wf.setnchannels(1)
                 wf.setsampwidth(2)
                 wf.setframerate(24000)
                 wf.writeframes(audio_data)
             
-            self.logger.info(f"Audio pre-generated and saved to: {temp_filename}")
+            self.logger.info(f"Audio pre-generated successfully: {temp_filename}")
             return temp_filename
         except Exception as e:
-            self.logger.error(f"Error during generate_audio: {e}")
+            self.logger.error(f"Fatal error in generate_audio for {voice}: {e}")
             return None
 
     async def play_audio(self, filename: str, sink: str = None):
@@ -273,14 +280,15 @@ class RFSTTS(Node):
                     self.playback_queue.task_done()
                     continue
 
-                # Wait with a timeout to prevent worker lockup
+                # Wait for synthesis to complete (already running task)
                 audio_file = None
                 try:
-                    audio_file = await asyncio.wait_for(asyncio.shield(gen_task), timeout=65.0)
+                    self.get_logger().info(f"Playback worker: Waiting for synthesis task for {role}...")
+                    audio_file = await asyncio.wait_for(gen_task, timeout=70.0)
                 except asyncio.TimeoutError:
-                    self.get_logger().error(f"Playback worker: synthesis TIMEOUT for {role}. Skipping audio.")
+                    self.get_logger().error(f"Playback worker: synthesis TIMEOUT for {role}. Abandoning.")
                 except Exception as e:
-                    self.get_logger().error(f"Playback worker: generation task failed for {role}: {e}")
+                    self.get_logger().error(f"Playback worker: synthesis FAILED for {role}: {e}")
 
                 if audio_file and os.path.exists(audio_file):
                     self.get_logger().info(f"Playback worker: synthesis complete for {role}. Starting playback on {sink}...")
@@ -315,8 +323,12 @@ class RFSTTS(Node):
 
     async def _queue_audio_task(self, role, text, voice_id, is_leader_response, delay):
         """Helper to create task and put it in queue within the event loop's thread."""
-        gen_task = asyncio.create_task(self.client.generate_audio(text, voice_id))
-        self.playback_queue.put_nowait((role, text, voice_id, is_leader_response, delay, gen_task))
+        try:
+            gen_task = self.loop.create_task(self.client.generate_audio(text, voice_id))
+            await self.playback_queue.put((role, text, voice_id, is_leader_response, delay, gen_task))
+            self.get_logger().info(f"Task for {role} successfully queued.")
+        except Exception as e:
+            self.get_logger().error(f"Failed to queue audio task for {role}: {e}")
 
     def speak_text_callback(self, request, response):
         try:
@@ -331,11 +343,13 @@ class RFSTTS(Node):
             role = parts[0].lower()
             text_to_speak = parts[3]
             voice_id = parts[4].strip() if len(parts) > 4 else self.speaker_map.get(role, 'Kore')
+            delay_val = request.delay
 
-            self.get_logger().info(f"Scheduling background audio synthesis for {role}...")
-            # Schedule the task creation and queuing in the loop thread safely
+            self.get_logger().info(f"Srv: Scheduling synthesis for {role}...")
+            # Use explicit argument binding in the lambda to avoid closure issues
             self.loop.call_soon_threadsafe(
-                lambda: asyncio.create_task(self._queue_audio_task(role, text_to_speak, voice_id, is_leader_response, request.delay))
+                lambda r=role, t=text_to_speak, v=voice_id, l=is_leader_response, d=delay_val: 
+                asyncio.run_coroutine_threadsafe(self._queue_audio_task(r, t, v, l, d), self.loop)
             )
             response.success = True
         except Exception as e:
@@ -403,19 +417,25 @@ class RFSTTS(Node):
 
 def main():
     rclpy.init()
-    loop = asyncio.get_event_loop()
+    # Create the loop in the main thread of this node's worker
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
     node = RFSTTS(loop)
     executor = MultiThreadedExecutor()
     executor.add_node(node)
-    t = threading.Thread(target=lambda: loop.run_forever(), daemon=True)
+    
+    # Run the asyncio loop in a dedicated background thread
+    t = threading.Thread(target=loop.run_forever, daemon=True)
     t.start()
+    
     try:
         executor.spin()
     except KeyboardInterrupt: pass
     finally:
         node._restore_volumes_on_exit()
         loop.call_soon_threadsafe(loop.stop)
-        t.join()
+        t.join(timeout=1.0)
         node.destroy_node()
         rclpy.shutdown()
 
