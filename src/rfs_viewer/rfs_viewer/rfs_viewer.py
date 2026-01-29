@@ -84,20 +84,27 @@ def main():
     
     root = tk.Tk()
     if args.geometry:
-        # Expected format like "800x800+100+100"
         root.geometry(args.geometry)
     else:
         root.geometry("800x800")
     gui = PlotViewerGUI(root, default_plot_path)
     node = RFSViewer(gui)
+    
+    # Run rclpy.spin in a separate thread but keep a reference to node
     t = threading.Thread(target=lambda: rclpy.spin(node), daemon=True)
     t.start()
+    
     try:
         root.mainloop()
-    except KeyboardInterrupt: pass
+    except KeyboardInterrupt:
+        pass
     finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        # Graceful shutdown to prevent 'terminate' crash
+        try:
+            node.destroy_node()
+            rclpy.shutdown()
+        except Exception:
+            pass
 
 if __name__ == '__main__':
     main()

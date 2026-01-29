@@ -43,6 +43,7 @@ class GeminiTTS:
         self.client = genai.Client(api_key=self.api_key)
         self.model_id = "gemini-2.5-flash-preview-tts"
         self._current_playback_process = None
+        self._synthesis_semaphore = asyncio.Semaphore(1)
 
     async def generate_audio(self, text: str, voice: str) -> Optional[str]:
         try:
@@ -73,11 +74,13 @@ class GeminiTTS:
                     )
                 )
 
-            # Run blocking API call in an executor with a timeout
-            response = await asyncio.wait_for(
-                asyncio.get_event_loop().run_in_executor(None, _api_call),
-                timeout=60.0
-            )
+            async with self._synthesis_semaphore:
+                self.logger.info(f"Generating audio for voice '{voice}'...")
+                # Run blocking API call in an executor with a tighter timeout
+                response = await asyncio.wait_for(
+                    asyncio.get_event_loop().run_in_executor(None, _api_call),
+                    timeout=30.0
+                )
             
             # The SDK returns binary data for the audio content
             audio_data = response.candidates[0].content.parts[0].inline_data.data
@@ -254,12 +257,14 @@ class RFSTTS(Node):
                     self.playback_queue.task_done()
                     continue
 
-                # Wait for the pre-generation task to finish (or it might be already done)
+                # Wait with a timeout to prevent worker lockup
                 audio_file = None
                 try:
-                    audio_file = await gen_task
+                    audio_file = await asyncio.wait_for(asyncio.shield(gen_task), timeout=35.0)
+                except asyncio.TimeoutError:
+                    self.get_logger().error(f"Playback worker: synthesis TIMEOUT for {role}. Skipping audio.")
                 except Exception as e:
-                    self.get_logger().error(f"Generation task failed for {role}: {e}")
+                    self.get_logger().error(f"Playback worker: generation task failed for {role}: {e}")
 
                 if audio_file and os.path.exists(audio_file):
                     self.get_logger().info(f"Playback worker: synthesis complete for {role}. Starting playback on {sink}...")
