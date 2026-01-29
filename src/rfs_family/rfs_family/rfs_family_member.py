@@ -178,6 +178,7 @@ class RFSFamilyMember(Node):
         self.llm_evaluation_model = "gpt-4o"
         self.llm_evaluation_temperature = 0.7
         self.next_turn_recipient = None
+        self.faces_tables = self._load_faces_tables()
         self.generation_lock = threading.Lock()
         self.is_generating_scenario = False
         self.start_signal_deferred = False
@@ -259,6 +260,77 @@ class RFSFamilyMember(Node):
         if hasattr(self, 'user_intervention_lock_file') and not self.user_intervention_lock_file.closed:
             self.user_intervention_lock_file.close()
         super().destroy_node()
+
+    def _load_faces_tables(self):
+        tables = {"cohesion": {}, "flexibility": {}, "communication": {}}
+        path = os.path.join(DB_DIR, "faces_iv_tables.md")
+        if not os.path.exists(path): return tables
+        
+        current_section = None
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                for line in lines:
+                    line = line.strip()
+                    if "## 1. Cohesion" in line: current_section = "cohesion"
+                    elif "## 2. Flexibility" in line: current_section = "flexibility"
+                    elif "## 3. Communication" in line: current_section = "communication"
+                    
+                    if line.startswith("|"):
+                        # It's a table row
+                        parts = [p.strip() for p in line.split("|")]
+                        # Remove empty first/last elements if they exist
+                        if parts and not parts[0]: parts.pop(0)
+                        if parts and not parts[-1]: parts.pop()
+                        
+                        if len(parts) < 2 or "---" in parts[0] or "Level" in parts[1] or "Low" in parts[1]: continue
+                        
+                        cat = parts[0].replace("**", "")
+                        if current_section:
+                            tables[current_section][cat] = parts[1:]
+        except Exception as e:
+            self.get_logger().error(f"Failed to load FACES tables: {e}")
+        return tables
+
+    def _get_behavioral_descriptors(self, x, y):
+        # Determine column indexes for Cohesion/Flexibility (0 to 4)
+        def get_col(score):
+            if score <= 15: return 0
+            if score <= 35: return 1
+            if score <= 65: return 2
+            if score <= 85: return 3
+            return 4
+        
+        c_idx = get_col(x)
+        f_idx = get_col(y)
+        
+        # Determine Communication index (0 to 2) - estimating based on current trajectory if not found
+        # Communication pct is usually in the trajectory update log, but for now we'll estimate 
+        # based on overall "Balancedness" (Center distance)
+        dist = ((x-50)**2 + (y-50)**2)**0.5
+        comm_pct = max(0, 100 - dist) # Simplified: higher pct near center
+        comm_idx = 0
+        if comm_pct <= 33: comm_idx = 0
+        elif comm_pct <= 66: comm_idx = 1
+        else: comm_idx = 2
+        
+        desc = ""
+        # Cohesion
+        desc += "## Cohesion Guidelines\n"
+        for cat, vals in self.faces_tables.get("cohesion", {}).items():
+            if c_idx < len(vals): desc += f"- {cat}: {vals[c_idx]}\n"
+        
+        # Flexibility
+        desc += "\n## Flexibility Guidelines\n"
+        for cat, vals in self.faces_tables.get("flexibility", {}).items():
+            if f_idx < len(vals): desc += f"- {cat}: {vals[f_idx]}\n"
+
+        # Communication
+        desc += "\n## Communication Guidelines\n"
+        for cat, vals in self.faces_tables.get("communication", {}).items():
+            if comm_idx < len(vals): desc += f"- {cat}: {vals[comm_idx]}\n"
+            
+        return desc
 
     def _archive_history(self):
         try:
@@ -486,29 +558,37 @@ class RFSFamilyMember(Node):
                 return "Unknown", "Unknown", (50.0, 50.0), "No evaluation data"
             with open(TRAJECTORY_FILE, "r", encoding="utf-8") as f:
                 trajectory = json.load(f)
+            
             def get_coh_label(val):
-                if val <= 15: return "Disengaged", "Family bonds are extremely weak, individuals are too independent."
-                if val <= 35: return "Somewhat Connected", "Some bonds exist, but individual time is prioritized."
-                if val <= 65: return "Connected", "Healthy balance between bonding and individual independence."
-                if val <= 85: return "Very Connected", "Very strong bonds and shared time, while respecting individual autonomy."
-                return "Enmeshed", "Overly enmeshed family; individual autonomy is lost."
+                if val <= 15: return "Disengaged"
+                if val <= 35: return "Somewhat Connected"
+                if val <= 65: return "Connected"
+                if val <= 85: return "Very Connected"
+                return "Enmeshed"
+            
             def get_flex_label(val):
-                if val <= 15: return "Rigid", "Authoritarian leadership. Rules are too rigid to change."
-                if val <= 35: return "Somewhat Flexible", "Generally structured but can accept change."
-                if val <= 65: return "Flexible", "Democratic leadership. Healthy flexibility."
-                if val <= 85: return "Very Flexible", "Decision-making is always shared."
-                return "Chaotic", "No leadership; rules change unpredictably."
+                if val <= 15: return "Rigid"
+                if val <= 35: return "Somewhat Flexible"
+                if val <= 65: return "Flexible"
+                if val <= 85: return "Very Flexible"
+                return "Chaotic"
+            
             if not trajectory:
                 x = self.initial_coords.get("x", 8.0); y = self.initial_coords.get("y", 8.0)
-                cl, cd = get_coh_label(x); fl, fd = get_flex_label(y)
-                return cl, fl, (x, y), f"Current State: {cl}-{fl} (x={x}, y={y})"
-            last = trajectory[-1]
-            # Use target_x/y to guide the LLM's next session behavior
-            x = last.get("target_x", last.get("x", 8.0))
-            y = last.get("target_y", last.get("y", 8.0))
-            cl, cd = get_coh_label(x); fl, fd = get_flex_label(y)
-            return cl, fl, (x, y), f"Current State: {cl}-{fl} (x={x}, y={y})"
-        except: return "Error", "Error", (50.0, 50.0), "Failed to retrieve"
+            else:
+                last = trajectory[-1]
+                x = last.get("target_x", last.get("x", 8.0))
+                y = last.get("target_y", last.get("y", 8.0))
+            
+            cl, fl = get_coh_label(x), get_flex_label(y)
+            behavior_desc = self._get_behavioral_descriptors(x, y)
+            
+            status_summary = f"{cl}-{fl} (Score: Cohesion={x:.1f}, Flexibility={y:.1f})\n"
+            status_summary += f"\n# FACES IV Behavioral Guidelines (STRICTLY FOLLOW THESE)\n{behavior_desc}"
+            
+            return cl, fl, (x, y), status_summary
+        except Exception as e:
+            return "Error", "Error", (50.0, 50.0), f"Failed to retrieve: {e}"
 
     def generate_scenario(self, is_initial_statement: bool = False, intervention_text: str = None) -> str:
         _, _, _, family_status = self._get_family_type_info()
