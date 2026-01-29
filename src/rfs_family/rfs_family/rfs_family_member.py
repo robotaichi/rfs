@@ -161,7 +161,7 @@ class RFSFamilyMember(Node):
         self.pending_scenario_move = None
         self.is_user_intervention_active_for_publishing_block = False
         self.pending_delay = 1.0
-        
+        self.audio_synthesis_requested = False
         self.step_count = 0
         self.waiting_for_evaluation = False
         self.turns_per_step = 10
@@ -354,7 +354,14 @@ class RFSFamilyMember(Node):
                 except:
                     if 'conversation' in line: self.pending_scenario_conversation = line
                     elif 'move' in line: self.pending_scenario_move = line
-            if is_initial_statement or force_publish: self.publish_pending_scenario(force_publish=True)
+            if is_initial_statement or force_publish: 
+                self.publish_pending_scenario(force_publish=True)
+            else:
+                # BACKGROUND MODE: Start audio synthesis immediately but do not publish action yet
+                if self.pending_scenario_conversation:
+                    self.get_logger().info(f"[{self.role}] Text generation complete. Starting background audio synthesis...")
+                    self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
+                    self.audio_synthesis_requested = True
 
     def publish_pending_scenario(self, from_leader_instruction: bool = False, force_publish: bool = False):
         if self.waiting_for_evaluation and not from_leader_instruction: return
@@ -405,8 +412,12 @@ class RFSFamilyMember(Node):
         self.update_history(self.pending_scenario_conversation)
         
         # Enforce fixed voice
-        self.get_logger().info(f"[{self.role}] Requesting background audio synthesis...")
-        self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
+        if not self.audio_synthesis_requested:
+            self.get_logger().info(f"[{self.role}] Requesting audio synthesis (foreground)...")
+            self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
+        else:
+            self.get_logger().info(f"[{self.role}] Audio already synthesizing in background. Proceeding to action.")
+
         self.family_publisher.publish(String(data=self.pending_scenario_conversation))
         
         if self.pending_scenario_move:
@@ -414,6 +425,7 @@ class RFSFamilyMember(Node):
 
         self.pending_scenario_conversation = None
         self.pending_scenario_move = None
+        self.audio_synthesis_requested = False
         if from_leader_instruction: self.stt_resume_pub.publish(String(data="resume"))
 
     def _get_family_type_info(self):
