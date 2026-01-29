@@ -368,7 +368,7 @@ class RFSFamilyMember(Node):
         if self.tts_ready and self.toios_ready and not self.initialization_done:
             self.initialization_done = True
             if self.start_pending:
-                self.get_logger().info(f"[{self.role}] Initialization complete. Starting first turn...")
+                self.get_logger().info(f"[{self.role}] Initialization complete. Starting designated first turn...")
                 self.trigger_scenario_generation(is_initial_statement=True, force_publish=True)
                 self.initial_scenario_pub.publish(String(data="completed"))
                 self.start_pending = False
@@ -472,17 +472,24 @@ class RFSFamilyMember(Node):
                     lines = scenario.strip().split('\n')
                     for line in lines:
                         line = line.strip()
-                        if not line or not (line.startswith('S') and '_T' in line): continue
+                        # Allow lines starting with the role name OR a Step ID (if already processed)
+                        if not (line.lower().startswith(self.role.lower()) or (line.startswith('S') and '_T' in line)): 
+                            continue
+                        
                         try:
-                            # Stricter CSV parsing to avoid Rationale lines
+                            # Use CSV reader for robust parsing
                             reader = csv.reader(io.StringIO(line), skipinitialspace=True)
                             parts = next(reader)
-                            if len(parts) >= 4:
+                            if len(parts) >= 3:
                                 type_tag = parts[2].lower()
-                                if 'conversation' in type_tag: self.pending_scenario_conversation = line
-                                elif 'move' in type_tag: self.pending_scenario_move = line
+                                if 'conversation' in type_tag: 
+                                    self.pending_scenario_conversation = line
+                                elif 'move' in type_tag: 
+                                    self.pending_scenario_move = line
                         except:
-                            continue
+                            # Fallback if CSV reader fails
+                            if 'conversation' in line: self.pending_scenario_conversation = line
+                            elif 'move' in line: self.pending_scenario_move = line
                     
                     # Check for publication triggers
                     should_publish_now = False
