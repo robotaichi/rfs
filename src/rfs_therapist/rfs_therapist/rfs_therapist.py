@@ -92,11 +92,16 @@ class RFSTherapist(Node):
         self.complete_pub = self.create_publisher(String, 'rfs_evaluation_complete', 10)
         self.plot_pub = self.create_publisher(String, 'rfs_faces_plot_updated', 10)
 
-        # Generate initial plot if trajectory exists
+        # Reset viewer state and initial plot if trajectory exists
         self.init_plot()
         self.get_logger().info("RFS Therapist Node Started.")
 
     def init_plot(self):
+        # Notify viewer to clear state first
+        reset_msg = String()
+        reset_msg.data = "RESET"
+        self.plot_pub.publish(reset_msg)
+
         traj = []
         if os.path.exists(self.TRAJECTORY_FILE):
             try:

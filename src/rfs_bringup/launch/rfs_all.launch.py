@@ -114,6 +114,13 @@ def generate_launch_description():
     # --------------------------
 
     if os.path.exists(HISTORY_FILE): os.remove(HISTORY_FILE)
+    if os.path.exists(TRAJECTORY_FILE): os.remove(TRAJECTORY_FILE)
+    
+    # Clean up plot files
+    plot_file = os.path.join(DB_DIR, "evaluation_plot.png")
+    plot_bg_file = os.path.join(DB_DIR, "evaluation_plot_bg.png")
+    if os.path.exists(plot_file): os.remove(plot_file)
+    if os.path.exists(plot_bg_file): os.remove(plot_bg_file)
     
     # Reset trajectory with S0
     initial_coords = config.get("initial_coords", {"x": 8.0, "y": 8.0})
