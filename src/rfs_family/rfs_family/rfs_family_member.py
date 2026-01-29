@@ -190,7 +190,7 @@ class RFSFamilyMember(Node):
         # Leader startup sequence
         if self.role == self.family_config[0]:
             self.get_logger().info(f"[{self.role}] I am the leader. Preparing startup...")
-            self.create_timer(5.0, self.initial_startup_check)
+            self.startup_timer = self.create_timer(5.0, self.initial_startup_check)
         self.last_triggered_step = -1
         self.last_evaluated_step = -1
         
@@ -372,16 +372,27 @@ class RFSFamilyMember(Node):
                 self.start_pending = False
 
     def initial_startup_check(self):
-        # Check if history is empty to start S0_T1
+        # Stop timer if we already have history or turns
+        turns = self._get_turn_count()
+        if turns > 0:
+            self.get_logger().info(f"[{self.role}] Conversation started (turns={turns}). Stopping startup timer.")
+            if hasattr(self, 'startup_timer'): self.startup_timer.cancel()
+            return
+
         if not os.path.exists(HISTORY_FILE) or os.path.getsize(HISTORY_FILE) < 10:
-            self.get_logger().info(f"[{self.role}] History empty. Starting first turn...")
-            self.trigger_scenario_generation(is_initial_statement=True, force_publish=True)
+            if not self.is_generating_scenario:
+                self.get_logger().info(f"[{self.role}] History empty. Starting first turn...")
+                self.trigger_scenario_generation(is_initial_statement=True, force_publish=True)
+            else:
+                self.get_logger().info(f"[{self.role}] History empty but already generating. Waiting...")
         else:
             # Check if conversation stalled (no recent dialogue)
-            turns = self._get_turn_count()
             if turns == 0:
-                self.get_logger().info(f"[{self.role}] Turn 0. Starting initial statement...")
-                self.trigger_scenario_generation(is_initial_statement=True, force_publish=True)
+                if not self.is_generating_scenario:
+                    self.get_logger().info(f"[{self.role}] Turn 0. Starting initial statement...")
+                    self.trigger_scenario_generation(is_initial_statement=True, force_publish=True)
+                else:
+                    self.get_logger().info(f"[{self.role}] Turn 0 but already generating. Waiting...")
 
     def load_full_history(self) -> str:
         try:
@@ -424,62 +435,73 @@ class RFSFamilyMember(Node):
             return
 
         with self.generation_lock:
+            if self.is_generating_scenario:
+                if is_initial_statement or force_publish:
+                    self.get_logger().info(f"[{self.role}] Generation already in progress. Deferring finish trigger.")
+                    self.start_signal_deferred = True
+                return
             self.is_generating_scenario = True
             self.start_signal_deferred = False
 
-        try:
-            scenario = self.generate_scenario(is_initial_statement=is_initial_statement, intervention_text=intervention_text)
-            if not scenario: 
-                with self.generation_lock: self.is_generating_scenario = False
-                return
-            
-            # Post-generation handling
-            if is_intervention:
-                self.update_history(scenario, is_leader_response=True)
-                # ... existing intervention logic ...
-                reader = csv.reader(io.StringIO(scenario), skipinitialspace=True)
-                row = next(reader)
-                resp = row[0].lower()
-                self.reset_intervention_state()
-                if resp == self.role:
-                    self.pending_scenario_conversation = scenario
-                    self.publish_pending_scenario(from_leader_instruction=True)
-                else:
-                    self.get_logger().info(f"Relaying to {resp}")
-            else:
-                lines = scenario.strip().split('\n')
-                for line in lines:
-                    try:
-                        reader = csv.reader(io.StringIO(line), skipinitialspace=True)
-                        parts = next(reader)
-                        if len(parts) > 2:
-                            type_tag = parts[2].lower()
-                            if 'conversation' in type_tag: self.pending_scenario_conversation = line
-                            elif 'move' in type_tag: self.pending_scenario_move = line
-                    except:
-                        if 'conversation' in line: self.pending_scenario_conversation = line
-                        elif 'move' in line: self.pending_scenario_move = line
+        def generation_task():
+            try:
+                scenario = self.generate_scenario(is_initial_statement=is_initial_statement, intervention_text=intervention_text)
+                if not scenario: 
+                    with self.generation_lock: self.is_generating_scenario = False
+                    return
                 
-                # Check for publication triggers
-                should_publish_now = False
-                with self.generation_lock:
-                    self.is_generating_scenario = False
-                    if is_initial_statement or force_publish or self.start_signal_deferred:
-                        should_publish_now = True
-                        self.start_signal_deferred = False
-                    
-                if should_publish_now:
-                    self.get_logger().info(f"[{self.role}] Generation complete. Publishing (Triggered by {'initial/force' if not self.start_signal_deferred else 'deferred start'}).")
-                    self.publish_pending_scenario(force_publish=True)
+                # Post-generation handling
+                if is_intervention:
+                    self.update_history(scenario, is_leader_response=True)
+                    # Use existing logic to find responder
+                    reader = csv.reader(io.StringIO(scenario), skipinitialspace=True)
+                    row = next(reader)
+                    resp = row[0].lower()
+                    self.reset_intervention_state()
+                    if resp == self.role:
+                        self.pending_scenario_conversation = scenario
+                        self.publish_pending_scenario(from_leader_instruction=True)
+                    else:
+                        self.get_logger().info(f"Relaying intervention response to {resp}")
+                        t_msg = String()
+                        t_msg.data = f"{self.role},{resp},resume_turn" # Should be resume or start?
+                        self.family_publisher.publish(t_msg)
                 else:
-                    # BACKGROUND MODE: Start audio synthesis immediately but do not publish action yet
-                    if self.pending_scenario_conversation:
-                        self.get_logger().info(f"[{self.role}] Text generation complete. Pre-synthesizing background audio...")
-                        self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
-                        self.audio_synthesis_requested = True
-        except Exception as e:
-            self.get_logger().error(f"Error in background generation task: {e}")
-            with self.generation_lock: self.is_generating_scenario = False
+                    lines = scenario.strip().split('\n')
+                    for line in lines:
+                        try:
+                            reader = csv.reader(io.StringIO(line), skipinitialspace=True)
+                            parts = next(reader)
+                            if len(parts) > 2:
+                                type_tag = parts[2].lower()
+                                if 'conversation' in type_tag: self.pending_scenario_conversation = line
+                                elif 'move' in type_tag: self.pending_scenario_move = line
+                        except:
+                            if 'conversation' in line: self.pending_scenario_conversation = line
+                            elif 'move' in line: self.pending_scenario_move = line
+                    
+                    # Check for publication triggers
+                    should_publish_now = False
+                    with self.generation_lock:
+                        self.is_generating_scenario = False
+                        if is_initial_statement or force_publish or self.start_signal_deferred:
+                            should_publish_now = True
+                            self.start_signal_deferred = False
+                        
+                    if should_publish_now:
+                        self.get_logger().info(f"[{self.role}] Generation complete. Publishing (Triggered by {'initial/force' if not self.start_signal_deferred else 'deferred start'}).")
+                        self.publish_pending_scenario(force_publish=True)
+                    else:
+                        # BACKGROUND MODE: Start audio synthesis immediately but do not publish action yet
+                        if self.pending_scenario_conversation:
+                            self.get_logger().info(f"[{self.role}] Text generation complete. Pre-synthesizing background audio...")
+                            self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
+                            self.audio_synthesis_requested = True
+            except Exception as e:
+                self.get_logger().error(f"Error in background generation task: {e}")
+                with self.generation_lock: self.is_generating_scenario = False
+        
+        threading.Thread(target=generation_task, daemon=True).start()
 
     def publish_pending_scenario(self, from_leader_instruction: bool = False, force_publish: bool = False):
         if self.waiting_for_evaluation and not from_leader_instruction: return
@@ -656,18 +678,25 @@ Generate actions for your role considering dialogue history, available voices, a
         try:
             reader = csv.reader(io.StringIO(msg.data), skipinitialspace=True)
             parts = next(reader)
-            cmd = parts[2].lower()
+            if len(parts) < 3: return
+            sender = parts[0].lower()
             target = parts[1].lower()
+            cmd = parts[2].lower()
             
             # Decentralized autonomous model: trigger on prepare_turn, start_turn or resume_turn
             if target == self.role:
                 if cmd == 'prepare_turn':
-                    self.get_logger().info(f"[{self.role}] Preparation signal received. Generating scenario...")
+                    self.get_logger().info(f"[{self.role}] Preparation signal received from {sender}. Generating scenario...")
                     self.trigger_scenario_generation(force_publish=False)
                 elif cmd == 'start_turn' or cmd == 'resume_turn':
-                    self.get_logger().info(f"[{self.role}] Start signal '{cmd}' received. Publishing scenario...")
+                    self.get_logger().info(f"[{self.role}] Start signal '{cmd}' received from {sender}. Publishing scenario...")
                     self.publish_pending_scenario(force_publish=True)
-        except: pass
+                elif cmd == 'conversation':
+                    # Log but do not act on other's conversation messages
+                    pass
+        except Exception as e:
+            # self.get_logger().error(f"Error in message_callback: {e}")
+            pass
 
     def tts_status_callback(self, msg: String):
         try:
