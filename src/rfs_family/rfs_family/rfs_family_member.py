@@ -612,7 +612,7 @@ class RFSFamilyMember(Node):
             self.get_logger().info(f"[{self.role}] Requesting audio synthesis (foreground)...")
             self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
         else:
-            self.get_logger().info(f"[{self.role}] Audio already synthesizing in background. Proceeding to action.")
+            # self.get_logger().info(f"[{self.role}] Audio already synthesizing in background. Proceeding to action.")
 
         self.family_publisher.publish(String(data=self.pending_scenario_conversation))
         
@@ -625,7 +625,7 @@ class RFSFamilyMember(Node):
         # 2. RELAY PREPARATION (Early preparation for next speaker)
         if self.pending_relay_recipient and not self.waiting_for_evaluation:
             next_target = self.pending_relay_recipient
-            self.get_logger().info(f"[{self.role}] Early relaying preparation to {next_target}")
+            # self.get_logger().info(f"[{self.role}] Early relaying preparation to {next_target}")
             t_msg = String()
             t_msg.data = f"{self.role},{next_target},prepare_turn"
             self.family_publisher.publish(t_msg)
@@ -636,7 +636,7 @@ class RFSFamilyMember(Node):
             self.pending_tts_finish = False
             self.tts_finished_callback(String(data=f"finished,{self.role}"))
         else:
-            self.get_logger().info(f"[{self.role}] No early TTS finish pending (flag=False). Waiting for normal signal.")
+            # self.get_logger().info(f"[{self.role}] No early TTS finish pending (flag=False). Waiting for normal signal.")
 
         self.pending_scenario_conversation = None
         self.pending_scenario_move = None
@@ -766,7 +766,7 @@ Generate actions for your role considering dialogue history, available voices, a
             if parts[0] == 'start':
                 speaker = parts[1].lower()
                 if speaker == self.role:
-                    self.get_logger().info(f"[{self.role}] I started playing. Checking for relay or evaluation...")
+                    # self.get_logger().info(f"[{self.role}] I started playing. Checking for relay or evaluation...")
                     
                     # 1. EVALUATION CHECK
                     turns = self._get_turn_count()
