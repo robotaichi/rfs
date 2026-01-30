@@ -124,10 +124,10 @@ class RFSTherapist(Node):
                     config = json.load(f)
                     self.OMEGA_1 = config.get("w1", 1.0)
                     self.OMEGA_2 = config.get("w2", 1.0)
-                    self.OMEGA_3 = config.get("w3", 0.5)
+                    self.OMEGA_3 = config.get("w3", 1.5) # Increased floor for center pull
                     self.family_config = config.get("family_config", [])
                     self.initial_coords = config.get("initial_coords", {"x": 8.0, "y": 8.0})
-                    self.LEARNING_RATE_SCALING = config.get("learning_rate_scaling", 0.25)
+                    self.LEARNING_RATE_SCALING = config.get("learning_rate_scaling", 0.35) # Higher base
         except: pass
 
     def trigger_callback(self, msg: String):
@@ -227,27 +227,10 @@ class RFSTherapist(Node):
         new_scores = self.calculate_gradient(pcts, x, y)
         
         # Target Dimension Scores for NEXT session (RED POINT)
-        tx_next = new_scores["Balanced Cohesion"] + (new_scores["Enmeshed"] - new_scores["Disengaged"]) / 2.0
-        ty_next = new_scores["Balanced Flexibility"] + (new_scores["Chaotic"] - new_scores["Rigid"]) / 2.0
-        
-        # DECISIVE STEERING BOOST
-        # Ensure target is at least 15 points closer to 50 than the current result
-        # and NEVER regresses towards the boundary compared to current result.
-        def boost_target(curr, tgt):
-            if curr < 50:
-                # Must move towards 50. Ensure at least +15 displacement
-                # or enough to cross the 15.0 boundary.
-                lower_bound = max(curr + 15.0, 26.0) if curr <= 15.0 else curr + 10.0
-                return max(tgt, lower_bound)
-            elif curr > 50:
-                # Must move towards 50. Ensure at least -15 displacement
-                # or enough to cross the 85.0 boundary.
-                upper_bound = min(curr - 15.0, 74.0) if curr >= 85.0 else curr - 10.0
-                return min(tgt, upper_bound)
-            return tgt
-
-        tx = max(5.0, min(95.0, boost_target(x, tx_next)))
-        ty = max(5.0, min(95.0, boost_target(y, ty_next)))
+        # Using pure Gradient Descent outcome from current state
+        tx = new_scores["Balanced Cohesion"] + (new_scores["Enmeshed"] - new_scores["Disengaged"]) / 2.0
+        ty = new_scores["Balanced Flexibility"] + (new_scores["Chaotic"] - new_scores["Rigid"]) / 2.0
+        tx = max(5.0, min(95.0, tx)); ty = max(5.0, min(95.0, ty))
 
         self.update_history_with_targets(new_scores, tx, ty)
 
@@ -257,18 +240,6 @@ class RFSTherapist(Node):
             try:
                 with open(self.TRAJECTORY_FILE, 'r') as f: traj = json.load(f)
             except: pass
-
-        # GOAL MONOTONICITY: Ensure targets don't regress if family fails
-        if traj:
-            prev = traj[-1]
-            ptx = prev.get("target_x")
-            pty = prev.get("target_y")
-            if ptx is not None:
-                if x < 50 and ptx < 50: tx = max(tx, ptx)
-                elif x > 50 and ptx > 50: tx = min(tx, ptx)
-            if pty is not None:
-                if y < 50 and pty < 50: ty = max(ty, pty)
-                elif y > 50 and pty > 50: ty = min(ty, pty)
 
         if not traj:
             # Initialize with S0 target
@@ -573,15 +544,8 @@ class RFSTherapist(Node):
         B = c_bal + f_bal
         U = c_dis + c_enm + f_rig + f_cha
         
-        # Learning rate eta (Ultra-aggressive for decisive steering)
-        # Using a base floor of 0.4 and scaling by communication/target_scaling
-        eta = max(0.4, comm / 100.0) * self.LEARNING_RATE_SCALING * 2.5
-        
-        # Boundary Escape Factor: If we are at the edge, double the steering force
-        # to ensure targets are visibly different even from extreme unbalance.
-        boundary_dist = min(abs(x - 5.0), abs(x - 95.0), abs(y - 5.0), abs(y - 95.0))
-        if boundary_dist < 10.0:
-            eta *= 2.0 
+        # Learning rate eta (Ambitious and constant to prevent target regression)
+        eta = self.LEARNING_RATE_SCALING * 3.5
         
         # Calculate gradients 
         # Objective J = w1*(U/2B) - w2*Comm + w3*0.5*((x-50)^2 + (y-50)^2)
@@ -647,26 +611,6 @@ class RFSTherapist(Node):
             "Communication": max(5.0, min(99.0, comm + delta_comm))
         }
 
-        # FINAL ADJUSTMENT: Decisive Category-Crossing
-        # Ensure the resulting Dim Scores (next_x, next_y) are at least N units closer to 50
-        # or cross into the next behavioral category if the current result is extreme.
-        def apply_steering_boost(current_v, target_v):
-            if current_v < 50:
-                # If in extreme zone (0-15), force target to at least 25
-                if current_v <= 15: return max(target_v, 25.0)
-                # Otherwise ensure at least +10 displacement
-                return max(target_v, current_v + 10.0)
-            elif current_v > 50:
-                # If in extreme zone (85-100), force target to at least 75
-                if current_v >= 85: return min(target_v, 75.0)
-                # Otherwise ensure at least -10 displacement
-                return min(target_v, current_v - 10.0)
-            return target_v
-
-        # We can't directly adjust new_scores easily without recalculating,
-        # so we will adjust the final tx, ty in calculate_scores if needed,
-        # OR we just increase the displacement here by scaling the deltas.
-        
         return new_scores
 
     def update_history_with_targets(self, scores, tx, ty):
