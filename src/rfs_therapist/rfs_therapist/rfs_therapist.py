@@ -225,13 +225,31 @@ class RFSTherapist(Node):
         # Decouple: current state x,y is fixed as the outcome of the current turns
         # new_scores represents the targeted Percentile Scores for next session
         new_scores = self.calculate_gradient(pcts, x, y)
-        self.update_history_with_targets(new_scores)
-
+        
         # Target Dimension Scores for NEXT session (RED POINT)
-        # Target Dimension Scores (using gradient descent targets)
-        tx = new_scores["Balanced Cohesion"] + (new_scores["Enmeshed"] - new_scores["Disengaged"]) / 2.0
-        ty = new_scores["Balanced Flexibility"] + (new_scores["Chaotic"] - new_scores["Rigid"]) / 2.0
-        tx = max(5.0, min(95.0, tx)); ty = max(5.0, min(95.0, ty))
+        tx_next = new_scores["Balanced Cohesion"] + (new_scores["Enmeshed"] - new_scores["Disengaged"]) / 2.0
+        ty_next = new_scores["Balanced Flexibility"] + (new_scores["Chaotic"] - new_scores["Rigid"]) / 2.0
+        
+        # DECISIVE STEERING BOOST
+        # Ensure target is at least 15 points closer to 50 than the current result
+        # and NEVER regresses towards the boundary compared to current result.
+        def boost_target(curr, tgt):
+            if curr < 50:
+                # Must move towards 50. Ensure at least +15 displacement
+                # or enough to cross the 15.0 boundary.
+                lower_bound = max(curr + 15.0, 26.0) if curr <= 15.0 else curr + 10.0
+                return max(tgt, lower_bound)
+            elif curr > 50:
+                # Must move towards 50. Ensure at least -15 displacement
+                # or enough to cross the 85.0 boundary.
+                upper_bound = min(curr - 15.0, 74.0) if curr >= 85.0 else curr - 10.0
+                return min(tgt, upper_bound)
+            return tgt
+
+        tx = max(5.0, min(95.0, boost_target(x, tx_next)))
+        ty = max(5.0, min(95.0, boost_target(y, ty_next)))
+
+        self.update_history_with_targets(new_scores, tx, ty)
 
         # Trajectory
         traj = []
@@ -239,7 +257,19 @@ class RFSTherapist(Node):
             try:
                 with open(self.TRAJECTORY_FILE, 'r') as f: traj = json.load(f)
             except: pass
-        
+
+        # GOAL MONOTONICITY: Ensure targets don't regress if family fails
+        if traj:
+            prev = traj[-1]
+            ptx = prev.get("target_x")
+            pty = prev.get("target_y")
+            if ptx is not None:
+                if x < 50 and ptx < 50: tx = max(tx, ptx)
+                elif x > 50 and ptx > 50: tx = min(tx, ptx)
+            if pty is not None:
+                if y < 50 and pty < 50: ty = max(ty, pty)
+                elif y > 50 and pty > 50: ty = min(ty, pty)
+
         if not traj:
             # Initialize with S0 target
             traj.append({
@@ -616,13 +646,31 @@ class RFSTherapist(Node):
             "Chaotic": max(5.0, min(99.0, f_cha + delta_f_cha)),
             "Communication": max(5.0, min(99.0, comm + delta_comm))
         }
+
+        # FINAL ADJUSTMENT: Decisive Category-Crossing
+        # Ensure the resulting Dim Scores (next_x, next_y) are at least N units closer to 50
+        # or cross into the next behavioral category if the current result is extreme.
+        def apply_steering_boost(current_v, target_v):
+            if current_v < 50:
+                # If in extreme zone (0-15), force target to at least 25
+                if current_v <= 15: return max(target_v, 25.0)
+                # Otherwise ensure at least +10 displacement
+                return max(target_v, current_v + 10.0)
+            elif current_v > 50:
+                # If in extreme zone (85-100), force target to at least 75
+                if current_v >= 85: return min(target_v, 75.0)
+                # Otherwise ensure at least -10 displacement
+                return min(target_v, current_v - 10.0)
+            return target_v
+
+        # We can't directly adjust new_scores easily without recalculating,
+        # so we will adjust the final tx, ty in calculate_scores if needed,
+        # OR we just increase the displacement here by scaling the deltas.
+        
         return new_scores
 
-    def update_history_with_targets(self, scores):
-        # Calculate target coords for logging
-        tx = scores["Balanced Cohesion"] + (scores["Enmeshed"] - scores["Disengaged"]) / 2.0
-        ty = scores["Balanced Flexibility"] + (scores["Chaotic"] - scores["Rigid"]) / 2.0
-        tx = max(5.0, min(95.0, tx)); ty = max(5.0, min(95.0, ty))
+    def update_history_with_targets(self, scores, tx, ty):
+        # Already calculated in calculate_scores with steering boost
         
         update = f"\n[THERAPIST_STALL_SESSION_ANALYSIS]\n"
         update += f"Current Result Position: ({self._last_x:.1f}, {self._last_y:.1f})\n" if hasattr(self, '_last_x') else ""
