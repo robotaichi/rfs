@@ -211,12 +211,12 @@ class RFSTherapist(Node):
         flex_ratio = pcts["Balanced Flexibility"] / unb_flex if unb_flex > 0 else 1.0
         tot_ratio = (pcts["Balanced Cohesion"] + pcts["Balanced Flexibility"]) / (unb_coh + unb_flex) if (unb_coh + unb_flex) > 0 else 1.0
 
-        # Dimension Scores (formal FACES IV calculation based on percentiles)
-        # Formula: (Balanced + High_Unbalanced + (100 - Low_Unbalanced)) / 3
-        coh_dim = (pcts["Balanced Cohesion"] + pcts["Enmeshed"] + (100 - pcts["Disengaged"])) / 3.0
-        flex_dim = (pcts["Balanced Flexibility"] + pcts["Chaotic"] + (100 - pcts["Rigid"])) / 3.0
+        # Dimension Scores (formal FACES IV calculation provided by user)
+        # Formula: Balanced + (High_Unbalanced - Low_Unbalanced) / 2
+        coh_dim = pcts["Balanced Cohesion"] + (pcts["Enmeshed"] - pcts["Disengaged"]) / 2.0
+        flex_dim = pcts["Balanced Flexibility"] + (pcts["Chaotic"] - pcts["Rigid"]) / 2.0
         
-        # Plot Coords are exactly the Dimension Scores
+        # Clamp Score: 5 (Score < 5), Score (5 <= Score <= 95), 95 (Score > 95)
         x = max(5.0, min(95.0, coh_dim))
         y = max(5.0, min(95.0, flex_dim))
 
@@ -226,8 +226,8 @@ class RFSTherapist(Node):
 
         # Target coords for plotting
         # Target Dimension Scores (using gradient descent targets)
-        tx = (new_scores["Balanced Cohesion"] + new_scores["Enmeshed"] + (100 - new_scores["Disengaged"])) / 3.0
-        ty = (new_scores["Balanced Flexibility"] + new_scores["Chaotic"] + (100 - new_scores["Rigid"])) / 3.0
+        tx = new_scores["Balanced Cohesion"] + (new_scores["Enmeshed"] - new_scores["Disengaged"]) / 2.0
+        ty = new_scores["Balanced Flexibility"] + (new_scores["Chaotic"] - new_scores["Rigid"]) / 2.0
         tx = max(5.0, min(95.0, tx)); ty = max(5.0, min(95.0, ty))
 
         # Trajectory
@@ -545,17 +545,17 @@ class RFSTherapist(Node):
         
         # Calculate gradients 
         # Objective J = w1*(U/2B) - w2*Comm + w3*0.5*((x-50)^2 + (y-50)^2)
-        # Update gradients to use the formal Dimension Score derivatives (1/3)
+        # Update gradients to use the formal Dimension Score derivatives (1/2 coefficient for unbalanced)
         grad_bal_prefix = - (self.OMEGA_1 * U) / (2.0 * B**2)
-        grad_c_bal = grad_bal_prefix + (self.OMEGA_3 / 3.0) * (x - 50.0)
-        grad_f_bal = grad_bal_prefix + (self.OMEGA_3 / 3.0) * (y - 50.0)
+        grad_c_bal = grad_bal_prefix + self.OMEGA_3 * (x - 50.0)
+        grad_f_bal = grad_bal_prefix + self.OMEGA_3 * (y - 50.0)
         
         grad_unbal_prefix = self.OMEGA_1 / (2.0 * B)
-        # grad_c_enm (High) -> (1/3), grad_c_dis (Low) -> (-1/3)
-        grad_c_enm = grad_unbal_prefix + (self.OMEGA_3 / 3.0) * (x - 50.0)
-        grad_c_dis = grad_unbal_prefix - (self.OMEGA_3 / 3.0) * (x - 50.0)
-        grad_f_cha = grad_unbal_prefix + (self.OMEGA_3 / 3.0) * (y - 50.0)
-        grad_f_rig = grad_unbal_prefix - (self.OMEGA_3 / 3.0) * (y - 50.0)
+        # grad_high_unbal -> (1/2), grad_low_unbal -> (-1/2) matching formula derivatives
+        grad_c_enm = grad_unbal_prefix + (self.OMEGA_3 / 2.0) * (x - 50.0)
+        grad_c_dis = grad_unbal_prefix - (self.OMEGA_3 / 2.0) * (x - 50.0)
+        grad_f_cha = grad_unbal_prefix + (self.OMEGA_3 / 2.0) * (y - 50.0)
+        grad_f_rig = grad_unbal_prefix - (self.OMEGA_3 / 2.0) * (y - 50.0)
         
         grad_comm = - self.OMEGA_2
         
