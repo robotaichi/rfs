@@ -409,7 +409,7 @@ class RFSFamilyMember(Node):
         # Stop timer if we already have history or turns
         turns = self._get_turn_count()
         if turns > 0:
-            self.get_logger().info(f"[{self.role}] Conversation started (turns={turns}). Stopping startup timer.")
+            # self.get_logger().info(f"[{self.role}] Conversation started (turns={turns}). Stopping startup timer.")
             if hasattr(self, 'startup_timer'): self.startup_timer.cancel()
             return
 
@@ -609,7 +609,7 @@ class RFSFamilyMember(Node):
         
         # Enforce fixed voice
         if not self.audio_synthesis_requested:
-            self.get_logger().info(f"[{self.role}] Requesting audio synthesis (foreground)...")
+            # self.get_logger().info(f"[{self.role}] Requesting audio synthesis (foreground)...")
             self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
         else:
             # self.get_logger().info(f"[{self.role}] Audio already synthesizing in background. Proceeding to action.")

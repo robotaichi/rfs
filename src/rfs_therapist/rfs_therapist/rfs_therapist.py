@@ -543,9 +543,15 @@ class RFSTherapist(Node):
         B = c_bal + f_bal
         U = c_dis + c_enm + f_rig + f_cha
         
-        # Learning rate eta (Increased for more decisive steering)
-        # Using a base floor of 0.25 and scaling by communication/target_scaling
-        eta = max(0.25, comm / 100.0) * self.LEARNING_RATE_SCALING * 1.5
+        # Learning rate eta (Ultra-aggressive for decisive steering)
+        # Using a base floor of 0.4 and scaling by communication/target_scaling
+        eta = max(0.4, comm / 100.0) * self.LEARNING_RATE_SCALING * 2.5
+        
+        # Boundary Escape Factor: If we are at the edge, double the steering force
+        # to ensure targets are visibly different even from extreme unbalance.
+        boundary_dist = min(abs(x - 5.0), abs(x - 95.0), abs(y - 5.0), abs(y - 95.0))
+        if boundary_dist < 10.0:
+            eta *= 2.0 
         
         # Calculate gradients 
         # Objective J = w1*(U/2B) - w2*Comm + w3*0.5*((x-50)^2 + (y-50)^2)
