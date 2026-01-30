@@ -613,6 +613,7 @@ class RFSFamilyMember(Node):
             self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
         else:
             # self.get_logger().info(f"[{self.role}] Audio already synthesizing in background. Proceeding to action.")
+            pass
 
         self.family_publisher.publish(String(data=self.pending_scenario_conversation))
         
@@ -637,6 +638,7 @@ class RFSFamilyMember(Node):
             self.tts_finished_callback(String(data=f"finished,{self.role}"))
         else:
             # self.get_logger().info(f"[{self.role}] No early TTS finish pending (flag=False). Waiting for normal signal.")
+            pass
 
         self.pending_scenario_conversation = None
         self.pending_scenario_move = None
