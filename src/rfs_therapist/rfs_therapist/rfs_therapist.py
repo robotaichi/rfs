@@ -219,12 +219,15 @@ class RFSTherapist(Node):
         # Clamp Score: 5 (Score < 5), Score (5 <= Score <= 95), 95 (Score > 95)
         x = max(5.0, min(95.0, coh_dim))
         y = max(5.0, min(95.0, flex_dim))
+        self._last_x, self._last_y = x, y
 
-        # Gradient Descent
+        # Gradient Descent for NEXT session target
+        # Decouple: current state x,y is fixed as the outcome of the current turns
+        # new_scores represents the targeted Percentile Scores for next session
         new_scores = self.calculate_gradient(pcts, x, y)
         self.update_history_with_targets(new_scores)
 
-        # Target coords for plotting
+        # Target Dimension Scores for NEXT session (RED POINT)
         # Target Dimension Scores (using gradient descent targets)
         tx = new_scores["Balanced Cohesion"] + (new_scores["Enmeshed"] - new_scores["Disengaged"]) / 2.0
         ty = new_scores["Balanced Flexibility"] + (new_scores["Chaotic"] - new_scores["Rigid"]) / 2.0
@@ -540,8 +543,9 @@ class RFSTherapist(Node):
         B = c_bal + f_bal
         U = c_dis + c_enm + f_rig + f_cha
         
-        # Learning rate eta (Slightly reduced for smoother steering)
-        eta = max(0.15, comm / 100.0) * self.LEARNING_RATE_SCALING
+        # Learning rate eta (Increased for more decisive steering)
+        # Using a base floor of 0.25 and scaling by communication/target_scaling
+        eta = max(0.25, comm / 100.0) * self.LEARNING_RATE_SCALING * 1.5
         
         # Calculate gradients 
         # Objective J = w1*(U/2B) - w2*Comm + w3*0.5*((x-50)^2 + (y-50)^2)
@@ -612,11 +616,14 @@ class RFSTherapist(Node):
         # Calculate target coords for logging
         tx = scores["Balanced Cohesion"] + (scores["Enmeshed"] - scores["Disengaged"]) / 2.0
         ty = scores["Balanced Flexibility"] + (scores["Chaotic"] - scores["Rigid"]) / 2.0
+        tx = max(5.0, min(95.0, tx)); ty = max(5.0, min(95.0, ty))
         
-        update = f"\n[SYSTEM_UPDATE]\nTherapeutic Target for Next Session: ({tx:.1f}, {ty:.1f})\n"
-        update += "Target Scores (Calculated by Gradient Descent):\n"
+        update = f"\n[THERAPIST_STALL_SESSION_ANALYSIS]\n"
+        update += f"Current Result Position: ({self._last_x:.1f}, {self._last_y:.1f})\n" if hasattr(self, '_last_x') else ""
+        update += f"Determined Therapeutic Target for Next Session: ({tx:.1f}, {ty:.1f})\n"
+        update += "Targeted FACES IV Percentile Scores (Steering towards center):\n"
         for k, v in scores.items(): update += f"- {k}: {int(v)}\n"
-        update += "(Objective: Decisively steer towards Balanced Type at 50,50)\n"
+        update += "(Strategic Objective: Aggressively maneuver family towards the 'Balanced' zone (50, 50))\n"
         with open(HISTORY_FILE, "a", encoding="utf-8") as f: f.write(update)
 
     def family_actions_callback(self, msg: String): pass
