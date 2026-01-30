@@ -576,8 +576,7 @@ class RFSFamilyMember(Node):
                 print(f"{color}\n[{self.role} -> {recipient_role}]")
                 dialogue = parts[3] if len(parts) > 3 else "..."
                 rationale = parts[7] if len(parts) > 7 else "No rationale provided."
-                print(f"S{step_idx}_T{turns+1}: {dialogue}")
-                print(f"Rationale: {rationale}\n{reset}")
+                print(f"S{step_idx}_T{turns+1}: {dialogue}\n")
 
                 # Prepare for relay
                 next_target = recipient_role
@@ -884,6 +883,9 @@ Generate actions for your role considering dialogue history, available voices, a
             # Brief delay to ensure all nodes have cleared their status
             time.sleep(1.0)
             
+            # Ensure audio is unmuted before Turn 11 starts
+            self.interrupt_tts_pub.publish(String(data="resume_all"))
+            
             history = self.load_full_history()
             if not history:
                 self.trigger_scenario_generation(is_initial_statement=True, force_publish=True)
@@ -935,7 +937,7 @@ Generate actions for your role considering dialogue history, available voices, a
         except: step_idx = 0
 
         if step_idx <= self.last_evaluated_step:
-            self.get_logger().info(f"[{self.role}] Already evaluated {step_id}. Skipping.")
+            # self.get_logger().info(f"[{self.role}] Already evaluated for {step_id}. Skipping.")
             return
 
         self.get_logger().info(f"[{self.role}] Starting subjective FACES IV evaluation for {step_id}...")
@@ -993,10 +995,10 @@ Please rate how you feel about your family for the following 62 FACES IV items o
 # Output Format
 Output in the following JSON format:
 {{
-  "1": {{ "rating": Rating, "reason": "Reason (short sentence)" }},
-  "2": {{ "rating": Rating, "reason": "Reason" }},
+  "1": Rating,
+  "2": Rating,
   ...
-  "62": {{ "rating": Rating, "reason": "Reason" }}
+  "62": Rating
 }}
 """
         self.get_logger().info(f"[{self.role}] Requesting subjective evaluation from OpenAI...")
