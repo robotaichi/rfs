@@ -11,6 +11,7 @@ import openai
 import threading
 import csv
 import io
+import datetime
 from rfs_interfaces.srv import TTSService
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from ament_index_python.packages import get_package_share_directory
@@ -134,6 +135,11 @@ class RFSTherapist(Node):
         if step_id in self.processed_steps:
             self.get_logger().info(f"Trigger ignored for {step_id} (Already processed).")
             return
+        # Deduplicate: if evaluation is already pending or in progress for this step
+        if step_id in self.member_results:
+            self.get_logger().info(f"Trigger ignored for {step_id} (Already in progress).")
+            return
+            
         self.get_logger().info(f"Trigger received for {step_id}. Requesting evaluations...")
         self.member_results[step_id] = {}
         self.request_eval_pub.publish(String(data=step_id))
@@ -240,9 +246,49 @@ class RFSTherapist(Node):
             "target_x": tx, "target_y": ty
         })
         with open(self.TRAJECTORY_FILE, 'w') as f: json.dump(traj, f)
+        
+        # Phase 13: CSV Logging to database
+        self.log_evaluation_to_csv(step_id, aggregated_results, ratings, pcts, x, y, tx, ty, coh_ratio, flex_ratio, tot_ratio, new_scores)
 
         self.get_logger().info(f"FACES IV Succeeded: Result({x:.1f}, {y:.1f}), Target({tx:.1f}, {ty:.1f})")
         self.generate_plot(x, y, coh_ratio, flex_ratio, tot_ratio, traj)
+
+    def log_evaluation_to_csv(self, step_id, member_results, mean_ratings, current_pcts, x, y, tx, ty, coh_ratio, flex_ratio, tot_ratio, target_scores):
+        csv_file = os.path.join(DB_DIR, "evaluation_history.csv")
+        file_exists = os.path.exists(csv_file)
+        
+        try:
+            with open(csv_file, 'a', encoding='utf-8', newline='') as f:
+                writer = csv.writer(f)
+                if not file_exists:
+                    # Write Header
+                    header = ["Timestamp", "StepID", "Result_X", "Result_Y", "Target_X", "Target_Y", 
+                             "Coh_Ratio", "Flex_Ratio", "Tot_Ratio"]
+                    # Add summaries for target scores
+                    for k in target_scores.keys():
+                        header.append(f"Target_{k}")
+                    # Add JSON blobs for details to keep CSV manageable but complete
+                    header.extend(["Member_Raw_Scores_JSON", "Mean_Ratings_JSON"])
+                    writer.writerow(header)
+                
+                row = [
+                    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    step_id,
+                    round(x, 2), round(y, 2), round(tx, 2), round(ty, 2),
+                    round(coh_ratio, 2), round(flex_ratio, 2), round(tot_ratio, 2)
+                ]
+                # Target Scores
+                for k in target_scores.keys():
+                    row.append(round(target_scores[k], 2))
+                
+                # Detailed JSON strings
+                row.append(json.dumps(member_results, ensure_ascii=False))
+                row.append(json.dumps(mean_ratings, ensure_ascii=False))
+                
+                writer.writerow(row)
+            self.get_logger().info(f"Evaluation results logged to {csv_file}")
+        except Exception as e:
+            self.get_logger().error(f"Failed to log evaluation to CSV: {e}")
 
     def generate_plot(self, x, y, coh_ratio, flex_ratio, tot_ratio, trajectory=None, next_target=None):
         try:
