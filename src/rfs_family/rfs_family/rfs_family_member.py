@@ -537,7 +537,7 @@ class RFSFamilyMember(Node):
                     else:
                         # BACKGROUND MODE: Start audio synthesis immediately but do not publish action yet
                         if self.pending_scenario_conversation:
-                            self.get_logger().info(f"[{self.role}] Text generation complete. Pre-synthesizing background audio...")
+                            # self.get_logger().info(f"[{self.role}] Text generation complete. Pre-synthesizing background audio...")
                             self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
                             self.audio_synthesis_requested = True
             except Exception as e:
@@ -749,10 +749,10 @@ Generate actions for your role considering dialogue history, available voices, a
             # Decentralized autonomous model: trigger on prepare_turn, start_turn or resume_turn
             if target == self.role:
                 if cmd == 'prepare_turn':
-                    self.get_logger().info(f"[{self.role}] Preparation signal received from {sender}. Generating scenario...")
+                    # self.get_logger().info(f"[{self.role}] Preparation signal received from {sender}. Generating scenario...")
                     self.trigger_scenario_generation(force_publish=False)
                 elif cmd == 'start_turn' or cmd == 'resume_turn':
-                    self.get_logger().info(f"[{self.role}] Start signal '{cmd}' received from {sender}. Publishing scenario...")
+                    # self.get_logger().info(f"[{self.role}] Start signal '{cmd}' received from {sender}. Publishing scenario...")
                     self.publish_pending_scenario(from_leader_instruction=True, force_publish=True)
                 elif cmd == 'conversation':
                     # Log but do not act on other's conversation messages
@@ -805,7 +805,8 @@ Generate actions for your role considering dialogue history, available voices, a
             self.pending_move_command = None
         else:
             # No move - trigger turn takeover immediately
-            self.get_logger().info("No move pending. Signaling turn completion.")
+            # self.get_logger().info("No move pending. Signaling turn completion.")
+            pass
             self.pending_move_command = None
             finish_msg = String()
             finish_msg.data = json.dumps({"role": self.role, "status": "completed"})
@@ -836,7 +837,7 @@ Generate actions for your role considering dialogue history, available voices, a
         # Relay to next robot now that I am finished
         if self.next_turn_recipient:
             next_target = self.next_turn_recipient
-            self.get_logger().info(f"[{self.role}] Turn complete. Signaling GO to {next_target}")
+            # self.get_logger().info(f"[{self.role}] Turn complete. Signaling GO to {next_target}")
             t_msg = String()
             t_msg.data = f"{self.role},{next_target},start_turn"
             self.family_publisher.publish(t_msg)
@@ -845,7 +846,7 @@ Generate actions for your role considering dialogue history, available voices, a
         elif self.pending_relay_recipient:
             # Fallback if audio never started status
             next_target = self.pending_relay_recipient
-            self.get_logger().info(f"[{self.role}] Turn complete (fallback). Signaling GO to {next_target}")
+            # self.get_logger().info(f"[{self.role}] Turn complete (fallback). Signaling GO to {next_target}")
             t_msg = String()
             t_msg.data = f"{self.role},{next_target},start_turn"
             self.family_publisher.publish(t_msg)
