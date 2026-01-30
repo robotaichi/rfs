@@ -633,7 +633,7 @@ class RFSFamilyMember(Node):
             self.next_turn_recipient = next_target # Store for later start_turn relay
         
         if self.pending_tts_finish:
-            self.get_logger().info(f"[{self.role}] TTS finished early (flag=True). Triggering completion now.")
+            # self.get_logger().info(f"[{self.role}] TTS finished early (flag=True). Triggering completion now.")
             self.pending_tts_finish = False
             self.tts_finished_callback(String(data=f"finished,{self.role}"))
         else:
@@ -793,7 +793,7 @@ Generate actions for your role considering dialogue history, available voices, a
             if sender != self.role: return
             
             if not self.is_turn_active:
-                self.get_logger().info(f"[{self.role}] Received early TTS finish signal. Deferring.")
+                # self.get_logger().info(f"[{self.role}] Received early TTS finish signal. Deferring.")
                 self.pending_tts_finish = True
                 return
         except: return
