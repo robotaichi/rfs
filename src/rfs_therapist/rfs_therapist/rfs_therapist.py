@@ -175,9 +175,9 @@ class RFSTherapist(Node):
                 if score is not None: item_scores.append(float(score))
             ratings[item_id] = sum(item_scores)/len(item_scores) if item_scores else 3.0
             
-        self.calculate_scores(ratings, step_id)
+        self.calculate_scores(ratings, step_id, aggregated_results)
 
-    def calculate_scores(self, ratings, step_id):
+    def calculate_scores(self, ratings, step_id, aggregated_results):
         scores = {k: sum(ratings.get(i, 3.0) for i in items) for k, items in self.scales.items()}
         
         # Percentile Lookup
