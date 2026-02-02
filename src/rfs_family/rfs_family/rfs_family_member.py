@@ -408,6 +408,8 @@ class RFSFamilyMember(Node):
                 self.trigger_scenario_generation(is_initial_statement=True, force_publish=True)
                 self.initial_scenario_pub.publish(String(data="completed"))
                 self.start_pending = False
+                if self.role == self.family_config[0]: # If I am ALSO the leader, stop the startup fallback
+                    if hasattr(self, 'startup_timer'): self.startup_timer.cancel()
 
     def initial_startup_check(self):
         # Stop timer if we already have history or turns
@@ -481,7 +483,7 @@ class RFSFamilyMember(Node):
         with self.generation_lock:
             if self.is_generating_scenario:
                 elapsed = time.time() - self.generation_start_time
-                if elapsed > 60.0:
+                if elapsed > 45.0:
                     self.get_logger().error(f"[{self.role}] DETECTED STUCK GENERATION ({elapsed:.1f}s). Resetting lock.")
                     self.is_generating_scenario = False
                     if self.start_signal_deferred:
@@ -533,27 +535,35 @@ class RFSFamilyMember(Node):
                         t_msg.data = f"{self.role},{resp},resume_turn" # Should be resume or start?
                         self.family_publisher.publish(t_msg)
                 else:
+                    target_line = None
                     lines = scenario.strip().split('\n')
                     for line in lines:
                         line = line.strip()
-                        # Allow lines starting with the role name OR a Step ID (if already processed)
-                        if not (line.lower().startswith(self.role.lower()) or (line.startswith('S') and '_T' in line)): 
-                            continue
-                        
-                        try:
-                            # Use CSV reader for robust parsing
-                            reader = csv.reader(io.StringIO(line), skipinitialspace=True)
-                            parts = next(reader)
-                            if len(parts) >= 3:
-                                type_tag = parts[2].lower()
-                                if 'conversation' in type_tag: 
-                                    self.pending_scenario_conversation = line
-                                elif 'move' in type_tag: 
-                                    self.pending_scenario_move = line
-                        except:
-                            # Fallback if CSV reader fails
-                            if 'conversation' in line: self.pending_scenario_conversation = line
-                            elif 'move' in line: self.pending_scenario_move = line
+                        # Look for lines fitting the CSV format (role, recipient, type, ...)
+                        if line.count(',') >= 2:
+                            # Heuristic: if it starts with a family role or Step ID
+                            if (any(role in line.lower() for role in self.family_config + ['user']) or 
+                                (line.startswith('S') and '_T' in line)):
+                                target_line = line
+                                break
+                    
+                    if not target_line:
+                        self.get_logger().error(f"[{self.role}] Failed to find valid conversation line in LLM output. Raw output:\n{scenario}")
+                        with self.generation_lock: self.is_generating_scenario = False
+                        return
+
+                    # Process the identified line
+                    try:
+                        reader = csv.reader(io.StringIO(target_line), skipinitialspace=True)
+                        parts = next(reader)
+                        if len(parts) >= 3:
+                            type_tag = parts[2].lower()
+                            if 'conversation' in type_tag: 
+                                self.pending_scenario_conversation = target_line
+                            elif 'move' in type_tag: 
+                                self.pending_scenario_move = target_line
+                    except Exception as parse_err:
+                        self.get_logger().error(f"[{self.role}] CSV parsing failed for line: {target_line}. Error: {parse_err}")
                     
                     # Check for publication triggers
                     should_publish_now = False
@@ -594,8 +604,9 @@ class RFSFamilyMember(Node):
                 return
 
         if self.pending_scenario_conversation is None:
-            self.get_logger().warn(f"[{self.role}] No pending conversation to publish. Triggering fresh generation.")
-            self.trigger_scenario_generation(force_publish=True)
+            if force_publish:
+                self.get_logger().warn(f"[{self.role}] No pending conversation to publish. Wait for next trigger.")
+                # self.trigger_scenario_generation(force_publish=True) # REMOVED: Prevent redundant retry loops
             return
 
         try:
