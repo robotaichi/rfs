@@ -169,7 +169,7 @@ class RFSTherapist(Node):
             self.get_logger().info(f"Trigger ignored for {step_id} (Already in progress).")
             return
             
-        self.get_logger().info(f"Trigger received for {step_id}. Requesting evaluations...")
+        self.get_logger().debug(f"Trigger received for {step_id}. Requesting evaluations...")
         self.member_results[step_id] = {}
         self.request_eval_pub.publish(String(data=step_id))
 
@@ -183,7 +183,7 @@ class RFSTherapist(Node):
                 
                 received = len(self.member_results[step_id])
                 total = len(self.family_config)
-                self.get_logger().info(f"[Therapist] Received FACES IV: {received}/{total}")
+                self.get_logger().debug(f"[Therapist] Received FACES IV: {received}/{total}")
                 
                 if received >= total:
                     if step_id not in self.processed_steps:

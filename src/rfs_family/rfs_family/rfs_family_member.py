@@ -251,7 +251,7 @@ class RFSFamilyMember(Node):
         self.create_subscription(String, 'rfs_tts_status', self.tts_status_callback, 10)
 
         self.tts = TTSClient(node_name=self.role)
-        self.get_logger().debug(f"[{self.role}] Node started")
+        self.get_logger().info(f"[{self.role}] Node started")
         
         # Immediate check for startup if leader
         if self.start_pending:
@@ -574,7 +574,7 @@ class RFSFamilyMember(Node):
                             self.start_signal_deferred = False
                         
                     if should_publish_now:
-                        self.get_logger().info(f"[{self.role}] Generation complete. Publishing (Triggered by {'initial/force' if not self.start_signal_deferred else 'deferred start'}).")
+                        self.get_logger().debug(f"[{self.role}] Generation complete. Publishing (Triggered by {'initial/force' if not self.start_signal_deferred else 'deferred start'}).")
                         self.publish_pending_scenario(force_publish=True)
                     else:
                         # BACKGROUND MODE: Start audio synthesis immediately but do not publish action yet
@@ -599,7 +599,7 @@ class RFSFamilyMember(Node):
         
         with self.generation_lock:
             if self.is_generating_scenario:
-                self.get_logger().info(f"[{self.role}] Publish requested while still generating. Deferring start.")
+                self.get_logger().debug(f"[{self.role}] Publish requested while still generating. Deferring start.")
                 self.start_signal_deferred = True
                 return
 
@@ -805,8 +805,12 @@ Generate actions for your role considering dialogue history, available voices, a
                     # self.get_logger().info(f"[{self.role}] Preparation signal received from {sender}. Generating scenario...")
                     self.trigger_scenario_generation(force_publish=False)
                 elif cmd == 'start_turn' or cmd == 'resume_turn':
-                    # self.get_logger().info(f"[{self.role}] Start signal '{cmd}' received from {sender}. Publishing scenario...")
-                    self.publish_pending_scenario(from_leader_instruction=True, force_publish=True)
+                    if self.pending_scenario_conversation is None:
+                        # If no pre-generation happened (e.g. after evaluation), force it now
+                        self.trigger_scenario_generation(force_publish=True)
+                    else:
+                        # self.get_logger().info(f"[{self.role}] Start signal '{cmd}' received from {sender}. Publishing scenario...")
+                        self.publish_pending_scenario(from_leader_instruction=True, force_publish=True)
                 elif cmd == 'conversation':
                     # Log but do not act on other's conversation messages
                     pass
@@ -829,7 +833,7 @@ Generate actions for your role considering dialogue history, available voices, a
                         step_idx = turns // self.turns_per_step
                         step_id = f"S{step_idx}"
                         if step_idx > self.last_triggered_step:
-                            self.get_logger().info(f"[{self.role}] Threshold reached. Global evaluation {step_id} will be triggered after audio/move.")
+                            self.get_logger().debug(f"[{self.role}] Threshold reached. Global evaluation {step_id} will be triggered after audio/move.")
                             self.waiting_for_evaluation = True
                             self.last_triggered_step = step_idx
                             self.pending_eval_step_id = step_id
@@ -877,7 +881,7 @@ Generate actions for your role considering dialogue history, available voices, a
         # I AM THE ONE WHO FINISHED
         # If I have a deferred evaluation trigger, fire it now that my audio/move is done
         if self.pending_eval_step_id:
-            self.get_logger().info(f"[{self.role}] Turn complete. Triggering global evaluation for {self.pending_eval_step_id}.")
+            self.get_logger().debug(f"[{self.role}] Turn complete. Triggering global evaluation for {self.pending_eval_step_id}.")
             self.trigger_eval_pub.publish(String(data=self.pending_eval_step_id))
             self.pending_eval_step_id = None
             return
@@ -925,7 +929,7 @@ Generate actions for your role considering dialogue history, available voices, a
 
 
     def evaluation_complete_callback(self, msg: String):
-        self.get_logger().info(f"[{self.role}] Evaluation complete for {msg.data}. Resetting pending states for new step.")
+        self.get_logger().debug(f"[{self.role}] Evaluation complete for {msg.data}. Resetting pending states for new step.")
         self.waiting_for_evaluation = False
         
         # Clear any pending scenario to force fresh generation for the new step guidelines
@@ -935,7 +939,7 @@ Generate actions for your role considering dialogue history, available voices, a
 
         # Leader coordinates the resumption of the conversation
         if self.role == self.family_config[0]:
-            self.get_logger().info(f"[{self.role}] Evaluation complete. Coordinating session resume...")
+            self.get_logger().debug(f"[{self.role}] Evaluation complete. Coordinating session resume...")
             # Brief delay to ensure all nodes have cleared their status
             time.sleep(1.0)
             
@@ -974,7 +978,7 @@ Generate actions for your role considering dialogue history, available voices, a
                     others = [m for m in self.family_config if m != last_speaker]
                     next_speaker = others[0] if others else self.role
                 
-                self.get_logger().info(f"[{self.role}] Resuming: last speaker was '{last_speaker}', next is '{next_speaker}'.")
+                self.get_logger().debug(f"[{self.role}] Resuming: last speaker was '{last_speaker}', next is '{next_speaker}'.")
                 
                 if next_speaker == self.role:
                     self.trigger_scenario_generation(force_publish=True)
@@ -1057,7 +1061,8 @@ Output in the following JSON format:
   "62": Rating
 }}
 """
-        self.get_logger().info(f"[{self.role}] Requesting subjective evaluation from OpenAI...")
+        self.get_logger().debug(f"[{self.role}] Requesting subjective evaluation from OpenAI...")
+
         try:
             response = client.chat.completions.create(
                 model=self.llm_evaluation_model,
