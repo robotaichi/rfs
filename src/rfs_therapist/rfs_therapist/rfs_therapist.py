@@ -202,17 +202,14 @@ class RFSTherapist(Node):
         
         c_idx = get_col_idx(x)
         f_idx = get_col_idx(y)
-        core_cats = ["Emotional Bonding", "Closeness", "Leadership", "Roles"]
         
         lines = []
         if "cohesion" in self.faces_tables:
             for cat, rows in self.faces_tables["cohesion"].items():
-                if cat in core_cats and len(rows) > c_idx:
-                    lines.append(f"- {cat}: {rows[c_idx]}")
+                if len(rows) > c_idx: lines.append(f"- {cat}: {rows[c_idx]}")
         if "flexibility" in self.faces_tables:
             for cat, rows in self.faces_tables["flexibility"].items():
-                if cat in core_cats and len(rows) > f_idx:
-                    lines.append(f"- {cat}: {rows[f_idx]}")
+                if len(rows) > f_idx: lines.append(f"- {cat}: {rows[f_idx]}")
         return "\n".join(lines)
 
     def trigger_callback(self, msg: String):

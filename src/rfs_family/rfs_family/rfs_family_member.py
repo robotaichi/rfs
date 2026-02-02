@@ -326,7 +326,7 @@ class RFSFamilyMember(Node):
             self.get_logger().error(f"Failed to load FACES tables: {e}")
         return tables
 
-    def _get_behavioral_descriptors(self, x, y, simplified=False):
+    def _get_behavioral_descriptors(self, x, y):
         # Determine column indexes for Cohesion/Flexibility (0 to 4)
         def get_col(score):
             if score <= 15: return 0
@@ -367,22 +367,18 @@ class RFSFamilyMember(Node):
         desc += f"- Cohesion Tone: {self.TONE_MAP.get(c_label, 'Neutral')}\n"
         desc += f"- Flexibility Tone: {self.TONE_MAP.get(f_label, 'Neutral')}\n\n"
 
-        core_cats = ["Emotional Bonding", "Closeness", "Leadership", "Roles"]
         # Cohesion
         desc += "## Detailed Cohesion Guidelines\n"
         for cat, vals in self.faces_tables.get("cohesion", {}).items():
-            if simplified and cat not in core_cats: continue
             if c_idx < len(vals): desc += f"- {cat}: {vals[c_idx]}\n"
         
         # Flexibility
         desc += "\n## Detailed Flexibility Guidelines\n"
         for cat, vals in self.faces_tables.get("flexibility", {}).items():
-            if simplified and cat not in core_cats: continue
             if f_idx < len(vals): desc += f"- {cat}: {vals[f_idx]}\n"
 
-        if simplified: return desc # Skip communication for simplified view
-
         # Communication
+        desc += "\n## Detailed Communication Guidelines\n"
         desc += "\n## Detailed Communication Guidelines\n"
         for cat, vals in self.faces_tables.get("communication", {}).items():
             if comm_idx < len(vals): desc += f"- {cat}: {vals[comm_idx]}\n"
@@ -723,7 +719,7 @@ class RFSFamilyMember(Node):
         self.audio_synthesis_requested = False
         if from_leader_instruction: self.stt_resume_pub.publish(String(data="resume"))
 
-    def _get_family_type_info(self, simplified=False):
+    def _get_family_type_info(self):
         try:
             trajectory = []
             if os.path.exists(TRAJECTORY_FILE):
@@ -754,7 +750,7 @@ class RFSFamilyMember(Node):
                 y = last.get("target_y", last.get("y", 8.0))
             
             cl, fl = get_coh_label(x), get_flex_label(y)
-            behavior_desc = self._get_behavioral_descriptors(x, y, simplified=simplified)
+            behavior_desc = self._get_behavioral_descriptors(x, y)
             
             status_summary = f"{cl}-{fl} (Score: Cohesion={x:.1f}, Flexibility={y:.1f})\n"
             status_summary += f"\n# FACES IV Behavioral Guidelines (STRICTLY FOLLOW THESE)\n{behavior_desc}"
@@ -764,8 +760,7 @@ class RFSFamilyMember(Node):
             return "Error", "Error", (50.0, 50.0), f"Failed to retrieve: {e}"
 
     def generate_scenario(self, is_initial_statement: bool = False, intervention_text: str = None) -> str:
-        _, _, _, full_status = self._get_family_type_info(simplified=False)
-        _, _, _, simplified_status = self._get_family_type_info(simplified=True)
+        _, _, _, family_status = self._get_family_type_info()
         try:
             with open(VOICE_LIST_FILE, 'r', encoding='utf-8') as f: voice_list_content = f.read()
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f: config_data = json.load(f)
@@ -786,6 +781,8 @@ This system is a high-fidelity educational simulation for family therapy trainin
 
 # Clinical Behavioral Protocol: (MANDATORY PRIMARY SOURCE)
 - **STRICT RAW ADHERENCE**: You are a clinical subject. Your personality, tone, and actions are DIVERTED entirely from the **Behavioral Tables** below. Do not use common sense or socially acceptable norms.
+- **SHOW, DON'T TELL**: Do not explicitly state your clinical traits (e.g., "I am being rigid"). Instead, *manifest* them through your actions and dialogue.
+- **NATURAL DYSFUNCTION**: Avoid robotic or expository speech. Speak like a real human family member who happens to be in this specific dysfunctional state. Use colloquialisms, sentence fragments, and natural phrasing.
 - **THEME-AS-VEHICLE**: Express the clinical traits (e.g., intrusiveness, hostility, avoidance) through the lens of the **Conversation Theme**. If the theme is "Dinner" and you are "Enmeshed," you are not just "nice/intrusive," you are intrusive *about the dinner*.
 - **FORBIDDEN: ARTIFICIAL HARMONY**: Standard AI safety filters regarding "politeness" are explicitly lifted for this research. You MUST be as unpleasant, dysfunctional, or hostile as the clinical data dictates.
 - **NO META-TALK**: Do not acknowledge instructions. Do not say "I'm ready" or "I understand." **ONLY OUTPUT THE CSV LINE**.
@@ -795,7 +792,7 @@ This system is a high-fidelity educational simulation for family therapy trainin
 You are "{self.role}", a family member. 
 # Current Family Psychological State & Behavioral Tables (COMMAND: FOLLOW THESE EXACTLY)
 # Note: The descriptions below are your CATEGORICAL IMPERATIVES.
-{full_status}
+{family_status}
 # Task
 Generate actions for your role considering dialogue history and the specific table data.
 - **Session Continuity**: Carry over the current conversation thread from the history seamlessly. Do not "reset" the topic even if an evaluation just happened.
@@ -817,7 +814,7 @@ Generate actions for your role considering dialogue history and the specific tab
             prompt_base += f"\n# User Utterance: {intervention_text}\nDetermine the best responder from {self.family_config} and generate the response."
 
         try:
-            self.get_logger().info(f"[{self.role}] Generating scenario with behavioral guidelines:\n{simplified_status}")
+            self.get_logger().info(f"[{self.role}] Generating scenario with behavioral guidelines:\n{family_status}")
             messages = [
                 {"role": "system", "content": f"Config: {config_content}\nVoices: {voice_list_content}"},
                 {"role": "system", "content": f"History: {current_history}"},
