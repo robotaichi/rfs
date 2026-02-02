@@ -765,7 +765,7 @@ class RFSFamilyMember(Node):
             with open(VOICE_LIST_FILE, 'r', encoding='utf-8') as f: voice_list_content = f.read()
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f: config_data = json.load(f)
             config_content = json.dumps(config_data, ensure_ascii=False, indent=2)
-        except: config_content = ""; voice_list_content = ""
+        except: config_content = ""; voice_list_content = ""; config_data = {}
 
         current_history = self.load_full_history()
         

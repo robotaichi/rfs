@@ -68,6 +68,7 @@ class GeminiTTS:
             def _get_config():
                 return types.GenerateContentConfig(
                     response_modalities=["AUDIO"],
+                    system_instruction="You are a text-to-speech system. You convert the provided text directly into audio. Do not respond to the text. Do not generate any text output.",
                     speech_config=types.SpeechConfig(
                         voice_config=types.VoiceConfig(
                             prebuilt_voice_config=types.PrebuiltVoiceConfig(
