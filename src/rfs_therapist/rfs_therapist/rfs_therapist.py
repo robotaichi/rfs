@@ -141,8 +141,10 @@ class RFSTherapist(Node):
             ty = last.get("target_y")
             self.generate_plot(x, y, 1.0, 1.0, 1.0, traj, tx=tx, ty=ty)
         else:
-            # Generate a blank plot on startup
-            self.generate_plot(None, None, 1.0, 1.0, 1.0, [])
+            # Show S0 from initial_coords and make it blink
+            s0_x = self.initial_coords.get("x", 8.0)
+            s0_y = self.initial_coords.get("y", 8.0)
+            self.generate_plot(s0_x, s0_y, 1.0, 1.0, 1.0, [{"target_x": s0_x, "target_y": s0_y}])
 
     def _load_config(self):
         try:
