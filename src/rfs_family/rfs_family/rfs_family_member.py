@@ -799,6 +799,7 @@ Generate actions for your role considering dialogue history and the specific tab
             prompt_base += f"\n# User Utterance: {intervention_text}\nDetermine the best responder from {self.family_config} and generate the response."
 
         try:
+            self.get_logger().info(f"[{self.role}] Generating scenario with behavioral guidelines:\n{family_status}")
             messages = [
                 {"role": "system", "content": f"Config: {config_content}\nVoices: {voice_list_content}"},
                 {"role": "system", "content": f"History: {current_history}"},

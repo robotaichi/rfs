@@ -65,7 +65,7 @@ class RFSTherapist(Node):
         self.OMEGA_1 = 1.0
         self.OMEGA_2 = 1.0
         self.OMEGA_3 = 0.2 # Suppress center pull
-        self.LEARNING_RATE_SCALING = 0.002 # Static progression
+        self.LEARNING_RATE_SCALING = 0.001 # Static progression
         self.family_config = []
         self.faces_tables = {}
         
@@ -161,7 +161,7 @@ class RFSTherapist(Node):
                     self.OMEGA_3 = config.get("w3", 0.2) # Realigned default
                     self.family_config = config.get("family_config", [])
                     self.initial_coords = config.get("initial_coords", {"x": 8.0, "y": 8.0})
-                    self.LEARNING_RATE_SCALING = config.get("learning_rate_scaling", 0.002) # Realigned default
+                    self.LEARNING_RATE_SCALING = config.get("learning_rate_scaling", 0.001) # Realigned default
         except: pass
 
     def _load_faces_tables(self):
