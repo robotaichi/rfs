@@ -64,8 +64,8 @@ class RFSTherapist(Node):
         self.TRAJECTORY_FILE = os.path.join(DB_DIR, "evaluation_trajectory.json")
         self.OMEGA_1 = 1.0
         self.OMEGA_2 = 1.0
-        self.OMEGA_3 = 1.2 # Reduced to slow down center targeting
-        self.LEARNING_RATE_SCALING = 0.005 # Extreme glacial progression
+        self.OMEGA_3 = 0.2 # Suppress center pull
+        self.LEARNING_RATE_SCALING = 0.002 # Static progression
         self.family_config = []
         
         self.member_results = {} # {step_id: {role: results}}
@@ -156,10 +156,10 @@ class RFSTherapist(Node):
                     config = json.load(f)
                     self.OMEGA_1 = config.get("w1", 1.0)
                     self.OMEGA_2 = config.get("w2", 1.0)
-                    self.OMEGA_3 = config.get("w3", 1.2) # Realigned default
+                    self.OMEGA_3 = config.get("w3", 0.2) # Realigned default
                     self.family_config = config.get("family_config", [])
                     self.initial_coords = config.get("initial_coords", {"x": 8.0, "y": 8.0})
-                    self.LEARNING_RATE_SCALING = config.get("learning_rate_scaling", 0.005) # Realigned default
+                    self.LEARNING_RATE_SCALING = config.get("learning_rate_scaling", 0.002) # Realigned default
         except: pass
 
     def trigger_callback(self, msg: String):
