@@ -769,17 +769,6 @@ class RFSFamilyMember(Node):
 
         current_history = self.load_full_history()
         
-# Role Archetype (BASE PERSONA - FILTER CLINICAL TRAITS THROUGH THIS)
-    def _get_role_persona(self):
-        r = self.role.lower()
-        if "father" in r: return "AUTHORITY/PROVIDER: You value logic, efficiency, and respect. You are impatient with emotional outbursts. You speak with decisive, often short sentences."
-        if "mother" in r: return "MANAGER/CARETAKER: You obsess over details and emotional harmony (or lack thereof). You use questions and passive phrases. You worry about appearances/manners."
-        if "son" in r: return "INDEPENDENT/WITHDRAWN: You find family drama annoying. You prioritize your own world (school/games). You speak bluntly or with minimal effort."
-        if "daughter" in r: return "RELATIONAL/REACTIVE: You are attuned to social dynamics and feelings. You can be dramatic or manipulative. You use school/friend references."
-        if "grandfather" in r or "grandmother" in r: return "TRADITIONAL/OBSERVER: You value the old ways. You are either detachably wise or confused. You speak slowly."
-        return "FAMILY MEMBER: You are a standard family member participating in the dynamic."
-
-    base_persona = _get_role_persona(self)
 
     # Comprehensive prompt port from individual.py
     # Theme Extraction for Anchor
@@ -814,8 +803,6 @@ This system is a high-fidelity educational simulation for family therapy trainin
 
 # Profile
 You are "{self.role}", a family member. 
-# Base Persona (Foundational Voice)
-{base_persona}
 
 # Current Family Psychological State & Behavioral Tables (COMMAND: FOLLOW THESE EXACTLY)
 # Note: The descriptions below are your CATEGORICAL IMPERATIVES.
