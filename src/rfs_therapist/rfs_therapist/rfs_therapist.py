@@ -97,6 +97,9 @@ class RFSTherapist(Node):
         # Reset viewer state and initial plot if trajectory exists
         if self.role == "therapist":
             self._archive_and_clear_history()
+            
+        # Log active navigation parameters
+        self.get_logger().info(f"[{self.role}] Simulation Parameters: OMEGA_1={self.OMEGA_1}, OMEGA_2={self.OMEGA_2}, OMEGA_3={self.OMEGA_3}, LEARNING_RATE={self.LEARNING_RATE_SCALING}")
 
         self.init_plot()
         self.get_logger().info("RFS Therapist Node Started.")
@@ -153,10 +156,10 @@ class RFSTherapist(Node):
                     config = json.load(f)
                     self.OMEGA_1 = config.get("w1", 1.0)
                     self.OMEGA_2 = config.get("w2", 1.0)
-                    self.OMEGA_3 = config.get("w3", 1.5) # Increased floor for center pull
+                    self.OMEGA_3 = config.get("w3", 1.2) # Realigned default
                     self.family_config = config.get("family_config", [])
                     self.initial_coords = config.get("initial_coords", {"x": 8.0, "y": 8.0})
-                    self.LEARNING_RATE_SCALING = config.get("learning_rate_scaling", 0.35) # Higher base
+                    self.LEARNING_RATE_SCALING = config.get("learning_rate_scaling", 0.15) # Realigned default
         except: pass
 
     def trigger_callback(self, msg: String):
