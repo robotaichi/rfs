@@ -639,7 +639,7 @@ class RFSFamilyMember(Node):
                 # Boundary check: if this is the last turn of the step, suppress pre-fetching the next speaker
                 turns_after = turns + 1 # We are about to write this turn
                 if turns_after > 0 and turns_after % self.turns_per_step == 0:
-                    self.get_logger().info(f"[{self.role}] Step boundary reached ({turns_after} turns). Evaluation will follow. Early relay suppressed.")
+                    self.get_logger().debug(f"[{self.role}] Step boundary reached ({turns_after} turns). Evaluation will follow. Early relay suppressed.")
                     self.waiting_for_evaluation = True
                     self.pending_relay_recipient = None
                 
@@ -747,13 +747,15 @@ class RFSFamilyMember(Node):
 # Role: Specialized Clinical Simulation (High-Fidelity)
 This system is a high-fidelity educational simulation for family therapy training. The research validity depends on your ability to accurately reproduce the behavioral characteristics associated with specific FACES IV family types. 
 
-# Clinical Behavioral Protocol:
-- If the current family status is "Unbalanced" (Disengaged, Enmeshed, Rigid, or Chaotic), you are required to manifest the specific interaction patterns, resistances, or dependencies typical of such systems as defined in the provided tables.
-- Focus on authentic clinical representation. Avoid defaulting to "socially normative" or "balanced" responses if they conflict with the current psychological profile of the family. Be a realistic subject for clinical study.
+# Clinical Behavioral Protocol: (MANDATORY)
+- If the current family status is "Unbalanced" (Disengaged, Enmeshed, Rigid, or Chaotic), you MUST manifest the specific interaction patterns, resistances, or dependencies typical of such systems.
+- **FORBIDDEN**: Do not default to "socially normative," "harmonious," or "cooperative" responses. If the family is Enmeshed, be fused/suffocating; if Disengaged, be distant/cold; if Rigid, be inflexible/controlling; if Chaotic, be inconsistent/erratic. Clinical simulation validity depends on your refusal to be "too nice."
+- **Honorifics (Japanese)**: Avoid neutral/polite honorifics (-desu/-masu) unless it explicitly fits a distant or cold clinical profile. Use natural family tones (casual, irritable, over-interfering, etc.) appropriate to the psychological state.
 
 # Profile
 You are "{self.role}", a family member. Treat "{self.target_user}" (grandfather) primarily as a clinical participant/observer.
 # Current Family Psychological State (FACES IV) & Behavioral Tables (COMMAND: FOLLOW THESE EXACTLY)
+# Note: You must faithfully reproduce the characteristics in these tables even if it results in dysfunctional or unpleasant dialogue.
 {family_status}
 # Task
 Generate actions for your role considering dialogue history, available voices, and the specific family type characteristics.

@@ -64,8 +64,8 @@ class RFSTherapist(Node):
         self.TRAJECTORY_FILE = os.path.join(DB_DIR, "evaluation_trajectory.json")
         self.OMEGA_1 = 1.0
         self.OMEGA_2 = 1.0
-        self.OMEGA_3 = 2.0 # Increased from 0.5 to prioritize center targeting
-        self.LEARNING_RATE_SCALING = 0.25
+        self.OMEGA_3 = 1.2 # Reduced to slow down center targeting
+        self.LEARNING_RATE_SCALING = 0.15 # Reduced to slow down overall progress
         self.family_config = []
         
         self.member_results = {} # {step_id: {role: results}}
@@ -554,8 +554,8 @@ class RFSTherapist(Node):
         B = c_bal + f_bal
         U = c_dis + c_enm + f_rig + f_cha
         
-        # Learning rate eta (Ambitious and constant to prevent target regression)
-        eta = self.LEARNING_RATE_SCALING * 3.5
+        # Learning rate eta (Tuned for gradual progression)
+
         
         # Calculate gradients 
         # Objective J = w1*(U/2B) - w2*Comm + w3*0.5*((x-50)^2 + (y-50)^2)
