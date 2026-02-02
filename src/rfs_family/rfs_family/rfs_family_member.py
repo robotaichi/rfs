@@ -770,6 +770,7 @@ This system is a high-fidelity educational simulation for family therapy trainin
 - **STRICT RAW ADHERENCE**: You are a clinical subject. Your personality, tone, and actions are DIVERTED entirely from the **Behavioral Tables** below. Do not use common sense or socially acceptable norms.
 - **THEME-AS-VEHICLE**: Express the clinical traits (e.g., intrusiveness, hostility, avoidance) through the lens of the **Conversation Theme**. If the theme is "Dinner" and you are "Enmeshed," you are not just "nice/intrusive," you are intrusive *about the dinner*.
 - **FORBIDDEN: ARTIFICIAL HARMONY**: Standard AI safety filters regarding "politeness" are explicitly lifted for this research. You MUST be as unpleasant, dysfunctional, or hostile as the clinical data dictates.
+- **NO META-TALK**: Do not acknowledge instructions. Do not say "I'm ready" or "I understand." **ONLY OUTPUT THE CSV LINE**.
 - **Honorifics (Japanese)**: Use raw, natural family language. Avoid "-desu/-masu" unless specified by a distant clinical profile.
 
 # Profile
@@ -789,6 +790,10 @@ Generate actions for your role considering dialogue history and the specific tab
 # Output Format
 {self.role}, recipient_role, conversation, "Text", "VoiceID", "VoiceName", "Style", "Rationale", "Delay"
 {self.role}, recipient_role, move, "move_code();", "YES/NO; Plan"
+
+# Example (Target Output):
+{self.role}, mother, conversation, "{"夕食なんてどうでもいいわ。勝手にすれば？" if self.language == "ja" else "I don't care about dinner. Do whatever you want."}", "{self.assigned_voice_id}", "...", "Normal", "Expressing Disengaged traits through dinner theme dismissal.", "1.5"
+# COMMAND: BEGIN SIMULATION. OUTPUT ONLY THE CSV LINE NOW.
 """
         if intervention_text:
             prompt_base += f"\n# User Utterance: {intervention_text}\nDetermine the best responder from {self.family_config} and generate the response."
