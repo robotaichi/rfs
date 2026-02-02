@@ -67,6 +67,7 @@ class RFSTherapist(Node):
         self.OMEGA_3 = 0.2 # Suppress center pull
         self.LEARNING_RATE_SCALING = 0.002 # Static progression
         self.family_config = []
+        self.faces_tables = {}
         
         self.member_results = {} # {step_id: {role: results}}
         self.processed_steps = set()
@@ -83,6 +84,7 @@ class RFSTherapist(Node):
         }
 
         self._load_config()
+        self.faces_tables = self._load_faces_tables()
 
         self.create_subscription(String, 'rfs_family_actions', self.family_actions_callback, 10)
         self.create_subscription(String, 'rfs_user_intervention', self.user_intervention_callback, 10)
@@ -161,6 +163,54 @@ class RFSTherapist(Node):
                     self.initial_coords = config.get("initial_coords", {"x": 8.0, "y": 8.0})
                     self.LEARNING_RATE_SCALING = config.get("learning_rate_scaling", 0.002) # Realigned default
         except: pass
+
+    def _load_faces_tables(self):
+        tables = {"cohesion": {}, "flexibility": {}, "communication": {}}
+        path = os.path.join(DB_DIR, "faces_iv_tables.md")
+        if not os.path.exists(path): return tables
+        
+        current_section = None
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if "## 1. Cohesion" in line: current_section = "cohesion"
+                    elif "## 2. Flexibility" in line: current_section = "flexibility"
+                    elif "## 3. Communication" in line: current_section = "communication"
+                    
+                    if line.startswith("|"):
+                        parts = [p.strip() for p in line.split("|")]
+                        if parts and not parts[0]: parts.pop(0)
+                        if parts and not parts[-1]: parts.pop()
+                        
+                        if len(parts) < 2 or "---" in parts[0] or "Level" in parts[1] or "Low" in parts[1]: continue
+                        
+                        cat = parts[0].replace("**", "")
+                        if current_section:
+                            tables[current_section][cat] = parts[1:]
+        except Exception as e:
+            self.get_logger().error(f"Failed to load FACES tables: {e}")
+        return tables
+
+    def _get_detailed_behavior(self, x, y):
+        def get_col_idx(val):
+            if val <= 15: return 0
+            if val <= 35: return 1
+            if val <= 65: return 2
+            if val <= 85: return 3
+            return 4
+        
+        c_idx = get_col_idx(x)
+        f_idx = get_col_idx(y)
+        
+        lines = []
+        if "cohesion" in self.faces_tables:
+            for cat, rows in self.faces_tables["cohesion"].items():
+                if len(rows) > c_idx: lines.append(f"- {cat}: {rows[c_idx]}")
+        if "flexibility" in self.faces_tables:
+            for cat, rows in self.faces_tables["flexibility"].items():
+                if len(rows) > f_idx: lines.append(f"- {cat}: {rows[f_idx]}")
+        return "\n".join(lines)
 
     def trigger_callback(self, msg: String):
         step_id = msg.data
@@ -273,6 +323,9 @@ class RFSTherapist(Node):
             balanced_type = "Mid-range"
             
         self.get_logger().info(f"[{self.role}] Current Family Type: {family_type} ({balanced_type}) at ({x:.1f}, {y:.1f})")
+        details = self._get_detailed_behavior(x, y)
+        if details:
+            self.get_logger().info(f"[{self.role}] Clinical Behavioral Descriptions:\n{details}")
         # Gradient Descent for NEXT session target
         # Decouple: current state x,y is fixed as the outcome of the current turns
         # new_scores represents the targeted Percentile Scores for next session
