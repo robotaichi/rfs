@@ -65,7 +65,7 @@ class RFSTherapist(Node):
         self.OMEGA_1 = 1.0
         self.OMEGA_2 = 1.0
         self.OMEGA_3 = 1.2 # Reduced to slow down center targeting
-        self.LEARNING_RATE_SCALING = 0.01 # Glacial progression
+        self.LEARNING_RATE_SCALING = 0.005 # Extreme glacial progression
         self.family_config = []
         
         self.member_results = {} # {step_id: {role: results}}
@@ -159,7 +159,7 @@ class RFSTherapist(Node):
                     self.OMEGA_3 = config.get("w3", 1.2) # Realigned default
                     self.family_config = config.get("family_config", [])
                     self.initial_coords = config.get("initial_coords", {"x": 8.0, "y": 8.0})
-                    self.LEARNING_RATE_SCALING = config.get("learning_rate_scaling", 0.01) # Realigned default
+                    self.LEARNING_RATE_SCALING = config.get("learning_rate_scaling", 0.005) # Realigned default
         except: pass
 
     def trigger_callback(self, msg: String):
@@ -253,6 +253,26 @@ class RFSTherapist(Node):
         y = max(5.0, min(95.0, flex_dim))
         self._last_x, self._last_y = x, y
 
+        # Determine Family Type for Debug
+        def get_label(val, labels):
+            if val <= 15: return labels[0]
+            if val <= 35: return labels[1]
+            if val <= 65: return labels[2]
+            if val <= 85: return labels[3]
+            return labels[4]
+        
+        coh_label = get_label(x, ["Disengaged", "Somewhat Connected", "Connected", "Very Connected", "Enmeshed"])
+        flex_label = get_label(y, ["Rigid", "Somewhat Flexible", "Flexible", "Very Flexible", "Chaotic"])
+        
+        family_type = f"{coh_label}-{flex_label}"
+        if coh_label in ["Connected", "Very Connected"] and flex_label in ["Flexible", "Very Flexible"]:
+            balanced_type = "Balanced"
+        elif coh_label in ["Disengaged", "Enmeshed"] or flex_label in ["Rigid", "Chaotic"]:
+            balanced_type = "Unbalanced"
+        else:
+            balanced_type = "Mid-range"
+            
+        self.get_logger().info(f"[{self.role}] Current Family Type: {family_type} ({balanced_type}) at ({x:.1f}, {y:.1f})")
         # Gradient Descent for NEXT session target
         # Decouple: current state x,y is fixed as the outcome of the current turns
         # new_scores represents the targeted Percentile Scores for next session
