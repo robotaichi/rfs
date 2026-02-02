@@ -525,86 +525,96 @@ class RFSFamilyMember(Node):
             self.generation_start_time = time.time()
         
         def generation_task():
-            start_time = time.time()
-            try:
-                scenario = self.generate_scenario(is_initial_statement=is_initial_statement, intervention_text=intervention_text)
-                if not scenario: 
-                    with self.generation_lock: self.is_generating_scenario = False
-                    return
-                
-                # Post-generation handling
-                if is_intervention:
-                    self.update_history(scenario, is_leader_response=True)
-                    # Use existing logic to find responder
-                    reader = csv.reader(io.StringIO(scenario), skipinitialspace=True)
-                    row = next(reader)
-                    resp = row[0].lower()
-                    self.reset_intervention_state()
-                    if resp == self.role:
-                        self.pending_scenario_conversation = scenario
-                        self.publish_pending_scenario(from_leader_instruction=True)
-                    else:
-                        self.get_logger().info(f"Relaying intervention response to {resp}")
-                        t_msg = String()
-                        t_msg.data = f"{self.role},{resp},resume_turn" # Should be resume or start?
-                        self.family_publisher.publish(t_msg)
-                else:
-                    target_line = None
-                    lines = scenario.strip().split('\n')
-                    for line in lines:
-                        line = line.strip()
-                        # Look for lines fitting the CSV format (role, recipient, type, ...)
-                        if line.count(',') >= 2:
-                            # Heuristic: Check for valid type keywords (English or Japanese) OR Step ID
-                            if (any(kw in line.lower() for kw in ['conversation', 'move', '会話', '動作', '移動']) or 
-                                (line.startswith('S') and '_T' in line)):
-                                target_line = line
-                                break
-                    
-                    if not target_line:
-                        self.get_logger().error(f"[{self.role}] Failed to find valid conversation line in LLM output. Raw output:\n{scenario}")
+            max_attempts = 3
+            for attempt in range(1, max_attempts + 1):
+                start_time = time.time()
+                try:
+                    scenario = self.generate_scenario(is_initial_statement=is_initial_statement, intervention_text=intervention_text)
+                    if not scenario: 
+                        if attempt < max_attempts:
+                            self.get_logger().warn(f"[{self.role}] Empty LLM output. Retrying ({attempt}/{max_attempts})...")
+                            time.sleep(1.0)
+                            continue
                         with self.generation_lock: self.is_generating_scenario = False
                         return
-
-                    # Process the identified line
-                    try:
-                        reader = csv.reader(io.StringIO(target_line), skipinitialspace=True)
-                        parts = next(reader)
-                        if len(parts) >= 3:
-                            type_tag = parts[2].lower()
-                            if 'conversation' in type_tag: 
-                                self.pending_scenario_conversation = target_line
-                            elif 'move' in type_tag: 
-                                self.pending_scenario_move = target_line
-                    except Exception as parse_err:
-                        self.get_logger().error(f"[{self.role}] CSV parsing failed for line: {target_line}. Error: {parse_err}")
                     
-                    # Check for publication triggers
-                    should_publish_now = False
-                    with self.generation_lock:
-                        self.is_generating_scenario = False
-                        if is_initial_statement or force_publish or self.start_signal_deferred:
-                            should_publish_now = True
-                            self.start_signal_deferred = False
-                        
-                    if should_publish_now:
-                        self.get_logger().debug(f"[{self.role}] Generation complete. Publishing (Triggered by {'initial/force' if not self.start_signal_deferred else 'deferred start'}).")
-                        self.publish_pending_scenario(force_publish=True)
+                    # Post-generation handling
+                    if is_intervention:
+                        self.update_history(scenario, is_leader_response=True)
+                        # Use existing logic to find responder
+                        reader = csv.reader(io.StringIO(scenario), skipinitialspace=True)
+                        row = next(reader)
+                        resp = row[0].lower()
+                        self.reset_intervention_state()
+                        if resp == self.role:
+                            self.pending_scenario_conversation = scenario
+                            self.publish_pending_scenario(from_leader_instruction=True)
+                        else:
+                            self.get_logger().info(f"Relaying intervention response to {resp}")
+                            t_msg = String()
+                            t_msg.data = f"{self.role},{resp},resume_turn"
+                            self.family_publisher.publish(t_msg)
+                        break # Success
                     else:
-                        # BACKGROUND MODE: Start audio synthesis immediately but do not publish action yet
-                        if self.pending_scenario_conversation:
-                            # self.get_logger().info(f"[{self.role}] Text generation complete. Pre-synthesizing background audio...")
-                            self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
-                            self.audio_synthesis_requested = True
-                self.get_logger().debug(f"[{self.role}] LLM call finished in {time.time()-start_time:.2f}s")
-            except Exception as e:
-                self.get_logger().error(f"Error in background generation task: {e}")
-                with self.generation_lock: 
-                    self.is_generating_scenario = False
-                    # Cleanup: if we were deferred, try to restart or log failure
-                    if self.start_signal_deferred:
-                        self.get_logger().warn(f"[{self.role}] Generation failed while publishing was deferred. Resetting state.")
-                        self.start_signal_deferred = False
+                        target_line = None
+                        lines = scenario.strip().split('\n')
+                        for line in lines:
+                            line = line.strip()
+                            if line.count(',') >= 2:
+                                if (any(kw in line.lower() for kw in ['conversation', 'move', '会話', '動作', '移動']) or 
+                                    (line.startswith('S') and '_T' in line)):
+                                    target_line = line
+                                    break
+                        
+                        if not target_line:
+                            if attempt < max_attempts:
+                                self.get_logger().warn(f"[{self.role}] Invalid CSV or Refusal detected. Raw: {scenario[:100]}... Retrying ({attempt}/{max_attempts})...")
+                                time.sleep(1.0)
+                                continue
+                            self.get_logger().error(f"[{self.role}] Failed to find valid conversation line after {max_attempts} attempts. Raw output:\n{scenario}")
+                            with self.generation_lock: self.is_generating_scenario = False
+                            return
+
+                        # Process the identified line
+                        try:
+                            reader = csv.reader(io.StringIO(target_line), skipinitialspace=True)
+                            parts = next(reader)
+                            if len(parts) >= 3:
+                                type_tag = parts[2].lower()
+                                if 'conversation' in type_tag: 
+                                    self.pending_scenario_conversation = target_line
+                                elif 'move' in type_tag: 
+                                    self.pending_scenario_move = target_line
+                        except Exception as parse_err:
+                            self.get_logger().error(f"[{self.role}] CSV parsing failed for line: {target_line}. Error: {parse_err}")
+                        
+                        # Check for publication triggers
+                        should_publish_now = False
+                        with self.generation_lock:
+                            self.is_generating_scenario = False
+                            if is_initial_statement or force_publish or self.start_signal_deferred:
+                                should_publish_now = True
+                                self.start_signal_deferred = False
+                            
+                        if should_publish_now:
+                            self.get_logger().debug(f"[{self.role}] Generation complete. Publishing.")
+                            self.publish_pending_scenario(force_publish=True)
+                        else:
+                            if self.pending_scenario_conversation:
+                                self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
+                                self.audio_synthesis_requested = True
+                        break # Success
+                    self.get_logger().debug(f"[{self.role}] LLM call finished in {time.time()-start_time:.2f}s")
+                except Exception as e:
+                    self.get_logger().error(f"Error in background generation attempt {attempt}: {e}")
+                    if attempt < max_attempts:
+                        time.sleep(1.0)
+                        continue
+                    with self.generation_lock: 
+                        self.is_generating_scenario = False
+                        if self.start_signal_deferred:
+                            self.get_logger().warn(f"[{self.role}] Generation failed after multiple attempts. Resetting deferred state.")
+                            self.start_signal_deferred = False
         
         threading.Thread(target=generation_task, daemon=True).start()
 
