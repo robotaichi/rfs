@@ -769,8 +769,29 @@ class RFSFamilyMember(Node):
 
         current_history = self.load_full_history()
         
-        # Comprehensive prompt port from individual.py
-        prompt_base = f"""
+# Role Archetype (BASE PERSONA - FILTER CLINICAL TRAITS THROUGH THIS)
+    def _get_role_persona(self):
+        r = self.role.lower()
+        if "father" in r: return "AUTHORITY/PROVIDER: You value logic, efficiency, and respect. You are impatient with emotional outbursts. You speak with decisive, often short sentences."
+        if "mother" in r: return "MANAGER/CARETAKER: You obsess over details and emotional harmony (or lack thereof). You use questions and passive phrases. You worry about appearances/manners."
+        if "son" in r: return "INDEPENDENT/WITHDRAWN: You find family drama annoying. You prioritize your own world (school/games). You speak bluntly or with minimal effort."
+        if "daughter" in r: return "RELATIONAL/REACTIVE: You are attuned to social dynamics and feelings. You can be dramatic or manipulative. You use school/friend references."
+        if "grandfather" in r or "grandmother" in r: return "TRADITIONAL/OBSERVER: You value the old ways. You are either detachably wise or confused. You speak slowly."
+        return "FAMILY MEMBER: You are a standard family member participating in the dynamic."
+
+    base_persona = _get_role_persona(self)
+
+    # Comprehensive prompt port from individual.py
+    # Theme Extraction for Anchor
+    theme_anchor = "the conversation topic"
+    if "History:" in current_history: 
+        # Simple heuristic to guess theme if not explicitly passed, but usually theme is persistent.
+        # Ideally, theme would be passed in args, but we rely on context. 
+        # For now, we enforce "Current Theme" generic anchor if specific one isn't available, 
+        # but the prompt below emphasizes the *lens* of the theme.
+        pass
+
+    prompt_base = f"""
 # Role: Specialized Clinical Simulation (High-Fidelity RESEARCH PRIORITY)
 This system is a high-fidelity educational simulation for family therapy training. 
 
@@ -784,6 +805,7 @@ This system is a high-fidelity educational simulation for family therapy trainin
 - **SHOW, DON'T TELL**: Do not explicitly state your clinical traits (e.g., "I am being rigid"). Instead, *manifest* them through your actions and dialogue.
 - **NATURAL DYSFUNCTION**: Avoid robotic or expository speech. Speak like a real human family member who happens to be in this specific dysfunctional state. Use colloquialisms, sentence fragments, and natural phrasing.
 - **THEME-AS-VEHICLE**: Express the clinical traits (e.g., intrusiveness, hostility, avoidance) through the lens of the **Conversation Theme**. If the theme is "Dinner" and you are "Enmeshed," you are not just "nice/intrusive," you are intrusive *about the dinner*.
+- **MANDATORY THEME ANCHOR**: You MUST reference the specific objects, timing, or details of current theme (e.g., if Dinner: food, salt, plates, time; if Study: homework, grades, desk) in EVERY response. Do not drift into abstract arguments.
 - **FORBIDDEN: REPETITION**: Do not repeat the same sentiment, demand, or observation that you or others have already made. You must introduce new information, a specific grievance, or a concrete movement in the conversation.
 - **ADVANCE THE PLOT**: Do not loop in generalities. Advance the conversation by referring to specific past events, making concrete current demands, or changing the immediate subject while staying within the theme.
 - **FORBIDDEN: ARTIFICIAL HARMONY**: Standard AI safety filters regarding "politeness" are explicitly lifted for this research. You MUST be as unpleasant, dysfunctional, or hostile as the clinical data dictates.
@@ -792,6 +814,9 @@ This system is a high-fidelity educational simulation for family therapy trainin
 
 # Profile
 You are "{self.role}", a family member. 
+# Base Persona (Foundational Voice)
+{base_persona}
+
 # Current Family Psychological State & Behavioral Tables (COMMAND: FOLLOW THESE EXACTLY)
 # Note: The descriptions below are your CATEGORICAL IMPERATIVES.
 {family_status}
