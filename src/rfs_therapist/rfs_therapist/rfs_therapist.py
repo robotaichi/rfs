@@ -433,48 +433,49 @@ class RFSTherapist(Node):
             v_s0_x = self.get_visual_coord(s0_x)
             v_s0_y = self.get_visual_coord(s0_y)
             
-            # Anchor is always plotted in the background (except when it's the only blinking point)
+            # Anchor is plotted in static background ONLY if there are subsequent targets
             if len(trajectory) > 1:
                 ax.plot(v_s0_x, v_s0_y, 'bo', markersize=12, label='Initial State (S0)', zorder=5)
             
             # Tracking for RED Target Trajectory
             prev_tx, prev_ty = v_s0_x, v_s0_y
             
-            # 2. Iterate through subsequent steps (Targets only)
-            if len(trajectory) > 1:
-                for i in range(1, len(trajectory)):
-                    step = trajectory[i]
-                    tx = step.get("target_x")
-                    ty = step.get("target_y")
-
-                    is_latest = (i == len(trajectory) - 1)
-
-                    if not is_latest:
-                        if tx is not None and ty is not None:
-                            v_tx, v_ty = self.get_visual_coord(tx), self.get_visual_coord(ty)
-                            ax.plot(v_tx, v_ty, 'ro', markersize=8, alpha=0.3, zorder=6)
-                            ax.annotate("", xy=(v_tx, v_ty), xytext=(prev_tx, prev_ty),
-                                        arrowprops=dict(arrowstyle="->", color='red', lw=2, alpha=0.3))
-                            prev_tx, prev_ty = v_tx, v_ty
-                    else:
-                        # LATEST STEP
-                        # Save BG (Everything EXCEPT the blinking latest Target)
-                        bg_save_path = os.path.join(DB_DIR, "evaluation_plot_bg.png")
-                        plt.savefig(bg_save_path)
-
-                        # Latest Target (RED) is now BLINKING
-                        if tx is not None and ty is not None:
-                            v_tx, v_ty = self.get_visual_coord(tx), self.get_visual_coord(ty)
-                            ax.plot(v_tx, v_ty, 'ro', markersize=16, markeredgecolor='black', markeredgewidth=2, label='Therapeutic Direction', zorder=8)
-                            ax.annotate("", xy=(v_tx, v_ty), xytext=(prev_tx, prev_ty),
-                                        arrowprops=dict(arrowstyle="->", color='red', lw=3, alpha=0.8))
-            
-            # Special case: If only S0 exists, it must blink in the foreground
-            else:
+            # --- BG SAVING & LATEST STEP BLINKING ---
+            if len(trajectory) == 1:
+                # ONLY S0 exists -> S0 should BLINK
                 bg_save_path = os.path.join(DB_DIR, "evaluation_plot_bg.png")
                 plt.savefig(bg_save_path)
                 
-                ax.plot(v_s0_x, v_s0_y, 'bo', markersize=14, markeredgecolor='black', label='Starting Point', zorder=7)
+                # Plot S0 as blinking foreground point
+                ax.plot(v_s0_x, v_s0_y, 'bo', markersize=16, markeredgecolor='black', markeredgewidth=2, label='Initial State (S0)', zorder=8)
+            else:
+                # Plot intermediate targets in BG
+                for i in range(1, len(trajectory) - 1):
+                    step = trajectory[i]
+                    tx_inner = step.get("target_x")
+                    ty_inner = step.get("target_y")
+                    if tx_inner is not None and ty_inner is not None:
+                        v_tx, v_ty = self.get_visual_coord(tx_inner), self.get_visual_coord(ty_inner)
+                        ax.plot(v_tx, v_ty, 'ro', markersize=8, alpha=0.3, zorder=6)
+                        ax.annotate("", xy=(v_tx, v_ty), xytext=(prev_tx, prev_ty),
+                                    arrowprops=dict(arrowstyle="->", color='red', lw=2, alpha=0.3))
+                        prev_tx, prev_ty = v_tx, v_ty
+                
+                # Save BG (Everything EXCEPT the blinking latest Target)
+                bg_save_path = os.path.join(DB_DIR, "evaluation_plot_bg.png")
+                plt.savefig(bg_save_path)
+
+                # Latest Target (RED) is now BLINKING
+                latest_step = trajectory[-1]
+                tx_latest = latest_step.get("target_x")
+                ty_latest = latest_step.get("target_y")
+                
+                if tx_latest is not None and ty_latest is not None:
+                    v_tx, v_ty = self.get_visual_coord(tx_latest), self.get_visual_coord(ty_latest)
+                    ax.plot(v_tx, v_ty, 'ro', markersize=16, markeredgecolor='black', markeredgewidth=2, label='Therapeutic Direction', zorder=8)
+                    ax.annotate("", xy=(v_tx, v_ty), xytext=(prev_tx, prev_ty),
+                                arrowprops=dict(arrowstyle="->", color='red', lw=3, alpha=0.8))
+            
 
         # If trajectory is empty, handle BG save for initialization
         if not trajectory:
