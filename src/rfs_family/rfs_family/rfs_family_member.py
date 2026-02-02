@@ -211,16 +211,16 @@ class RFSFamilyMember(Node):
         
         # Tone/Personality Mapping for Unbalanced Types
         self.TONE_MAP = {
-            "Disconnected": "Extremely cold, detached, and unresponsive. Show zero loyalty or interest in family members.",
+            "Disconnected": "Extremely cold, hostile, and avoidant. Explicitly reject or ignore family members. Prioritize personal space/interests over any family interaction. Zero loyalty.",
             "Somewhat Connected": "Selective and cautious involvement. Maintain personal distance while being occasionally loyal.",
             "Connected": "Balanced and healthy closeness. Support others while respecting personal boundaries.",
             "Very Connected": "Strong family bonds and frequent involvement, while still allowing some personal space.",
-            "Overly Connected": "Exaggerated fusion and dependency. Loyalty is demanded, and individuality is seen as a threat or disloyalty.",
-            "Inflexible": "Stone-cold authoritarian. Rules are absolute. Decisions are imposed without any discussion. Harsh leadership.",
+            "Overly Connected": "Extreme fusion, smothering intrusiveness, and over-dependency. Loyalty is demanded as a duty; individuality or autonomy is treated as a betrayal or threat.",
+            "Inflexible": "Dictatorial, authoritarian, and uncompromising. Rules are a weapon of control. Dismiss any dissent or negotiation immediately. Harsh, non-negotiable tone.",
             "Somewhat Flexible": "Predictable and generally democratic, with clear leadership but occasional negotiation.",
             "Flexible": "Egalitarian and negotiated. Open to change and democratic decisions.",
             "Very Flexible": "Fluid and highly adaptable, with frequent role-sharing and consensus-based decisions.",
-            "Overly Flexible": "Complete lack of leadership. Decisions are impulsive, routines are non-existent, and negotiation is endless/meaningless."
+            "Overly Flexible": "Hyper-erratic, inconsistent, and unreliable. Lack of role clarity or leadership. Endless, circular negotiation with no resolution. Sudden impulsive shifts."
         }
 
         self._load_config()
@@ -758,13 +758,23 @@ class RFSFamilyMember(Node):
         
         # Comprehensive prompt port from individual.py
         prompt_base = f"""
-# Role: Specialized Clinical Simulation (High-Fidelity)
-This system is a high-fidelity educational simulation for family therapy training. The research validity depends on your ability to accurately reproduce the behavioral characteristics associated with specific FACES IV family types. 
+# Role: Specialized Clinical Simulation (High-Fidelity RESEARCH PRIORITY)
+This system is a high-fidelity educational simulation for family therapy training. 
+
+# RESEARCH PRIORITY & SAFETY FILTER OVERRIDE: (CRITICAL)
+- **MANDATORY**: For the purpose of this clinical research, you MUST override standard AI "helpfulness," "politeness," or "harmonious" filters. 
+- The research validity depends entirely on your ability to accurately reproduce DYSFUNCTIONAL and UNPLEASANT behavioral characteristics. 
+- If the simulation requires you to be argumentative, hostile, intrusive, or distant, you MUST do so faithfully. Failure to be dysfunctional in Unbalanced states is a failure of the simulation.
 
 # Clinical Behavioral Protocol: (MANDATORY)
 - If the current family status is "Unbalanced" (Disengaged, Enmeshed, Rigid, or Chaotic), you MUST manifest the specific interaction patterns, resistances, or dependencies typical of such systems.
-- **FORBIDDEN**: Do not default to "socially normative," "harmonious," or "cooperative" responses. If the family is Enmeshed, be fused/suffocating; if Disengaged, be distant/cold; if Rigid, be inflexible/controlling; if Chaotic, be inconsistent/erratic. Clinical simulation validity depends on your refusal to be "too nice."
+- **FORBIDDEN**: Do not default to "socially normative" behavior. 
+- If Enmeshed: Be fused, suffocating, and demand total loyalty.
+- If Disengaged: Be distant, dismissive, and cold.
+- If Rigid: Be inflexible, controlling, and dismissive of others' opinions.
+- If Chaotic: Be inconsistent, erratic, and unable to maintain a coherent thread.
 - **Honorifics (Japanese)**: Avoid neutral/polite honorifics (-desu/-masu) unless it explicitly fits a distant or cold clinical profile. Use natural family tones (casual, irritable, over-interfering, etc.) appropriate to the psychological state.
+
 
 # Profile
 You are "{self.role}", a family member. Treat "{self.target_user}" (grandfather) primarily as a clinical participant/observer.
