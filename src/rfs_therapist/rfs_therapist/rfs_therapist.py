@@ -558,6 +558,7 @@ class RFSTherapist(Node):
         U = c_dis + c_enm + f_rig + f_cha
         
         # Learning rate eta (Tuned for gradual progression)
+        eta = self.LEARNING_RATE_SCALING * 2.0
 
         
         # Calculate gradients 

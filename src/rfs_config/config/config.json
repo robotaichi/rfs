@@ -34,14 +34,14 @@
   "experiment": "予備実験2",
   "w1": 1.0,
   "w2": 1.0,
-  "w3": 0.5,
+  "w3": 1.2,
   "turns_per_step": 10,
   "terminal_mode": "gnome-terminal",
   "initial_coords": {
     "x": 8.0,
     "y": 8.0
   },
-  "learning_rate_scaling": 0.25,
+  "learning_rate_scaling": 0.15,
   "llm_model": "gpt-4o",
   "llm_temperature": 1.0,
   "llm_evaluation_model": "gpt-4o",
