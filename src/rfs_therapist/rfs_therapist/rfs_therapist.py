@@ -62,9 +62,9 @@ class RFSTherapist(Node):
         self.tts = TTSClient(node_name=self.role)
         
         self.TRAJECTORY_FILE = os.path.join(DB_DIR, "evaluation_trajectory.json")
-        self.OMEGA_1 = 1.0
-        self.OMEGA_2 = 1.0
-        self.OMEGA_3 = 0.2 # Suppress center pull
+        self.OMEGA_1 = 0.1
+        self.OMEGA_2 = 0.1
+        self.OMEGA_3 = 0.05 # Suppress center pull
         self.LEARNING_RATE_SCALING = 0.001 # Static progression
         self.family_config = []
         self.faces_tables = {}
@@ -156,9 +156,9 @@ class RFSTherapist(Node):
             if os.path.exists(CONFIG_FILE):
                 with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                     config = json.load(f)
-                    self.OMEGA_1 = config.get("w1", 1.0)
-                    self.OMEGA_2 = config.get("w2", 1.0)
-                    self.OMEGA_3 = config.get("w3", 0.2) # Realigned default
+                    self.OMEGA_1 = config.get("w1", 0.1)
+                    self.OMEGA_2 = config.get("w2", 0.1)
+                    self.OMEGA_3 = config.get("w3", 0.05) # Realigned default
                     self.family_config = config.get("family_config", [])
                     self.initial_coords = config.get("initial_coords", {"x": 8.0, "y": 8.0})
                     self.LEARNING_RATE_SCALING = config.get("learning_rate_scaling", 0.001) # Realigned default
