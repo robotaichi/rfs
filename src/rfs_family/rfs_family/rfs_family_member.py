@@ -1099,7 +1099,7 @@ Output in the following JSON format:
             if not candidates: candidates = v_list
             
             self.get_logger().debug(f"[{self.role}] Detected gender: {gender}. Filtering {len(candidates)} candidates.")
-寻
+
 
             # Use LLM to pick the best match for the role and theme
             prompt = f"Role: {self.role}\nTheme: {self.theme}\nGender Requirement: {gender}\nAvailable Voices: {[{'name':v['name'], 'overview':v['overview']} for v in candidates]}\n\nPick the most suitable voice name for this role from the list above. You MUST pick one of the names from 'Available Voices'. Output ONLY the name."
