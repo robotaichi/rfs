@@ -636,17 +636,34 @@ class RFSTherapist(Node):
         
         # Calculate gradients 
         # Objective J = w1*(U/2B) - w2*Comm + w3*0.5*((x-50)^2 + (y-50)^2)
-        # Update gradients to use the formal Dimension Score derivatives (1/2 coefficient for unbalanced)
-        grad_bal_prefix = - (self.OMEGA_1 * U) / (2.0 * B**2)
-        grad_c_bal = grad_bal_prefix + self.OMEGA_3 * (x - 50.0)
-        grad_f_bal = grad_bal_prefix + self.OMEGA_3 * (y - 50.0)
+        # Update gradients to use independent weights for Cohesion (w1) and Flexibility (w2)
+        # grad_bal_prefix_coh = - (w1 * U_coh) / ... but strictly we separate the Penalty term
+        # Approximation: Apply w1 to Cohesion imbalance (Dis+Enm) and w2 to Flex imbalance (Rig+Cha)
         
-        grad_unbal_prefix = self.OMEGA_1 / (2.0 * B)
+        # Current U is sum of all. Let's split.
+        U_coh = c_dis + c_enm
+        U_flex = f_rig + f_cha
+        
+        # Gradients for Balanced Scales (Driving FORCE to increase Balance)
+        # Component from w1 (acting on Cohesion Imbalance) -> Increases Balanced Cohesion
+        grad_c_bal_prefix = - (self.OMEGA_1 * U_coh) / (2.0 * max(1.0, c_bal**2)) # Avoiding div/0 or huge spikes
+        grad_c_bal = grad_c_bal_prefix + self.OMEGA_3 * (x - 50.0)
+
+        # Component from w2 (acting on Flexibility Imbalance) -> Increases Balanced Flexibility
+        grad_f_bal_prefix = - (self.OMEGA_2 * U_flex) / (2.0 * max(1.0, f_bal**2))
+        grad_f_bal = grad_f_bal_prefix + self.OMEGA_3 * (y - 50.0)
+        
+        # Gradients for Unbalanced Scales (Driving FORCE to decrease Imbalance)
+        grad_c_unbal_prefix = self.OMEGA_1 / (2.0 * max(1.0, c_bal))
+        grad_f_unbal_prefix = self.OMEGA_2 / (2.0 * max(1.0, f_bal))
+
         # grad_high_unbal -> (1/2), grad_low_unbal -> (-1/2) matching formula derivatives
-        grad_c_enm = grad_unbal_prefix + (self.OMEGA_3 / 2.0) * (x - 50.0)
-        grad_c_dis = grad_unbal_prefix - (self.OMEGA_3 / 2.0) * (x - 50.0)
-        grad_f_cha = grad_unbal_prefix + (self.OMEGA_3 / 2.0) * (y - 50.0)
-        grad_f_rig = grad_unbal_prefix - (self.OMEGA_3 / 2.0) * (y - 50.0)
+        grad_c_enm = grad_c_unbal_prefix + (self.OMEGA_3 / 2.0) * (x - 50.0)
+        grad_c_dis = grad_c_unbal_prefix - (self.OMEGA_3 / 2.0) * (x - 50.0)
+        grad_f_cha = grad_f_unbal_prefix + (self.OMEGA_3 / 2.0) * (y - 50.0)
+        grad_f_rig = grad_f_unbal_prefix - (self.OMEGA_3 / 2.0) * (y - 50.0)
+
+        self.get_logger().info(f"Gradients: C_Bal={grad_c_bal:.2f}, C_Dis={grad_c_dis:.2f} | F_Bal={grad_f_bal:.2f}, F_Cha={grad_f_cha:.2f}")
         
         grad_comm = - self.OMEGA_2
         
