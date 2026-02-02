@@ -257,6 +257,20 @@ class RFSFamilyMember(Node):
         if self.start_pending:
             self.create_timer(1.0, self._check_initialization)
 
+    def _normalize_role_name(self, name: str) -> str:
+        if not name: return ""
+        n = name.lower().strip()
+        # Mapping Japanese/English aliases to canonical roles
+        lookup = {
+            "父": "father", "お父さん": "father", "お父ちゃん": "father", "パパ": "father", "親父": "father",
+            "母": "mother", "お母さん": "mother", "お母ちゃん": "mother", "ママ": "mother", "お袋": "mother",
+            "娘": "daughter", "夏菜": "daughter", "お姉ちゃん": "daughter", "お姉さん": "daughter", "姉": "daughter",
+            "息子": "son", "和也": "son", "お兄ちゃん": "son", "お兄さん": "son", "兄": "son", "弟": "son", "妹": "son",
+            "祖父": "grandpa", "おじいちゃん": "grandpa", "おじいさん": "grandpa",
+            "祖母": "grandma", "おばあちゃん": "grandma", "おばあさん": "grandma",
+        }
+        return lookup.get(n, n)
+
     def _load_config(self):
         try:
             if os.path.exists(CONFIG_FILE):
@@ -628,7 +642,7 @@ class RFSFamilyMember(Node):
                 print(f"S{step_idx}_T{turns+1}: {dialogue}\n")
 
                 # Prepare for relay
-                next_target = recipient_role
+                next_target = self._normalize_role_name(recipient_role)
                 OUTSIDERS = ['user', 'family', 'everyone', 'all', 'おじいちゃん', 'おばあちゃん', 'お父さん', 'お母さん', 'お兄さん', 'お姉さん', 'お兄ちゃん', 'お姉ちゃん', '弟', '妹', '祖父', '祖母', 'おじいさん', 'おばあさん', 'ゲスト', 'guest']
                 if next_target not in self.family_config or next_target == self.role or next_target in OUTSIDERS:
                     others = [m for m in self.family_config if m != self.role]
@@ -802,7 +816,8 @@ Generate actions for your role considering dialogue history, available voices, a
             cmd = parts[2].lower()
             
             # Decentralized autonomous model: trigger on prepare_turn, start_turn or resume_turn
-            if target == self.role:
+            normalized_target = self._normalize_role_name(target)
+            if normalized_target == self.role:
                 if cmd == 'prepare_turn':
                     # self.get_logger().info(f"[{self.role}] Preparation signal received from {sender}. Generating scenario...")
                     self.trigger_scenario_generation(force_publish=False)
