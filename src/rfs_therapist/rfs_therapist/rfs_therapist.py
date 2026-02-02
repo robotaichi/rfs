@@ -112,7 +112,9 @@ class RFSTherapist(Node):
             last = traj[-1]
             x = last.get("result_x", last.get("x", 8.0))
             y = last.get("result_y", last.get("y", 8.0))
-            self.generate_plot(x, y, 1.0, 1.0, 1.0, traj)
+            tx = last.get("target_x")
+            ty = last.get("target_y")
+            self.generate_plot(x, y, 1.0, 1.0, 1.0, traj, tx=tx, ty=ty)
         else:
             # Generate a blank plot on startup
             self.generate_plot(None, None, 1.0, 1.0, 1.0, [])
@@ -260,7 +262,7 @@ class RFSTherapist(Node):
         self.log_evaluation_to_csv(step_id, aggregated_results, ratings, pcts, x, y, tx, ty, coh_ratio, flex_ratio, tot_ratio, new_scores)
 
         self.get_logger().info(f"FACES IV Succeeded: Result({x:.1f}, {y:.1f}), Target({tx:.1f}, {ty:.1f})")
-        self.generate_plot(x, y, coh_ratio, flex_ratio, tot_ratio, traj)
+        self.generate_plot(x, y, coh_ratio, flex_ratio, tot_ratio, traj, tx=tx, ty=ty)
 
     def log_evaluation_to_csv(self, step_id, member_results, mean_ratings, current_pcts, x, y, tx, ty, coh_ratio, flex_ratio, tot_ratio, target_scores):
         csv_file = os.path.join(DB_DIR, "evaluation_history.csv")
@@ -299,7 +301,7 @@ class RFSTherapist(Node):
         except Exception as e:
             self.get_logger().error(f"Failed to log evaluation to CSV: {e}")
 
-    def generate_plot(self, x, y, coh_ratio, flex_ratio, tot_ratio, trajectory=None, next_target=None):
+    def generate_plot(self, x, y, coh_ratio, flex_ratio, tot_ratio, trajectory=None, tx=None, ty=None):
         try:
             import matplotlib.pyplot as plt
             import matplotlib.patches as patches
