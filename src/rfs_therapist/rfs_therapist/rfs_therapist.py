@@ -12,6 +12,7 @@ import threading
 import csv
 import io
 import datetime
+import shutil
 from rfs_interfaces.srv import TTSService
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from ament_index_python.packages import get_package_share_directory
