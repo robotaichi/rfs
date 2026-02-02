@@ -94,8 +94,32 @@ class RFSTherapist(Node):
         self.plot_pub = self.create_publisher(String, 'rfs_faces_plot_updated', 10)
 
         # Reset viewer state and initial plot if trajectory exists
+        if self.role == "therapist":
+            self._archive_and_clear_history()
+
         self.init_plot()
         self.get_logger().info("RFS Therapist Node Started.")
+
+    def _archive_and_clear_history(self):
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        history_file = os.path.join(DB_DIR, "conversation_history.txt")
+        trajectory_file = os.path.join(DB_DIR, "evaluation_trajectory.json")
+        plot_file = os.path.join(DB_DIR, "evaluation_plot.png")
+        bg_file = os.path.join(DB_DIR, "evaluation_plot_bg.png")
+        csv_file = os.path.join(DB_DIR, "evaluation_history.csv")
+        
+        archive_dir = os.path.join(DB_DIR, "archive", timestamp)
+        os.makedirs(archive_dir, exist_ok=True)
+        
+        files_to_move = [history_file, trajectory_file, plot_file, bg_file, csv_file]
+        for f in files_to_move:
+            if os.path.exists(f):
+                try:
+                    shutil.move(f, os.path.join(archive_dir, os.path.basename(f)))
+                except Exception as e:
+                    self.get_logger().error(f"Failed to archive {f}: {e}")
+        
+        self.get_logger().info(f"Previous session archived to {archive_dir}")
 
     def init_plot(self):
         # Notify viewer to clear state first

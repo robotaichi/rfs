@@ -184,6 +184,10 @@ class RFSFamilyMember(Node):
         self.start_signal_deferred = False
         self.is_turn_active = False
         self.pending_tts_finish = False
+        self.generation_start_time = 0.0
+        
+        # Watchdog for stuck generation
+        self.create_timer(10.0, self._generation_watchdog)
         
         # --- Unique Fixed Voice Assignment ---
         self.assigned_voice_id = self._assign_voice_llm()
@@ -413,6 +417,15 @@ class RFSFamilyMember(Node):
             if hasattr(self, 'startup_timer'): self.startup_timer.cancel()
             return
 
+        # STARTUP SYNCHRONIZATION: If a designated 'initial_role' is set and it's NOT us,
+        # we give them 10 seconds head-start before the leader fallback fires.
+        if self.initial_role and self.initial_role != self.role:
+            if not hasattr(self, '_leader_wait_count'): self._leader_wait_count = 0
+            self._leader_wait_count += 5 # Timer fires every 5s
+            if self._leader_wait_count < 15:
+                self.get_logger().info(f"[{self.role}] Leader waiting for initial speaker '{self.initial_role}' to start...")
+                return
+
         if not os.path.exists(HISTORY_FILE) or os.path.getsize(HISTORY_FILE) < 10:
             if not self.is_generating_scenario:
                 self.get_logger().info(f"[{self.role}] History empty. Starting first turn...")
@@ -455,8 +468,25 @@ class RFSFamilyMember(Node):
             write_text = f"S{step_id}_T{turns+1},{text}"
 
         prefix = "[LEADER_RESPONSE] " if is_leader_response else ""
-        with open(HISTORY_FILE, "a", encoding="utf-8") as f:
-            f.write(prefix + write_text + "\n")
+        try:
+            with open(HISTORY_FILE, "a", encoding="utf-8") as f:
+                # Exclusive lock to prevent turn count corruption
+                fcntl.flock(f, fcntl.LOCK_EX)
+                f.write(prefix + write_text + "\n")
+                fcntl.flock(f, fcntl.LOCK_UN)
+        except Exception as e:
+            self.get_logger().error(f"Failed to write history: {e}")
+
+    def _generation_watchdog(self):
+        with self.generation_lock:
+            if self.is_generating_scenario:
+                elapsed = time.time() - self.generation_start_time
+                if elapsed > 60.0:
+                    self.get_logger().error(f"[{self.role}] DETECTED STUCK GENERATION ({elapsed:.1f}s). Resetting lock.")
+                    self.is_generating_scenario = False
+                    if self.start_signal_deferred:
+                        self.get_logger().info(f"[{self.role}] Re-triggering deferred generation...")
+                        self.trigger_scenario_generation(force_publish=True)
 
     def trigger_scenario_generation(self, is_intervention: bool = False, intervention_text: str = None, 
                                    is_initial_statement: bool = False, force_publish: bool = False):
@@ -476,8 +506,10 @@ class RFSFamilyMember(Node):
                 return
             self.is_generating_scenario = True
             self.start_signal_deferred = False
-
+            self.generation_start_time = time.time()
+        
         def generation_task():
+            start_time = time.time()
             try:
                 scenario = self.generate_scenario(is_initial_statement=is_initial_statement, intervention_text=intervention_text)
                 if not scenario: 
@@ -540,9 +572,15 @@ class RFSFamilyMember(Node):
                             # self.get_logger().info(f"[{self.role}] Text generation complete. Pre-synthesizing background audio...")
                             self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
                             self.audio_synthesis_requested = True
+                self.get_logger().info(f"[{self.role}] LLM call finished in {time.time()-start_time:.2f}s")
             except Exception as e:
                 self.get_logger().error(f"Error in background generation task: {e}")
-                with self.generation_lock: self.is_generating_scenario = False
+                with self.generation_lock: 
+                    self.is_generating_scenario = False
+                    # Cleanup: if we were deferred, try to restart or log failure
+                    if self.start_signal_deferred:
+                        self.get_logger().warn(f"[{self.role}] Generation failed while publishing was deferred. Resetting state.")
+                        self.start_signal_deferred = False
         
         threading.Thread(target=generation_task, daemon=True).start()
 
