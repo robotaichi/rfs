@@ -725,10 +725,12 @@ class RFSFamilyMember(Node):
 
     def _get_family_type_info(self, simplified=False):
         try:
-            if not os.path.exists(TRAJECTORY_FILE):
-                return "Unknown", "Unknown", (50.0, 50.0), "No evaluation data"
-            with open(TRAJECTORY_FILE, "r", encoding="utf-8") as f:
-                trajectory = json.load(f)
+            trajectory = []
+            if os.path.exists(TRAJECTORY_FILE):
+                try:
+                    with open(TRAJECTORY_FILE, "r", encoding="utf-8") as f:
+                        trajectory = json.load(f)
+                except: pass
             
             def get_coh_label(val):
                 if val <= 15: return "Disengaged"
