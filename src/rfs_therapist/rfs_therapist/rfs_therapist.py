@@ -65,7 +65,7 @@ class RFSTherapist(Node):
         self.OMEGA_1 = 1.0
         self.OMEGA_2 = 1.0
         self.OMEGA_3 = 1.2 # Reduced to slow down center targeting
-        self.LEARNING_RATE_SCALING = 0.04 # Ultra-slow progression
+        self.LEARNING_RATE_SCALING = 0.01 # Glacial progression
         self.family_config = []
         
         self.member_results = {} # {step_id: {role: results}}
@@ -159,7 +159,7 @@ class RFSTherapist(Node):
                     self.OMEGA_3 = config.get("w3", 1.2) # Realigned default
                     self.family_config = config.get("family_config", [])
                     self.initial_coords = config.get("initial_coords", {"x": 8.0, "y": 8.0})
-                    self.LEARNING_RATE_SCALING = config.get("learning_rate_scaling", 0.04) # Realigned default
+                    self.LEARNING_RATE_SCALING = config.get("learning_rate_scaling", 0.01) # Realigned default
         except: pass
 
     def trigger_callback(self, msg: String):
