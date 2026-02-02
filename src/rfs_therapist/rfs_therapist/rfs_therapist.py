@@ -384,7 +384,10 @@ class RFSTherapist(Node):
         # Plot current position data label (always show in background to fix layout)
         if x is not None and y is not None:
             label_text = (
-                f"Coord: ({x:.1f}, {y:.1f})\n"
+                f"Target (v): ({tx:.1f}, {ty:.1f})\n"
+                if tx is not None else f"Start (v): ({x:.1f}, {y:.1f})\n"
+            )
+            label_text += (
                 f"Cohesion Ratio: {coh_ratio:.2f}\n"
                 f"Flexibility Ratio: {flex_ratio:.2f}\n"
                 f"Total Ratio: {tot_ratio:.2f}"
@@ -394,80 +397,57 @@ class RFSTherapist(Node):
                     va='top', ha='left',
                     bbox=dict(facecolor='white', alpha=0.9, edgecolor='black'))
 
-        # Draw Trajectory
+        # Draw Trajectory (Targets Only)
         if trajectory and len(trajectory) > 0:
-            # 1. Plot S0 (Initial State)
+            # 1. Plot S0 (Initial State - The Anchor)
             s0 = trajectory[0]
             s0_x = s0.get("target_x", s0.get("x", 8.0))
             s0_y = s0.get("target_y", s0.get("y", 8.0))
             v_s0_x = self.get_visual_coord(s0_x)
             v_s0_y = self.get_visual_coord(s0_y)
             
-            # If S0 is the ONLY point, don't plot it in BG yet (we want it to blink)
+            # Anchor is always plotted in the background (except when it's the only blinking point)
             if len(trajectory) > 1:
-                ax.plot(v_s0_x, v_s0_y, 'bo', markersize=10, label='Initial State (S0)', zorder=5)
+                ax.plot(v_s0_x, v_s0_y, 'bo', markersize=12, label='Initial State (S0)', zorder=5)
             
-            # Start tracking separately (Both start from S0)
-            prev_rx, prev_ry = v_s0_x, v_s0_y
+            # Tracking for RED Target Trajectory
             prev_tx, prev_ty = v_s0_x, v_s0_y
             
-            # 2. Iterate through subsequent steps
+            # 2. Iterate through subsequent steps (Targets only)
             if len(trajectory) > 1:
                 for i in range(1, len(trajectory)):
                     step = trajectory[i]
-                    # Actual Result (History)
-                    rx = step.get("result_x", step.get("x"))
-                    ry = step.get("result_y", step.get("y"))
-                    # Target Point (History)
                     tx = step.get("target_x")
                     ty = step.get("target_y")
 
                     is_latest = (i == len(trajectory) - 1)
 
                     if not is_latest:
-                        if rx is not None and ry is not None:
-                            v_rx, v_ry = self.get_visual_coord(rx), self.get_visual_coord(ry)
-                            ax.plot(v_rx, v_ry, 'bo', markersize=8, alpha=0.3, zorder=4)
-                            ax.annotate("", xy=(v_rx, v_ry), xytext=(prev_rx, prev_ry),
-                                        arrowprops=dict(arrowstyle="->", color='blue', linestyle=':', lw=2, alpha=0.3))
-                            prev_rx, prev_ry = v_rx, v_ry
-                    
                         if tx is not None and ty is not None:
                             v_tx, v_ty = self.get_visual_coord(tx), self.get_visual_coord(ty)
-                            ax.plot(v_tx, v_ty, 'ro', markersize=8, alpha=0.3, zorder=5)
+                            ax.plot(v_tx, v_ty, 'ro', markersize=8, alpha=0.3, zorder=6)
                             ax.annotate("", xy=(v_tx, v_ty), xytext=(prev_tx, prev_ty),
                                         arrowprops=dict(arrowstyle="->", color='red', lw=2, alpha=0.3))
                             prev_tx, prev_ty = v_tx, v_ty
                     else:
                         # LATEST STEP
-                        # Current Result (BLUE) is now STATIC and FADED
-                        if rx is not None and ry is not None:
-                            v_rx, v_ry = self.get_visual_coord(rx), self.get_visual_coord(ry)
-                            ax.plot(v_rx, v_ry, 'bo', markersize=14, alpha=0.4, markeredgecolor='black', label='Latest Evaluation', zorder=7)
-                            ax.annotate("", xy=(v_rx, v_ry), xytext=(prev_rx, prev_ry),
-                                        arrowprops=dict(arrowstyle="->", color='blue', linestyle=':', lw=2, alpha=0.4))
-
-                        # Save BG (Contains everything EXCEPT the latest Red Target)
+                        # Save BG (Everything EXCEPT the blinking latest Target)
                         bg_save_path = os.path.join(DB_DIR, "evaluation_plot_bg.png")
                         plt.savefig(bg_save_path)
 
                         # Latest Target (RED) is now BLINKING
                         if tx is not None and ty is not None:
                             v_tx, v_ty = self.get_visual_coord(tx), self.get_visual_coord(ty)
-                            ax.plot(v_tx, v_ty, 'ro', markersize=16, markeredgecolor='black', markeredgewidth=2, label='Therapeutic Target', zorder=8)
+                            ax.plot(v_tx, v_ty, 'ro', markersize=16, markeredgecolor='black', markeredgewidth=2, label='Therapeutic Direction', zorder=8)
                             ax.annotate("", xy=(v_tx, v_ty), xytext=(prev_tx, prev_ty),
-                                        arrowprops=dict(arrowstyle="->", color='red', lw=2, alpha=0.8))
+                                        arrowprops=dict(arrowstyle="->", color='red', lw=3, alpha=0.8))
             
-            # Special case: If only S0 exists, it must blink in the foreground (BLUE)
+            # Special case: If only S0 exists, it must blink in the foreground
             else:
                 bg_save_path = os.path.join(DB_DIR, "evaluation_plot_bg.png")
                 plt.savefig(bg_save_path)
                 
-                s0 = trajectory[0]
-                sx = s0.get("target_x", s0.get("x", 8.0))
-                sy = s0.get("target_y", s0.get("y", 8.0))
-                v_sx, v_sy = self.get_visual_coord(sx), self.get_visual_coord(sy)
-                ax.plot(v_sx, v_sy, 'bo', markersize=14, markeredgecolor='black', label='S0 Blinking', zorder=7)
+                ax.plot(v_s0_x, v_s0_y, 'bo', markersize=14, markeredgecolor='black', label='Starting Point', zorder=7)
 
         # If trajectory is empty, handle BG save for initialization
         if not trajectory:
