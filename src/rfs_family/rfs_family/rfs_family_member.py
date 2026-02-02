@@ -191,7 +191,7 @@ class RFSFamilyMember(Node):
         
         # --- Unique Fixed Voice Assignment ---
         self.assigned_voice_id = self._assign_voice_llm()
-        self.get_logger().info(f"[{self.role}] Assigned fixed voice: {self.assigned_voice_id}")
+        self.get_logger().debug(f"[{self.role}] Assigned fixed voice: {self.assigned_voice_id}")
 
         # Leader startup sequence
         if self.role == self.family_config[0]:
@@ -251,7 +251,7 @@ class RFSFamilyMember(Node):
         self.create_subscription(String, 'rfs_tts_status', self.tts_status_callback, 10)
 
         self.tts = TTSClient(node_name=self.role)
-        self.get_logger().info(f"[{self.role}] Node started")
+        self.get_logger().debug(f"[{self.role}] Node started")
         
         # Immediate check for startup if leader
         if self.start_pending:
@@ -404,7 +404,7 @@ class RFSFamilyMember(Node):
         if self.tts_ready and self.toios_ready and not self.initialization_done:
             self.initialization_done = True
             if self.start_pending:
-                self.get_logger().info(f"[{self.role}] Initialization complete. Starting designated first turn...")
+                self.get_logger().debug(f"[{self.role}] Initialization complete. Starting designated first turn...")
                 self.trigger_scenario_generation(is_initial_statement=True, force_publish=True)
                 self.initial_scenario_pub.publish(String(data="completed"))
                 self.start_pending = False
@@ -541,8 +541,8 @@ class RFSFamilyMember(Node):
                         line = line.strip()
                         # Look for lines fitting the CSV format (role, recipient, type, ...)
                         if line.count(',') >= 2:
-                            # Heuristic: if it starts with a family role or Step ID
-                            if (any(role in line.lower() for role in self.family_config + ['user']) or 
+                            # Heuristic: Check for valid type keywords (English or Japanese) OR Step ID
+                            if (any(kw in line.lower() for kw in ['conversation', 'move', '会話', '動作', '移動']) or 
                                 (line.startswith('S') and '_T' in line)):
                                 target_line = line
                                 break
@@ -582,7 +582,7 @@ class RFSFamilyMember(Node):
                             # self.get_logger().info(f"[{self.role}] Text generation complete. Pre-synthesizing background audio...")
                             self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
                             self.audio_synthesis_requested = True
-                self.get_logger().info(f"[{self.role}] LLM call finished in {time.time()-start_time:.2f}s")
+                self.get_logger().debug(f"[{self.role}] LLM call finished in {time.time()-start_time:.2f}s")
             except Exception as e:
                 self.get_logger().error(f"Error in background generation task: {e}")
                 with self.generation_lock: 
@@ -1098,7 +1098,8 @@ Output in the following JSON format:
             candidates = [v for v in v_list if v.get("gender", "").lower() == gender]
             if not candidates: candidates = v_list
             
-            self.get_logger().info(f"[{self.role}] Detected gender: {gender}. Filtering {len(candidates)} candidates.")
+            self.get_logger().debug(f"[{self.role}] Detected gender: {gender}. Filtering {len(candidates)} candidates.")
+寻
 
             # Use LLM to pick the best match for the role and theme
             prompt = f"Role: {self.role}\nTheme: {self.theme}\nGender Requirement: {gender}\nAvailable Voices: {[{'name':v['name'], 'overview':v['overview']} for v in candidates]}\n\nPick the most suitable voice name for this role from the list above. You MUST pick one of the names from 'Available Voices'. Output ONLY the name."
