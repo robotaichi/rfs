@@ -629,6 +629,22 @@ class RFSTherapist(Node):
         # Calculate helper variables
         B = c_bal + f_bal
         U = c_dis + c_enm + f_rig + f_cha
+
+        # User Request Phase 46: "Treat -35 as 5.0, and >95 as 95.0"
+        # If the raw score implies a value outside the 5-95 range, we Shift the Balanced Score
+        # to reset the baseline to the boundary (5.0 or 95.0) BEFORE calculating gradients.
+        raw_x = c_bal + (c_enm - c_dis) / 2.0
+        raw_y = f_bal + (f_cha - f_rig) / 2.0
+
+        if raw_x < 5.0: c_bal += (5.0 - raw_x)
+        elif raw_x > 95.0: c_bal += (95.0 - raw_x)
+
+        if raw_y < 5.0: f_bal += (5.0 - raw_y)
+        elif raw_y > 95.0: f_bal += (95.0 - raw_y)
+        
+        # Recalculate helper variables with SHIFTED values
+        B = c_bal + f_bal
+        U = c_dis + c_enm + f_rig + f_cha
         
         # Learning rate eta (Ultra-slow progression for research fidelity)
         eta = self.LEARNING_RATE_SCALING * 1.0
