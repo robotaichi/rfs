@@ -1,1 +1,0 @@
-S0_T1,mother,daughter,conversation,学校はどうだった？,Sulafat,Sulafat,Normal,Inquiring about school despite the detached tone as per disengaged-rigid guidelines.,2.5
