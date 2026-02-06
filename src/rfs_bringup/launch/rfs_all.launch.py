@@ -90,7 +90,8 @@ def launch_nodes(context, *args, **kwargs):
     # Infrastructure (Background)
     actions.append(ExecuteProcess(cmd=['ros2', 'run', 'rfs_tts', 'rfs_tts'], output='log'))
     actions.append(ExecuteProcess(cmd=['ros2', 'run', 'rfs_toio', 'rfs_toio'], output='log'))
-    actions.append(ExecuteProcess(cmd=['ros2', 'run', 'rfs_evaluation', 'rfs_evaluation'], output='log'))
+    # Evaluation is now handled by Therapist
+    # actions.append(ExecuteProcess(cmd=['ros2', 'run', 'rfs_evaluation', 'rfs_evaluation'], output='log'))
 
     return actions
 
@@ -108,7 +109,7 @@ def generate_launch_description():
     subprocess.run(["pkill", "-f", "ffplay"], stderr=subprocess.DEVNULL)
     subprocess.run(["pkill", "-f", "spd-say"], stderr=subprocess.DEVNULL)
     # Kill RFS nodes specifically by name, avoiding "rfs_bringup" and "rfs_all.launch.py"
-    rfs_nodes = ["rfs_family_member", "rfs_therapist", "rfs_stt", "rfs_tts", "rfs_toio", "rfs_evaluation", "rfs_viewer"]
+    rfs_nodes = ["rfs_family_member", "rfs_therapist", "rfs_stt", "rfs_tts", "rfs_toio", "rfs_viewer"]
     for node in rfs_nodes:
         subprocess.run(["pkill", "-f", node], stderr=subprocess.DEVNULL)
     # --------------------------

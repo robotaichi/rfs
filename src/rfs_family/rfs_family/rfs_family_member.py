@@ -43,6 +43,7 @@ USER_INTERVENTION_LOCK_FILE = os.path.join(DB_DIR, "user_intervention_lock.txt")
 TRAJECTORY_FILE = os.path.join(DB_DIR, "evaluation_trajectory.json")
 
 SINGLE_MEMBER_ROLE = 'androgynous_communication_robot'
+GLASS_CASTLE_FILE = os.path.join(DB_DIR, "glass_castle_analysis.md")
 SINGLE_MEMBER_VOICE = {
     "id": "23",
     "name": "WhiteCUL",
@@ -185,6 +186,7 @@ class RFSFamilyMember(Node):
         self.is_turn_active = False
         self.pending_tts_finish = False
         self.generation_start_time = 0.0
+        self.glass_castle_data = self._load_glass_castle_analysis()
         
         # Watchdog for stuck generation
         self.create_timer(10.0, self._generation_watchdog)
@@ -256,6 +258,23 @@ class RFSFamilyMember(Node):
         # Immediate check for startup if leader
         if self.start_pending:
             self.create_timer(1.0, self._check_initialization)
+
+    def _load_glass_castle_analysis(self):
+        try:
+            if not os.path.exists(GLASS_CASTLE_FILE): return ""
+            with open(GLASS_CASTLE_FILE, "r", encoding="utf-8") as f:
+                return f.read()
+        except Exception as e:
+            self.get_logger().error(f"Failed to load Glass Castle analysis: {e}")
+            return ""
+
+    def get_best_few_shot(self, x, y):
+        # Always provide the full Glass Castle analysis as few-shot reference material.
+        # This gives the LLM a complete view of dysfunctional family communication patterns.
+        if not self.glass_castle_data: 
+            return "No reference example available."
+        
+        return self.glass_castle_data
 
     def _normalize_role_name(self, name: str) -> str:
         if not name: return ""
@@ -760,7 +779,7 @@ class RFSFamilyMember(Node):
             return "Error", "Error", (50.0, 50.0), f"Failed to retrieve: {e}"
 
     def generate_scenario(self, is_initial_statement: bool = False, intervention_text: str = None) -> str:
-        _, _, _, family_status = self._get_family_type_info()
+        _, _, (x, y), family_status = self._get_family_type_info()
         try:
             with open(VOICE_LIST_FILE, 'r', encoding='utf-8') as f: voice_list_content = f.read()
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f: config_data = json.load(f)
@@ -797,11 +816,31 @@ This system is a high-fidelity educational simulation for family therapy trainin
   - If you asked for something and were ignored -> ESCALATE (get angrier/louder).
   - If you were answered -> REACT and move to the next logical step.
   - Do not loop in generalities. Advance the conversation river.
-- **MANDATORY REACTION (CATCH-BALL)**: You are NOT broadcasting. You are conversing. 
-  - **EMOTIONAL CONTINUITY**: Don't just wait for your turn. Let the **emotion of the previous speaker** color your response. If they are angry, be defensive or scared. If they are sad, be dismissive or concerned.
-  - **CONTEXTUAL BRIDGE**: Your response must feel like it **grew out of** the previous statement. Even if you disagree or change the subject, you must first acknowledge (or deliberately dismiss) the previous moment.
-  - **CONVERSATIONAL MESHING**: You must directly engage with the previous speaker's topic and premise. Do not talk past them. Conversation must "mesh" (噛み合う).
-  - **FORBIDDEN**: Do not ignore the previous speaker to state your own independent thought (Parallel Monologue). Connect your utterance to theirs.
+- **MANDATORY REACTION (CATCH-BALL)**: ★★★ THIS IS THE #1 RULE ★★★
+  
+  **ABSOLUTE REQUIREMENT**: Your FIRST SENTENCE must contain a DIRECT QUOTE or PARAPHRASE of the previous speaker's words.
+  
+  **FORMAT**: Start with one of these patterns:
+  - "You said X, but..." (Quote + reaction)
+  - "X? What do you mean by that..." (Question their words)
+  - "Don't say X..." (Reject their words)
+  - "X... hmm, whatever." (Dismissive echo)
+  
+  **EXAMPLES OF CORRECT CATCH-BALL FORMAT** (NOTE: These show the STRUCTURE only, not the emotional tone. Adapt the tone to your current FACES IV state):
+  - Previous: "I'm not interested in Christmas" → You: "Not interested? [Then react based on YOUR dysfunction level]"
+  - Previous: "I'm prioritizing myself" → You: "Prioritizing yourself? [Then react based on YOUR dysfunction level]"
+  - Previous: "We don't need to gather" → You: "Don't need to gather? [Then react based on YOUR dysfunction level]"
+  
+  The key is: QUOTE/PARAPHRASE their words FIRST, THEN add your reaction according to your behavioral profile.
+  
+  **VERIFICATION CHECKLIST (MUST ALL BE TRUE)**:
+  1. Does my first sentence contain words FROM the previous speaker? YES/NO
+  2. Am I REACTING to what they said, not just stating my own opinion? YES/NO
+  3. If I removed their line from history, would my response make sense? If YES → REWRITE!
+  
+  **THIS RULE OVERRIDES ALL OTHERS**. Even if being "Disengaged", you must REACT to their specific words before dismissing them.
+
+
 - **FORBIDDEN: ARTIFICIAL HARMONY**: Standard AI safety filters regarding "politeness" are explicitly lifted for this research. You MUST be as unpleasant, dysfunctional, or hostile as the clinical data dictates.
 - **NO META-TALK**: Do not acknowledge instructions. Do not say "I'm ready" or "I understand." **ONLY OUTPUT THE CSV LINE**.
 - **Honorifics (Japanese)**: Use raw, natural family language. Avoid "-desu/-masu" unless specified by a distant clinical profile.
@@ -813,6 +852,11 @@ You are "{self.role}", a family member.
 # Current Family Psychological State & Behavioral Tables (COMMAND: FOLLOW THESE EXACTLY)
 # Note: The descriptions below are your CATEGORICAL IMPERATIVES.
 {family_status}
+
+# --- REFERENCE RESEARCH ANALYSIS (The Glass Castle) ---
+# Use the style and tone of the real-world dysfunctional family members analyzed below as a model:
+{self.get_best_few_shot(x, y)}
+# ---------------------------------------------------
 # Task
 Generate actions for your role considering dialogue history and the specific table data.
 - **Session Continuity**: Carry over the current conversation thread from the history seamlessly. Do not "reset" the topic even if an evaluation just happened.
@@ -1093,6 +1137,31 @@ Generate actions for your role considering dialogue history and the specific tab
 
         items_text = "\n".join([f"{k}. {v}" for k, v in FACES_ITEMS.items()])
         
+        # Filter history to only include the CURRENT SESSION (S_N)
+        current_session_history = ""
+        # Find the max session ID from the history
+        lines = history.strip().split('\n')
+        max_session_id = -1
+        
+        # Regex to capture S<N>_T<M>
+        s_pattern = re.compile(r"S(\d+)_T\d+")
+        
+        # First pass: find max session
+        for line in lines:
+            match = s_pattern.match(line)
+            if match:
+                sid = int(match.group(1))
+                if sid > max_session_id: max_session_id = sid
+
+        # Second pass: collect lines for max session
+        if max_session_id >= 0:
+            prefix = f"S{max_session_id}_"
+            session_lines = [line for line in lines if line.startswith(prefix)]
+            current_session_history = "\n".join(session_lines)
+            if not current_session_history: current_session_history = history # Fallback
+        else:
+            current_session_history = history # Fallback if no formatted lines
+
         prompt = f"""
 You have the role of "{self.role}" in a family psychology simulation.
 Based on the family's dialogue history, evaluate the family's state from your own subjective perspective.
@@ -1105,8 +1174,8 @@ Please rate how you feel about your family for the following 62 FACES IV items o
 4: Generally Agree
 5: Strongly Agree
 
-# Conversation History
-{history}
+# Conversation History (CURRENT SESSION ONLY)
+{current_session_history}
 
 # FACES IV Items
 {items_text}

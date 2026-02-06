@@ -65,7 +65,7 @@ class RFSTherapist(Node):
         self.OMEGA_1 = 0.1
         self.OMEGA_2 = 0.1
         self.OMEGA_3 = 0.05 # Suppress center pull
-        self.LEARNING_RATE_SCALING = 0.001 # Static progression
+        self.LEARNING_RATE_SCALING = 0.005 # Increased for faster progression
         self.family_config = []
         self.faces_tables = {}
         
@@ -115,17 +115,26 @@ class RFSTherapist(Node):
         csv_file = os.path.join(DB_DIR, "evaluation_history.csv")
         
         archive_dir = os.path.join(DB_DIR, "archive", timestamp)
-        os.makedirs(archive_dir, exist_ok=True)
         
-        files_to_move = [history_file, trajectory_file, plot_file, bg_file, csv_file]
-        for f in files_to_move:
-            if os.path.exists(f):
-                try:
-                    shutil.move(f, os.path.join(archive_dir, os.path.basename(f)))
-                except Exception as e:
-                    self.get_logger().error(f"Failed to archive {f}: {e}")
+        # Check if we have anything to archive
+        files_to_archive = [history_file, trajectory_file, plot_file, bg_file, csv_file]
+        inputs_exist = any(os.path.exists(f) for f in files_to_archive)
         
-        self.get_logger().info(f"Previous session archived to {archive_dir}")
+        if inputs_exist:
+            os.makedirs(archive_dir, exist_ok=True)
+            self.get_logger().info(f"Archiving previous session to {archive_dir}...")
+            
+            for f in files_to_archive:
+                if os.path.exists(f):
+                    try:
+                        # User requested COPY and save. We copy first, then remove to clear for new session.
+                        shutil.copy2(f, os.path.join(archive_dir, os.path.basename(f)))
+                        os.remove(f)
+                        self.get_logger().info(f"Archived: {os.path.basename(f)}")
+                    except Exception as e:
+                        self.get_logger().error(f"Failed to archive {f}: {e}")
+        else:
+            self.get_logger().info("No previous session files found to archive.")
 
     def init_plot(self):
         # Notify viewer to clear state first
@@ -413,159 +422,134 @@ class RFSTherapist(Node):
             return
 
         fig, ax = plt.subplots(figsize=(12, 12))
-        # Fixed layout to prevent jitter between blinking frames
         fig.subplots_adjust(left=0.15, right=0.82, top=0.92, bottom=0.12)
         
-        # Visual limits: 0 to 5 (5 blocks)
         ax.set_xlim(0, 5)
         ax.set_ylim(0, 5)
         
-        # Draw 5x5 grid with gaps
         gap = 0.04
         rect_size = 1.0 - gap * 2
-        
-        for i in range(5): # X index (0-4)
-            for j in range(5): # Y index (0-4)
-                # Color determination
-                if (i == 0 and j == 0) or (i == 0 and j == 4) or \
-                   (i == 4 and j == 0) or (i == 4 and j == 4):
-                    color = '#A9A9A9' # Dark corners
+        for i in range(5):
+            for j in range(5):
+                if (i == 0 and j == 0) or (i == 0 and j == 4) or (i == 4 and j == 0) or (i == 4 and j == 4):
+                    color = '#A9A9A9'
                 elif 1 <= i <= 3 and 1 <= j <= 3:
-                    color = 'white' # Center 3x3
+                    color = 'white'
                 else:
-                    color = '#D3D3D3' # Outer ring (Middle range)
-                
-                # Draw rectangles
-                rect = patches.Rectangle(
-                    (i + gap, j + gap), 
-                    rect_size, 
-                    rect_size, 
-                    facecolor=color, 
-                    edgecolor='black', # Optional cell boundary
-                    linewidth=1
-                )
+                    color = '#D3D3D3'
+                rect = patches.Rectangle((i + gap, j + gap), rect_size, rect_size, facecolor=color, edgecolor='black', linewidth=1)
                 ax.add_patch(rect)
 
-        # Labels
-        # X-axis categories
-        labels_x = [
-            (0.5, "Disengaged"),
-            (1.5, "Somewhat\nConnected"),
-            (2.5, "Connected"),
-            (3.5, "Very\nConnected"),
-            (4.5, "Enmeshed")
-        ]
+        labels_x = [(0.5, "Disengaged"), (1.5, "Somewhat\nConnected"), (2.5, "Connected"), (3.5, "Very\nConnected"), (4.5, "Enmeshed")]
         for pos, text in labels_x:
             ax.text(pos, -0.15, text, ha='center', va='top', fontsize=10, fontweight='bold')
         ax.set_xlabel("COHESION", fontsize=14, fontweight='bold', labelpad=30)
 
-        # Y-axis categories
-        labels_y = [
-            (0.5, "Rigid"),
-            (1.5, "Somewhat\nFlexible"),
-            (2.5, "Flexible"),
-            (3.5, "Very\nFlexible"),
-            (4.5, "Chaotic")
-        ]
+        labels_y = [(0.5, "Rigid"), (1.5, "Somewhat\nFlexible"), (2.5, "Flexible"), (3.5, "Very\nFlexible"), (4.5, "Chaotic")]
         for pos, text in labels_y:
             ax.text(-0.15, pos, text, ha='right', va='center', rotation=0, fontsize=10, fontweight='bold')
         ax.set_ylabel("FLEXIBILITY", fontsize=14, fontweight='bold', labelpad=40)
 
-        # Ticks
-        # Base thresholds + requested additional ticks
         tick_vals = [0, 8, 15, 16, 25, 35, 36, 50, 65, 66, 75, 85, 86, 95, 100]
         tick_pos = [self.get_visual_coord(v) for v in tick_vals]
-        tick_labels = [str(v) for v in tick_vals]
-        
         ax.set_xticks(tick_pos)
-        ax.set_xticklabels(tick_labels, fontsize=8, rotation=0)
+        ax.set_xticklabels([str(v) for v in tick_vals], fontsize=8, rotation=0)
         ax.set_yticks(tick_pos)
-        ax.set_yticklabels(tick_labels, fontsize=8)
+        ax.set_yticklabels([str(v) for v in tick_vals], fontsize=8)
 
-        # Title positioned absolutely within axes coordinates
-        ax.text(0.5, 1.05, "FACES IV Circumplex Model", transform=ax.transAxes, 
-                fontsize=16, fontweight='bold', ha='center', va='bottom')
+        ax.text(0.5, 1.05, "FACES IV Circumplex Model", transform=ax.transAxes, fontsize=16, fontweight='bold', ha='center', va='bottom')
 
-        # Plot current position data label (always show in background to fix layout)
+        # Current status label
         if x is not None and y is not None:
-            label_text = (
-                f"Target (v): ({tx:.1f}, {ty:.1f})\n"
-                if tx is not None else f"Start (v): ({x:.1f}, {y:.1f})\n"
-            )
-            label_text += (
-                f"Cohesion Ratio: {coh_ratio:.2f}\n"
-                f"Flexibility Ratio: {flex_ratio:.2f}\n"
-                f"Total Ratio: {tot_ratio:.2f}"
-            )
-            ax.text(1.05, 0.95, label_text, transform=ax.transAxes, 
-                    color='black', fontsize=10, fontweight='bold', 
-                    va='top', ha='left',
+            tx_val = tx if tx is not None else 0.0
+            ty_val = ty if ty is not None else 0.0
+            label_text = f"Result (Blue): ({x:.1f}, {y:.1f})\nNext Target (Red): ({tx_val:.1f}, {ty_val:.1f})\n"
+            label_text += f"Coh Ratio: {coh_ratio:.2f}\nFlex Ratio: {flex_ratio:.2f}\nTot Ratio: {tot_ratio:.2f}"
+            ax.text(1.05, 0.95, label_text, transform=ax.transAxes, color='black', fontsize=10, fontweight='bold', va='top', ha='left',
                     bbox=dict(facecolor='white', alpha=0.9, edgecolor='black'))
 
-        # Draw Trajectory (Targets Only)
-        if trajectory and len(trajectory) > 0:
-            # 1. Plot S0 (Initial State - The Anchor)
+        # Draw Trajectory
+        if trajectory:
+            # S0: Initial Target
             s0 = trajectory[0]
-            s0_x = s0.get("target_x", s0.get("x", 8.0))
-            s0_y = s0.get("target_y", s0.get("y", 8.0))
-            v_s0_x = self.get_visual_coord(s0_x)
-            v_s0_y = self.get_visual_coord(s0_y)
+            prev_tx = s0.get("target_x", 8.0)
+            prev_ty = s0.get("target_y", 8.0)
+            v_prev_tx, v_prev_ty = self.get_visual_coord(prev_tx), self.get_visual_coord(prev_ty)
             
-            # Anchor is plotted in static background ONLY if there are subsequent targets
+            # Start with Target (S0) - BLUE as requested by user
+            # We don't plot it here if it's the ONLY point and we want it to blink
             if len(trajectory) > 1:
-                ax.plot(v_s0_x, v_s0_y, 'bo', markersize=12, label='Initial State (S0)', zorder=5)
-            
-            # Tracking for RED Target Trajectory
-            prev_tx, prev_ty = v_s0_x, v_s0_y
-            
-            # --- BG SAVING & LATEST STEP BLINKING ---
-            if len(trajectory) == 1:
-                # ONLY S0 exists -> S0 should BLINK
-                bg_save_path = os.path.join(DB_DIR, "evaluation_plot_bg.png")
-                plt.savefig(bg_save_path)
-                
-                # Plot S0 as blinking foreground point
-                ax.plot(v_s0_x, v_s0_y, 'bo', markersize=16, markeredgecolor='black', markeredgewidth=2, label='Initial State (S0)', zorder=8)
-            else:
-                # Plot intermediate targets in BG
-                for i in range(1, len(trajectory) - 1):
-                    step = trajectory[i]
-                    tx_inner = step.get("target_x")
-                    ty_inner = step.get("target_y")
-                    if tx_inner is not None and ty_inner is not None:
-                        v_tx, v_ty = self.get_visual_coord(tx_inner), self.get_visual_coord(ty_inner)
-                        ax.plot(v_tx, v_ty, 'ro', markersize=8, alpha=0.3, zorder=6)
-                        ax.annotate("", xy=(v_tx, v_ty), xytext=(prev_tx, prev_ty),
-                                    arrowprops=dict(arrowstyle="->", color='red', lw=2, alpha=0.3))
-                        prev_tx, prev_ty = v_tx, v_ty
-                
-                # Save BG (Everything EXCEPT the blinking latest Target)
-                bg_save_path = os.path.join(DB_DIR, "evaluation_plot_bg.png")
-                plt.savefig(bg_save_path)
+                ax.plot(v_prev_tx, v_prev_ty, 'bo', markersize=8, label='Initial / Result (Blue)', alpha=0.6, zorder=5)
 
-                # Latest Target (RED) is now BLINKING
-                latest_step = trajectory[-1]
-                tx_latest = latest_step.get("target_x")
-                ty_latest = latest_step.get("target_y")
+            for i in range(1, len(trajectory)):
+                step = trajectory[i]
+                rx, ry = step.get("result_x"), step.get("result_y")
+                tax, tay = step.get("target_x"), step.get("target_y")
                 
-                if tx_latest is not None and ty_latest is not None:
-                    v_tx, v_ty = self.get_visual_coord(tx_latest), self.get_visual_coord(ty_latest)
-                    ax.plot(v_tx, v_ty, 'ro', markersize=16, markeredgecolor='black', markeredgewidth=2, label='Therapeutic Direction', zorder=8)
-                    ax.annotate("", xy=(v_tx, v_ty), xytext=(prev_tx, prev_ty),
-                                arrowprops=dict(arrowstyle="->", color='red', lw=3, alpha=0.8))
-            
+                if rx is not None and ry is not None:
+                    v_rx, v_ry = self.get_visual_coord(rx), self.get_visual_coord(ry)
+                    
+                    # 1. Connection from Previous Target to Current Result (Dotted)
+                    ax.annotate("", xy=(v_rx, v_ry), xytext=(v_prev_tx, v_prev_ty),
+                                arrowprops=dict(arrowstyle="->", linestyle=':', color='gray', lw=2, alpha=0.6))
+                    
+                    # 2. Plot Result Point (Blue)
+                    # Don't plot if it's the very last thing in the whole trajectory (for blinking)
+                    # But in this structure, Target (tax, tay) is usually the last thing if present.
+                    is_last_marker = (i == len(trajectory) - 1 and (tax is None or tay is None))
+                    if not is_last_marker:
+                        ax.plot(v_rx, v_ry, 'bo', markersize=10, markeredgecolor='black', zorder=7)
+                    
+                    if tax is not None and tay is not None:
+                        v_tax, v_tay = self.get_visual_coord(tax), self.get_visual_coord(tay)
+                        
+                        # 3. Connection from Current Result to Next Target (Solid)
+                        ax.annotate("", xy=(v_tax, v_tay), xytext=(v_rx, v_ry),
+                                    arrowprops=dict(arrowstyle="->", color='red', lw=2.5, alpha=0.8))
+                        
+                        # 4. Plot Target Point (Red)
+                        # Don't plot if it's the last thing
+                        if i < len(trajectory) - 1:
+                            ax.plot(v_tax, v_tay, 'ro', markersize=8, markeredgecolor='black', zorder=8)
+                        
+                        v_prev_tx, v_prev_ty = v_tax, v_tay
 
-        # If trajectory is empty, handle BG save for initialization
-        if not trajectory:
-            bg_save_path = os.path.join(DB_DIR, "evaluation_plot_bg.png")
-            plt.savefig(bg_save_path)
+        # Legend (Custom) - Render BEFORE BG save so it doesn't blink
+        # Add proxy handles for legend since we skipped some dots
+        from matplotlib.lines import Line2D
+        legend_elements = [
+            Line2D([0], [0], marker='o', color='w', label='Result (Blue)', markerfacecolor='b', markersize=10, markeredgecolor='black'),
+            Line2D([0], [0], marker='o', color='w', label='Target (Red)', markerfacecolor='r', markersize=10, markeredgecolor='black'),
+            Line2D([0], [0], color='gray', linestyle=':', label='Actual Move (Dotted)'),
+            Line2D([0], [0], color='red', label='Therapeutic Goal (Solid)')
+        ]
+        ax.legend(handles=legend_elements, loc='lower left', bbox_to_anchor=(1.02, 0))
+
+        # Save BG for blinking (No current point yet)
+        bg_save_path = os.path.join(DB_DIR, "evaluation_plot_bg.png")
+        plt.savefig(bg_save_path)
+
+        # Now Draw the final (blinking) marker
+        if trajectory:
+            last_step = trajectory[-1]
+            # Priority: Target if exists, else Result
+            if last_step.get("target_x") is not None and last_step.get("target_y") is not None:
+                v_lx, v_ly = self.get_visual_coord(last_step["target_x"]), self.get_visual_coord(last_step["target_y"])
+                ax.plot(v_lx, v_ly, 'ro', markersize=16, markeredgecolor='black', zorder=10)
+            elif last_step.get("result_x") is not None and last_step.get("result_y") is not None:
+                v_lx, v_ly = self.get_visual_coord(last_step["result_x"]), self.get_visual_coord(last_step["result_y"])
+                ax.plot(v_lx, v_ly, 'bo', markersize=16, markeredgecolor='black', zorder=10)
+            elif len(trajectory) == 1:
+                # S0 Target only
+                tx0 = last_step.get("target_x", 8.0)
+                ty0 = last_step.get("target_y", 8.0)
+                v_lx, v_ly = self.get_visual_coord(tx0), self.get_visual_coord(ty0)
+                ax.plot(v_lx, v_ly, 'bo', markersize=16, markeredgecolor='black', zorder=10)
 
         save_path = os.path.join(DB_DIR, "evaluation_plot.png")
-        plt.savefig(save_path) # No tight bbox
-        self.get_logger().info(f"Plot saved to: {save_path}")
+        plt.savefig(save_path)
         plt.close()
 
-        # Notify plot viewer
         plot_msg = String()
         plot_msg.data = save_path
         self.plot_pub.publish(plot_msg)
