@@ -134,7 +134,7 @@ Located in `src/rfs_config/config/config.json`.
 | **`shutdown_timer_minutes`** | Integer | `0` | Auto-shutdown timer. `0` (Executes permanently without auto-shutdown), `1+` (Specifies minutes until shutdown). |
 
 ### LLM Selection
-- **Default Model (`gpt-4o`)**: We use `gpt-4o` as the standard for its balance of generation speed and accuracy. Change the LLM model in `config.json` as needed.
+- **Default Model (`gpt-5.2-chat-latest`)**: We use `gpt-5.2-chat-latest` as the standard for its balance of generation speed and accuracy. Change the LLM model in `config.json` as needed.
 - **Temperature Settings**:
   - **Dialogue (`1.0`)**: A default setting of 1.0 is used for turn-taking to ensure natural, varied, and creative conversation that reflects the dynamic nature of robot family interactions. Adjust in `config.json` if necessary.
   - **Evaluation (`0.7`)**: A slightly lower 0.7 is used for psychological assessment to ensure reliable and consistent scoring while still capturing the subjective feel of the robot family members. Adjust in `config.json` if necessary.
