@@ -124,9 +124,9 @@ Located in `src/rfs_config/config/config.json`.
 | **`speech_trigger_frames`** | Integer | `5` | Frames required to trigger recording (30ms/frame). |
 | **`vad_debug`** | Boolean | `false` | Enable/disable VAD logs. |
 | **`vad_energy_threshold`** | Float | `2000.0` | Minimum RMS energy level for speech detection. |
-| **`llm_model`** | String | `"gpt-4o"` | LLM model used for robot family conversation generation. |
+| **`llm_model`** | String | `"gpt-5.2-chat-latest"` | LLM model used for robot family conversation generation. |
 | **`llm_temperature`** | Float | `1.0` | Temperature that controls the balance between randomness and robustness of the LLM. |
-| **`llm_evaluation_model`** | String | `"gpt-4o"` | LLM model used for FACES IV evaluation. |
+| **`llm_evaluation_model`** | String | `"gpt-5.2-chat-latest"` | LLM model used for FACES IV evaluation. |
 | **`llm_evaluation_temperature`** | Float | `0.7` | Stability factor for FACES IV evaluation. |
 | **`initial_coords`** | Object | `{"x": 8, "y": 8}` | Coordinates of the initial point representing the family's initial state (Scale: **0-100 Percentile**). |
 | **`experiment`** | String | `""` | Label for collectively changing Theme and family composition according to the experiment. |

@@ -124,9 +124,9 @@ source ~/.bashrc
 | **`speech_trigger_frames`** | Integer | `5` | 録音開始に必要なフレーム数 (30ms/フレーム)。 |
 | **`vad_debug`** | Boolean | `false` | VAD ログの有効・無効化。 |
 | **`vad_energy_threshold`** | Float | `2000.0` | 発話検知のための最小 RMS エネルギーレベル。 |
-| **`llm_model`** | String | `"gpt-4o"` | ロボット家族の会話生成に使用するLLMモデル。 |
+| **`llm_model`** | String | `"gpt-5.2-chat-latest"` | ロボット家族の会話生成に使用するLLMモデル。 |
 | **`llm_temperature`** | Float | `1.0` | LLMのランダム性と堅牢性のバランスをつかさどるTemperature。 |
-| **`llm_evaluation_model`** | String | `"gpt-4o"` | FACESⅣの評価に使用するLLMモデル。 |
+| **`llm_evaluation_model`** | String | `"gpt-5.2-chat-latest"` | FACESⅣの評価に使用するLLMモデル。 |
 | **`llm_evaluation_temperature`** | Float | `0.7` | FACESⅣの評価の安定性係数。 |
 | **`initial_coords`** | Object | `{"x": 8, "y": 8}` | 家族の初期状態を表す初期点の座標（スケール: **0-100 パーセンタイル**)。 |
 | **`experiment`** | String | `""` | 実験に応じてThemeや家族構成をまとめて変更するためのラベル。 |

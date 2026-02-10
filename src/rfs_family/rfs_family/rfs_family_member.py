@@ -823,8 +823,6 @@ Generate actions for your role considering dialogue history and the specific tab
 {self.role}, recipient_role, conversation, "Text", "VoiceID", "VoiceName", "Style", "Rationale", "Delay"
 {self.role}, recipient_role, move, "move_code();", "YES/NO; Plan"
 
-# Example (Target Output):
-{self.role}, mother, conversation, "{"夕食なんてどうでもいいわ。勝手にすれば？" if self.language == "ja" else "I don't care about dinner. Do whatever you want."}", "{self.assigned_voice_id}", "...", "Normal", "Expressing Disengaged traits through dinner theme dismissal.", "1.5"
 # COMMAND: BEGIN SIMULATION. OUTPUT ONLY THE CSV LINE NOW.
 """
         if intervention_text:
