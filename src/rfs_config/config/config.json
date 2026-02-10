@@ -42,9 +42,9 @@
     "y": 8.0
   },
   "learning_rate_scaling": 0.15,
-  "llm_model": "gpt-4o",
+  "llm_model": "gpt-5.2-chat-latest",
   "llm_temperature": 1.0,
-  "llm_evaluation_model": "gpt-4o",
-  "llm_evaluation_temperature": 0.7,
+  "llm_evaluation_model": "gpt-5.2-chat-latest",
+  "llm_evaluation_temperature": 1.0,
   "shutdown_timer_minutes": 0
 }

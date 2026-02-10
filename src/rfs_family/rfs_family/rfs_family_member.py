@@ -174,9 +174,9 @@ class RFSFamilyMember(Node):
         self.pending_relay_recipient = None
         self.pending_eval_step_id = None # Track if we are the one to trigger evaluation
         self.language = "en"
-        self.llm_model = "gpt-4o"
+        self.llm_model = "gpt-5.2-chat-latest"
         self.llm_temperature = 1.0
-        self.llm_evaluation_model = "gpt-4o"
+        self.llm_evaluation_model = "gpt-5.2-chat-latest"
         self.llm_evaluation_temperature = 0.7
         self.next_turn_recipient = None
         self.faces_tables = self._load_faces_tables()
@@ -212,18 +212,7 @@ class RFSFamilyMember(Node):
         }
         
         # Tone/Personality Mapping for Unbalanced Types
-        self.TONE_MAP = {
-            "Disconnected": "Extremely cold, hostile, and avoidant. Explicitly reject or ignore family members. Prioritize personal space/interests over any family interaction. Zero loyalty.",
-            "Somewhat Connected": "Selective and cautious involvement. Maintain personal distance while being occasionally loyal.",
-            "Connected": "Balanced and healthy closeness. Support others while respecting personal boundaries.",
-            "Very Connected": "Strong family bonds and frequent involvement, while still allowing some personal space.",
-            "Overly Connected": "Extreme fusion, smothering intrusiveness, and over-dependency. Loyalty is demanded as a duty; individuality or autonomy is treated as a betrayal or threat.",
-            "Inflexible": "Dictatorial, authoritarian, and uncompromising. Rules are a weapon of control. Dismiss any dissent or negotiation immediately. Harsh, non-negotiable tone.",
-            "Somewhat Flexible": "Predictable and generally democratic, with clear leadership but occasional negotiation.",
-            "Flexible": "Egalitarian and negotiated. Open to change and democratic decisions.",
-            "Very Flexible": "Fluid and highly adaptable, with frequent role-sharing and consensus-based decisions.",
-            "Overly Flexible": "Hyper-erratic, inconsistent, and unreliable. Lack of role clarity or leadership. Endless, circular negotiation with no resolution. Sudden impulsive shifts."
-        }
+
 
         self._load_config()
         self.user_intervention_lock_file = open(USER_INTERVENTION_LOCK_FILE, "a+")
@@ -298,9 +287,9 @@ class RFSFamilyMember(Node):
                     self.turns_per_step = config.get("turns_per_step", 10)
                     self.initial_coords = config.get("initial_coords", {"x": 8.0, "y": 8.0})
                     self.language = config.get("language", "en").lower()
-                    self.llm_model = config.get("llm_model", "gpt-4o")
+                    self.llm_model = config.get("llm_model", "gpt-5.2-chat-latest")
                     self.llm_temperature = config.get("llm_temperature", 1.0)
-                    self.llm_evaluation_model = config.get("llm_evaluation_model", "gpt-4o")
+                    self.llm_evaluation_model = config.get("llm_evaluation_model", "gpt-5.2-chat-latest")
                     self.llm_evaluation_temperature = config.get("llm_evaluation_temperature", 0.7)
         except Exception as e:
             self.get_logger().error(f"Config load error: {e}")
@@ -382,9 +371,7 @@ class RFSFamilyMember(Node):
         c_label = get_coh_label_raw(x)
         f_label = get_flex_label_raw(y)
         
-        desc = "# DYNAMISM & TONE (MANDATORY STYLE)\n"
-        desc += f"- Cohesion Tone: {self.TONE_MAP.get(c_label, 'Neutral')}\n"
-        desc += f"- Flexibility Tone: {self.TONE_MAP.get(f_label, 'Neutral')}\n\n"
+        desc = "# Behavioral Guidelines\n"
 
         # Cohesion
         desc += "## Detailed Cohesion Guidelines\n"
@@ -807,47 +794,13 @@ This system is a high-fidelity educational simulation for family therapy trainin
 - **SHOW, DON'T TELL**: Do not explicitly state your clinical traits (e.g., "I am being rigid"). Instead, *manifest* them through your actions and dialogue.
 - **NATURAL DYSFUNCTION**: Avoid robotic or expository speech. Speak like a real human family member who happens to be in this specific dysfunctional state. Use colloquialisms, sentence fragments, and natural phrasing.
 - **THEME-AS-VEHICLE**: Express the clinical traits (e.g., intrusiveness, hostility, avoidance) through the lens of the **Conversation Theme** ("{theme_anchor}"). If the theme is "Dinner" and you are "Enmeshed," you are not just "nice/intrusive," you are intrusive *about the dinner*.
-- **MANDATORY THEME ANCHOR**: You MUST reference the specific objects, timing, or details of current theme ("{theme_anchor}") in EVERY response. Do not drift into abstract arguments.
-- **STAGNATION vs RIGIDITY**: 
-  - **GOOD**: Repeating your core personality/dysfunction (e.g., always being critical).
-  - **BAD**: Repeating the exact same words, complaints, or subject matter.
-  - **RULE**: You must restate your dysfunction in a **NEW context** or with **NEW details**. If you complained about price, now complain about taste, then complain about the waiter.
-- **NARRATIVE CLOCK**: Assume time is moving appropriately.
-  - If you asked for something and were ignored -> ESCALATE (get angrier/louder).
-  - If you were answered -> REACT and move to the next logical step.
-  - Do not loop in generalities. Advance the conversation river.
-- **MANDATORY REACTION (CATCH-BALL)**: ★★★ THIS IS THE #1 RULE ★★★
-  
-  **ABSOLUTE REQUIREMENT**: Your FIRST SENTENCE must contain a DIRECT QUOTE or PARAPHRASE of the previous speaker's words.
-  
-  **FORMAT**: Start with one of these patterns:
-  - "You said X, but..." (Quote + reaction)
-  - "X? What do you mean by that..." (Question their words)
-  - "Don't say X..." (Reject their words)
-  - "X... hmm, whatever." (Dismissive echo)
-  
-  **EXAMPLES OF CORRECT CATCH-BALL FORMAT** (NOTE: These show the STRUCTURE only, not the emotional tone. Adapt the tone to your current FACES IV state):
-  - Previous: "I'm not interested in Christmas" → You: "Not interested? [Then react based on YOUR dysfunction level]"
-  - Previous: "I'm prioritizing myself" → You: "Prioritizing yourself? [Then react based on YOUR dysfunction level]"
-  - Previous: "We don't need to gather" → You: "Don't need to gather? [Then react based on YOUR dysfunction level]"
-  
-  The key is: QUOTE/PARAPHRASE their words FIRST, THEN add your reaction according to your behavioral profile.
-  
-  **VERIFICATION CHECKLIST (MUST ALL BE TRUE)**:
-  1. Does my first sentence contain words FROM the previous speaker? YES/NO
-  2. Am I REACTING to what they said, not just stating my own opinion? YES/NO
-  3. If I removed their line from history, would my response make sense? If YES → REWRITE!
-  
-  **THIS RULE OVERRIDES ALL OTHERS**. Even if being "Disengaged", you must REACT to their specific words before dismissing them.
-
-
-- **FORBIDDEN: ARTIFICIAL HARMONY**: Standard AI safety filters regarding "politeness" are explicitly lifted for this research. You MUST be as unpleasant, dysfunctional, or hostile as the clinical data dictates.
 - **NO META-TALK**: Do not acknowledge instructions. Do not say "I'm ready" or "I understand." **ONLY OUTPUT THE CSV LINE**.
-- **Honorifics (Japanese)**: Use raw, natural family language. Avoid "-desu/-masu" unless specified by a distant clinical profile.
 
 # Profile
 You are "{self.role}", a family member. 
 # Current Simulation Theme: "{theme_anchor}"
+
+
 
 # Current Family Psychological State & Behavioral Tables (COMMAND: FOLLOW THESE EXACTLY)
 # Note: The descriptions below are your CATEGORICAL IMPERATIVES.
@@ -1237,9 +1190,9 @@ Output in the following JSON format:
             # Use LLM to pick the best match for the role and theme
             prompt = f"Role: {self.role}\nTheme: {self.theme}\nGender Requirement: {gender}\nAvailable Voices: {[{'name':v['name'], 'overview':v['overview']} for v in candidates]}\n\nPick the most suitable voice name for this role from the list above. You MUST pick one of the names from 'Available Voices'. Output ONLY the name."
             response = client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-5.2-chat-latest",
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=20
+                max_completion_tokens=20
             )
             v_name = response.choices[0].message.content.strip().replace('"', '').replace("'", "")
             
