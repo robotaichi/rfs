@@ -44,7 +44,6 @@ class GeminiTTS:
         self.model_id = "gemini-2.5-flash-preview-tts" 
         self.client = None # Lazy init within the loop's thread
         self._current_playback_process = None
-        self._synthesis_semaphore = asyncio.Semaphore(1)
 
     def _ensure_client(self):
         if self.client is None:
@@ -77,38 +76,40 @@ class GeminiTTS:
                     ),
                 )
 
-            # Narrowed semaphore scope to strictly wrap the API call and retry logic
+            # Parallel synthesis enabled (no semaphore wrap)
             response = None
             last_error = None
             
-            async with self._synthesis_semaphore:
-                self.logger.info(f"Generating audio for voice '{voice}' via {self.model_id} (Native Async)...")
-                for attempt in range(2):
-                    try:
-                        self.logger.info(f"API attempt {attempt+1} starting for {voice}...")
-                        # Native async call using client.aio
-                        response = await asyncio.wait_for(
-                            self.client.aio.models.generate_content(
-                                model=self.model_id,
-                                contents=text,
-                                config=_get_config()
-                            ),
-                            timeout=25.0
-                        )
-                        if response: 
-                            self.logger.info(f"API attempt {attempt+1} SUCCESS for {voice}.")
-                            break
-                    except Exception as e:
-                        last_error = e
-                        self.logger.warn(f"Gemini TTS attempt {attempt+1} failed: {e}")
-                        if "500" in str(e) or "429" in str(e):
-                            await asyncio.sleep(1.0)
-                        else:
-                            break
+            self.logger.info(f"Generating audio for voice '{voice}' via {self.model_id} (Native Async Parallel)...")
+            for attempt in range(5):
+                try:
+                    self.logger.info(f"API attempt {attempt+1} starting for {voice}...")
+                    # Native async call using client.aio
+                    response = await asyncio.wait_for(
+                        self.client.aio.models.generate_content(
+                            model=self.model_id,
+                            contents=text,
+                            config=_get_config()
+                        ),
+                        timeout=7.0
+                    )
+                    if response: 
+                        self.logger.info(f"API attempt {attempt+1} SUCCESS for {voice}.")
+                        break
+                except asyncio.TimeoutError:
+                    self.logger.warn(f"Gemini TTS attempt {attempt+1} TIMEOUT (7s) for {voice}")
+                    last_error = "Timeout"
+                except Exception as e:
+                    last_error = e
+                    self.logger.warn(f"Gemini TTS attempt {attempt+1} failed for {voice}: {e}")
                 
-                if not response:
-                    self.logger.error(f"Failed to generate audio after all attempts: {last_error}")
-                    return None
+                # Sleep a bit before retry unless it's the last attempt
+                if attempt < 4:
+                    await asyncio.sleep(1.0)
+            
+            if not response:
+                self.logger.error(f"Failed to generate audio for {voice} after all attempts: {last_error}")
+                return None
 
             # The SDK returns binary data for the audio content
             self.logger.info(f"Extracting audio data for {voice}...")
