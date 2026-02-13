@@ -1,0 +1,37 @@
+# ROS2 build artifacts (will be rebuilt inside container)
+build/
+install/
+log/
+
+# Git
+.git/
+.gitignore
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Session data (should start fresh)
+src/rfs_database/archive/
+src/rfs_database/conversation_history.txt
+src/rfs_database/evaluation_plot.png
+src/rfs_database/evaluation_plot_bg.png
+src/rfs_database/evaluation_trajectory.json
+src/rfs_database/evaluation_history.csv
+src/rfs_database/last_evaluation_debug.log
+src/rfs_database/*_lock.txt
+src/rfs_database/*.lock
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Docker
+.env
+docker-compose.yml

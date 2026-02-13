@@ -1,0 +1,30 @@
+###############################################################################
+# RFS (Robot Family System) - Docker Compose
+#
+# Usage:
+#   1. Copy docker/.env.example to .env and set your API keys
+#   2. docker compose up --build
+#   3. Open http://localhost:6080 in your browser
+###############################################################################
+
+services:
+  rfs:
+    build: .
+    container_name: rfs
+    ports:
+      - "6080:6080"       # noVNC (browser access)
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - VNC_RESOLUTION=${VNC_RESOLUTION:-1920x1080}
+      - VNC_PASSWORD=${VNC_PASSWORD:-}
+    env_file:
+      - .env
+    volumes:
+      - rfs-data:/home/ubuntu/rfs/src/rfs_database
+    shm_size: '256m'
+    restart: unless-stopped
+
+volumes:
+  rfs-data:
+    name: rfs-session-data

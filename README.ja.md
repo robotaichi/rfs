@@ -64,6 +64,69 @@ pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py P
    source install/setup.bash
    ```
 
+### 🐳 Docker クイックスタート（推奨）
+
+Ubuntuや ROS2をインストールせずに、**Windows, Mac, Linux** のどの環境でもブラウザからRFSを簡単に利用できます。
+
+> [!WARNING]
+> **音声入出力の制限**: Docker環境ではマイク（STT）/ スピーカー（TTS）機能はLinuxホストでのみフル動作します。Windows / Mac では音声デバイスのパススルーが困難なため、音声機能は利用できません。テキストベースのLLM対話やFACES IV可視化などの主要機能は全プラットフォームで動作します。
+
+**1. Docker のインストール**
+
+| プラットフォーム | インストール方法 |
+| :--- | :--- |
+| **Ubuntu** | `sudo apt update && sudo apt install -y docker.io docker-compose-v2` → `sudo usermod -aG docker $USER`（ログアウト＆再ログイン） |
+| **Mac** | [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/) をダウンロード・インストール |
+| **Windows** | [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/) をダウンロード・インストール（WSL2 バックエンドが必要） |
+
+**2. セットアップ**
+```bash
+git clone https://github.com/robotaichi/rfs.git
+cd rfs
+
+# APIキーを設定
+cp docker/.env.example .env
+nano .env  # OPENAI_API_KEY と GEMINI_API_KEY を入力
+
+# ビルド＆起動（初回ビルドは約10分）
+docker compose up --build
+```
+
+**3. ブラウザからアクセス**
+
+ブラウザで **http://localhost:6080/vnc.html** を開き、**「接続」** ボタンをクリックすると、XFCEデスクトップが表示されます。
+
+**4. RFSの起動**
+- デスクトップの **「RFS Launch」** アイコンをダブルクリック
+- または、ターミナルを開いて以下を実行:
+  ```bash
+  ros2 launch rfs_bringup rfs_all.launch.py
+  ```
+
+**5. 停止**
+```bash
+docker compose down
+```
+
+**よく使うコマンド**
+
+| 操作 | コマンド |
+| :--- | :--- |
+| 起動（フォアグラウンド） | `docker compose up` |
+| 起動（バックグラウンド） | `docker compose up -d` |
+| ログ確認 | `docker logs rfs` |
+| 停止 | `docker compose down` |
+| コード変更後に再ビルド | `docker compose up --build` |
+| コンテナ内に入る | `docker exec -it rfs bash` |
+
+| 設定項目 | 詳細 |
+| :--- | :--- |
+| **ブラウザアクセス** | `http://localhost:6080/vnc.html` |
+| **解像度変更** | `.env` の `VNC_RESOLUTION` を変更（デフォルト: `1920x1080`） |
+| **VNCパスワード設定** | `.env` の `VNC_PASSWORD` を設定 |
+| **セッションデータ** | Docker Volume `rfs-session-data` に自動保存 |
+
+
 ### データの永続性とアーカイブ
 
 RFSには、すべてのセッションデータ（会話履歴、評価プロット、軌跡データ）を確実に保存するための堅牢なアーカイブシステムが備わっています。

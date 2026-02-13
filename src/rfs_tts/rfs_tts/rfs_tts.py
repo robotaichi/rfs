@@ -291,7 +291,6 @@ class RFSTTS(Node):
                     # Cancel the ongoing generation task to save API usage
                     if not gen_task.done():
                         gen_task.cancel()
-                    self.playback_queue.task_done()
                     continue
 
                 # Wait for synthesis to complete (already running task)
@@ -453,9 +452,9 @@ class RFSTTS(Node):
             self.get_logger().warn(f"Failed to get volume for {sink}: {e}")
             return None
 
-    def _restore_volumes_on_exit(self):
+    async def _restore_volumes_on_exit(self):
         for sink, v in self.muted_sinks_original_volumes.items():
-            self._set_sink_volume(sink, v)
+            await self._set_sink_volume(sink, v)
 
 def main():
     rclpy.init()

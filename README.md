@@ -64,6 +64,69 @@ pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py P
    source install/setup.bash
    ```
 
+### 🐳 Docker Quick Start (Recommended)
+
+Use RFS easily from your browser on **Windows, Mac, or Linux** without installing Ubuntu or ROS2.
+
+> [!WARNING]
+> **Audio I/O Limitation**: In the Docker environment, microphone (STT) and speaker (TTS) functions only work fully on Linux hosts. On Windows / Mac, audio device passthrough is not supported, so audio features will not be available. Core features such as text-based LLM interaction and FACES IV visualization work on all platforms.
+
+**1. Install Docker**
+
+| Platform | Installation |
+| :--- | :--- |
+| **Ubuntu** | `sudo apt update && sudo apt install -y docker.io docker-compose-v2` then `sudo usermod -aG docker $USER` (log out & back in) |
+| **Mac** | Download and install [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/) |
+| **Windows** | Download and install [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/) (WSL2 backend required) |
+
+**2. Setup**
+```bash
+git clone https://github.com/robotaichi/rfs.git
+cd rfs
+
+# Set API keys
+cp docker/.env.example .env
+nano .env  # Enter OPENAI_API_KEY and GEMINI_API_KEY
+
+# Build & start (first build takes ~10 min)
+docker compose up --build
+```
+
+**3. Access from Browser**
+
+Open **http://localhost:6080/vnc.html** in your browser, click **"Connect"**, and you'll see the XFCE desktop environment.
+
+**4. Launch RFS**
+- Double-click the **"RFS Launch"** icon on the desktop
+- Or open a terminal and run:
+  ```bash
+  ros2 launch rfs_bringup rfs_all.launch.py
+  ```
+
+**5. Stop**
+```bash
+docker compose down
+```
+
+**Common Commands**
+
+| Action | Command |
+| :--- | :--- |
+| Start (foreground) | `docker compose up` |
+| Start (background) | `docker compose up -d` |
+| View logs | `docker logs rfs` |
+| Stop | `docker compose down` |
+| Rebuild after code changes | `docker compose up --build` |
+| Enter container shell | `docker exec -it rfs bash` |
+
+| Setting | Details |
+| :--- | :--- |
+| **Browser Access** | `http://localhost:6080/vnc.html` |
+| **Change Resolution** | Modify `VNC_RESOLUTION` in `.env` (Default: `1920x1080`) |
+| **Set VNC Password** | Set `VNC_PASSWORD` in `.env` |
+| **Session Data** | Auto-saved to Docker Volume `rfs-session-data` |
+
+
 ### Data Persistence & Archival
 
 RFS includes a robust archival system to ensure all session data (conversation history, evaluation plots, and trajectories) is preserved.

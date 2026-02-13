@@ -93,10 +93,21 @@ def determine_leader_with_llm(roles: list, theme: str) -> str:
     except: pass
     return random.choice(roles) if roles else ""
 
+def _build_terminal_cmd(terminal_mode, geometry, inner_cmd):
+    """Build a terminal command based on the configured terminal mode."""
+    if terminal_mode == "xterm":
+        return ['xterm', '-geometry', geometry, '-fa', 'Monospace', '-fs', '10',
+                '-hold', '-e', f"bash -c 'source /home/ubuntu/rfs/install/setup.bash; {inner_cmd}'"]
+    else:
+        # Default: gnome-terminal
+        return ['gnome-terminal', '--geometry', geometry, '--', 'bash', '-c',
+                f"source /home/ubuntu/rfs/install/setup.bash; {inner_cmd}; exec bash"]
+
 def launch_nodes(context, *args, **kwargs):
     config = kwargs.get('config', {})
     initial_role = kwargs.get('initial_role')
     roles = config.get('family_config', [])
+    terminal_mode = config.get('terminal_mode', 'gnome-terminal')
     
     actions = []
     
@@ -115,19 +126,19 @@ def launch_nodes(context, *args, **kwargs):
         if role == initial_role:
             inner_cmd += " --initiate"
         
-        cmd = ['gnome-terminal', '--geometry', geometry, '--', 'bash', '-c', f"source /home/ubuntu/rfs/install/setup.bash; {inner_cmd}; exec bash"]
+        cmd = _build_terminal_cmd(terminal_mode, geometry, inner_cmd)
         actions.append(ExecuteProcess(cmd=cmd, output='screen'))
 
     # Therapist (Bottom Left: Column 0, Row 1)
     therapist_geometry = f"{TERM_GEOM}+0+{GRID_H}"
-    therapist_cmd = ['gnome-terminal', '--geometry', therapist_geometry, '--', 'bash', '-c', 
-                     "source /home/ubuntu/rfs/install/setup.bash; ros2 run rfs_therapist rfs_therapist; exec bash"]
+    therapist_cmd = _build_terminal_cmd(terminal_mode, therapist_geometry,
+                                        "ros2 run rfs_therapist rfs_therapist")
     actions.append(ExecuteProcess(cmd=therapist_cmd, output='screen'))
 
     # STT (Bottom Middle: Column 1, Row 1)
     stt_geometry = f"{TERM_GEOM}+{GRID_W}+{GRID_H}"
-    stt_cmd = ['gnome-terminal', '--geometry', stt_geometry, '--', 'bash', '-c', 
-               "source /home/ubuntu/rfs/install/setup.bash; ros2 run rfs_stt rfs_stt; exec bash"]
+    stt_cmd = _build_terminal_cmd(terminal_mode, stt_geometry,
+                                  "ros2 run rfs_stt rfs_stt")
     actions.append(ExecuteProcess(cmd=stt_cmd, output='screen'))
 
     # Plot Viewer (Bottom Right: Column 2, Row 1 - GUI Only)
