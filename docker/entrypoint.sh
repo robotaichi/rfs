@@ -33,8 +33,13 @@ print(f'[entrypoint] {\"$CONFIG_FILE\".split(\"/\")[-3]}: terminal_mode set to x
 done
 
 # ─── Start PulseAudio ─────────────────────────────────────────────────────────
-echo "[entrypoint] Starting PulseAudio..."
-pulseaudio --start --exit-idle-time=-1 2>/dev/null || true
+if [ -S "/run/user/1000/pulse/native" ]; then
+    echo "[entrypoint] Host PulseAudio detected — using host audio output."
+    export PULSE_SERVER=unix:/run/user/1000/pulse/native
+else
+    echo "[entrypoint] No host PulseAudio — starting internal PulseAudio..."
+    pulseaudio --start --exit-idle-time=-1 2>/dev/null || true
+fi
 
 # ─── Start VNC server ─────────────────────────────────────────────────────────
 echo "[entrypoint] Starting VNC server (${VNC_RESOLUTION})..."
