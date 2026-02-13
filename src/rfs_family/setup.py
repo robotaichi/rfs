@@ -20,7 +20,10 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'rfs_family_member = rfs_family.rfs_family_member:main'
+            'rfs_family_member = rfs_family.rfs_family_member:main',
+            'rfs_generator = rfs_family.rfs_generator:main',
+            'rfs_member_evaluator = rfs_family.rfs_member_evaluator:main',
+            'rfs_document_processor = rfs_family.rfs_document_processor:main'
         ],
     },
 )

@@ -4,9 +4,11 @@ import random
 import shlex
 import openai
 import sys
-import atexit
-import datetime
 import re
+import shutil
+import datetime
+import time
+import atexit
 from launch import LaunchDescription
 from launch.actions import OpaqueFunction, ExecuteProcess
 import subprocess
@@ -15,6 +17,51 @@ from ament_index_python.packages import get_package_share_directory
 # Config paths
 HOME = os.path.expanduser("~")
 DB_DIR = os.path.join(HOME, "rfs/src/rfs_database")
+
+def archive_session_files(context_label="Shutdown"):
+    """Stand-alone archival function to preserve session data."""
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    archive_dir = os.path.join(DB_DIR, "archive", timestamp)
+    
+    session_files = {
+        "conversation": os.path.join(DB_DIR, "conversation_history.txt"),
+        "plot": os.path.join(DB_DIR, "evaluation_plot.png"),
+        "trajectory": os.path.join(DB_DIR, "evaluation_trajectory.json"),
+        "plot_bg": os.path.join(DB_DIR, "evaluation_plot_bg.png"),
+        "history_csv": os.path.join(DB_DIR, "evaluation_history.csv"),
+        "debug_log": os.path.join(DB_DIR, "last_evaluation_debug.log")
+    }
+    
+    # Check if ANY of the core files exist
+    existing = {name: f for name, f in session_files.items() if os.path.exists(f)}
+    
+    if existing:
+        try:
+            os.makedirs(archive_dir, exist_ok=True)
+            print(f"\n[rfs_launch][{context_label}] Archiving session to {archive_dir}...")
+            
+            count = 0
+            for name, f_path in existing.items():
+                try:
+                    dest = os.path.join(archive_dir, os.path.basename(f_path))
+                    # Copy then delete for safety
+                    shutil.copy2(f_path, dest)
+                    if os.path.exists(dest):
+                        os.remove(f_path)
+                        count += 1
+                        print(f"[rfs_launch][{context_label}] Successfully archived {name}")
+                except Exception as e:
+                    print(f"[rfs_launch][{context_label}] Failed to archive {name}: {e}")
+            
+            print(f"[rfs_launch][{context_label}] Total {count} files archived.\n")
+        except Exception as e:
+            print(f"[rfs_launch][{context_label}] Critical error during archival: {e}")
+    else:
+        if context_label == "Shutdown":
+             print(f"\n[rfs_launch][{context_label}] No session data found to archive.\n")
+
+# Register shutdown archival
+atexit.register(archive_session_files, "Shutdown")
 
 try:
     SHARE_DIR = get_package_share_directory('rfs_config')
@@ -88,14 +135,20 @@ def launch_nodes(context, *args, **kwargs):
     actions.append(ExecuteProcess(cmd=['ros2', 'run', 'rfs_viewer', 'rfs_viewer', '--geometry', viewer_geometry], output='log'))
 
     # Infrastructure (Background)
-    actions.append(ExecuteProcess(cmd=['ros2', 'run', 'rfs_tts', 'rfs_tts'], output='log'))
-    actions.append(ExecuteProcess(cmd=['ros2', 'run', 'rfs_toio', 'rfs_toio'], output='log'))
-    # Evaluation is now handled by Therapist
-    # actions.append(ExecuteProcess(cmd=['ros2', 'run', 'rfs_evaluation', 'rfs_evaluation'], output='log'))
+    actions.append(ExecuteProcess(cmd=['ros2', 'run', 'rfs_tts', 'rfs_tts'], output='screen'))
+    actions.append(ExecuteProcess(cmd=['ros2', 'run', 'rfs_toio', 'rfs_toio'], output='screen'))
+    actions.append(ExecuteProcess(cmd=['ros2', 'run', 'rfs_therapist', 'rfs_evaluator'], output='screen'))
+    actions.append(ExecuteProcess(cmd=['ros2', 'run', 'rfs_therapist', 'rfs_optimizer'], output='screen'))
+    actions.append(ExecuteProcess(cmd=['ros2', 'run', 'rfs_family', 'rfs_generator'], output='screen'))
+    actions.append(ExecuteProcess(cmd=['ros2', 'run', 'rfs_family', 'rfs_member_evaluator'], output='screen'))
+    actions.append(ExecuteProcess(cmd=['ros2', 'run', 'rfs_family', 'rfs_document_processor'], output='screen'))
 
     return actions
 
 def generate_launch_description():
+    # --- Startup Cleanup ---
+    archive_session_files("Startup")
+    
     with open(CONFIG_FILE, 'r') as f:
         config = json.load(f)
     
@@ -109,25 +162,10 @@ def generate_launch_description():
     subprocess.run(["pkill", "-f", "ffplay"], stderr=subprocess.DEVNULL)
     subprocess.run(["pkill", "-f", "spd-say"], stderr=subprocess.DEVNULL)
     # Kill RFS nodes specifically by name, avoiding "rfs_bringup" and "rfs_all.launch.py"
-    rfs_nodes = ["rfs_family_member", "rfs_therapist", "rfs_stt", "rfs_tts", "rfs_toio", "rfs_viewer"]
+    rfs_nodes = ["rfs_family_member", "rfs_generator", "rfs_member_evaluator", "rfs_document_processor", "rfs_therapist", "rfs_evaluator", "rfs_optimizer", "rfs_stt", "rfs_tts", "rfs_toio", "rfs_viewer"]
     for node in rfs_nodes:
         subprocess.run(["pkill", "-f", node], stderr=subprocess.DEVNULL)
     # --------------------------
-
-    if os.path.exists(HISTORY_FILE): os.remove(HISTORY_FILE)
-    if os.path.exists(TRAJECTORY_FILE): os.remove(TRAJECTORY_FILE)
-    
-    # Clean up plot files
-    plot_file = os.path.join(DB_DIR, "evaluation_plot.png")
-    plot_bg_file = os.path.join(DB_DIR, "evaluation_plot_bg.png")
-    if os.path.exists(plot_file): os.remove(plot_file)
-    if os.path.exists(plot_bg_file): os.remove(plot_bg_file)
-    
-    # Reset trajectory with S0
-    initial_coords = config.get("initial_coords", {"x": 8.0, "y": 8.0})
-    initial_trajectory = [{"step": "S0", "target_x": initial_coords.get("x", 8.0), "target_y": initial_coords.get("y", 8.0)}]
-    with open(TRAJECTORY_FILE, 'w') as f:
-        json.dump(initial_trajectory, f)
 
     initial_role = determine_leader_with_llm(roles, theme)
     

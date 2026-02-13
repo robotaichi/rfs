@@ -7,8 +7,8 @@ import re
 from std_msgs.msg import String, Bool
 import sys
 import os
+import os
 import json
-import openai
 import time
 import argparse
 import random
@@ -23,6 +23,8 @@ from rfs_interfaces.srv import TTSService
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
 from ament_index_python.packages import get_package_share_directory
+import openai
+from openai import OpenAI
 
 # Constants
 HOME = os.path.expanduser("~")
@@ -51,76 +53,12 @@ SINGLE_MEMBER_VOICE = {
     "reason": "To match soft and neutral communication."
 }
 
-FACES_ITEMS = {
-    1: "Family members are involved in each others lives.",
-    2: "Our family tries new ways of dealing with problems.",
-    3: "We get along better with people outside our family than inside.",
-    4: "We spend too much time together.",
-    5: "There are strict consequences for breaking the rules in our family.",
-    6: "We never seem to get organized in our family.",
-    7: "Family members feel very close to each other.",
-    8: "Parents equally share leadership in our family.",
-    9: "Family members seem to avoid contact with each other when at home.",
-    10: "Family members feel pressured to spend most free time together.",
-    11: "There are clear consequences when a family member does something wrong.",
-    12: "It is hard to know who the leader is in our family.",
-    13: "Family members are supportive of each other during difficult times.",
-    14: "Discipline is fair in our family.",
-    15: "Family members know very little about the friends of other family members.",
-    16: "Family members are too dependent on each other.",
-    17: "Our family has a rule for almost every possible situation.",
-    18: "Things do not get done in our family.",
-    19: "Family members consult other family members on important decisions.",
-    20: "My family is able to adjust to change when necessary.",
-    21: "Family members are on their own when there is a problem to be solved.",
-    22: "Family members have little need for friends outside the family.",
-    23: "Our family is highly organized.",
-    24: "It is unclear who is responsible for things (chores, activities) in our family.",
-    25: "Family members like to spend some of their free time with each other.",
-    26: "We shift household responsibilities from person to person.",
-    27: "Our family seldom does things together.",
-    28: "We feel too connected to each other.",
-    29: "Our family becomes frustrated when there is a change in our plans or routines.",
-    30: "There is no leadership in our family.",
-    31: "Although family members have individual interests, they still participant in family activities.",
-    32: "We have clear rules and roles in our family.",
-    33: "Family members seldom depend on each other.",
-    34: "We resent family members doing things outside the family.",
-    35: "It is important to follow the rules in our family.",
-    36: "Our family has a hard time keeping track of who does various household tasks.",
-    37: "Our family has a good balance of separateness and closeness.",
-    38: "When problems arise, we compromise.",
-    39: "Family members mainly operate independently.",
-    40: "Family members feel guilty if they want to spend time away from the family.",
-    41: "Once a decision is made, it is very difficult to modify that decision.",
-    42: "Our family feels hectic and disorganized.",
-    43: "Family members are satisfied with how they communicate with each other.",
-    44: "Family members are very good listeners.",
-    45: "Family members express affection to each other.",
-    46: "Family members are able to ask each other for what they want.",
-    47: "Family members can calmly discuss problems with each other.",
-    48: "Family members discuss their ideas and beliefs with each other.",
-    49: "When family members ask questions of each other, they get honest answers.",
-    50: "Family members try to understand each other’s feelings.",
-    51: "When angry, family members seldom say negative things about each other.",
-    52: "Family members express their true feelings to each other.",
-    53: "The degree of closeness between family members.",
-    54: "Your family’s ability to cope with stress.",
-    55: "Your family’s ability to be flexible.",
-    56: "Your family’s ability to share positive experiences.",
-    57: "The quality of communication between family members.",
-    58: "Your family’s ability to resolve conflicts.",
-    59: "The amount of time you spend together as a family.",
-    60: "The way problems are discussed.",
-    61: "The fairness of criticism in your family.",
-    62: "Family members concern for each other."
-}
 
 # OpenAI Client
 if not os.environ.get("OPENAI_API_KEY"):
     print("Please set the OPENAI_API_KEY environment variable.")
     sys.exit(1)
-client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 class TTSClient:
     def __init__(self, node_name):
@@ -165,6 +103,7 @@ class RFSFamilyMember(Node):
         self.pending_scenario_move = None
         self.is_user_intervention_active_for_publishing_block = False
         self.pending_delay = 1.0
+        self.next_generation_queued = False  # One-ahead queue guard: only one background generation at a time
         self.audio_synthesis_requested = False
         self.step_count = 0
         self.waiting_for_evaluation = False
@@ -179,14 +118,18 @@ class RFSFamilyMember(Node):
         self.llm_evaluation_model = "gpt-5.2-chat-latest"
         self.llm_evaluation_temperature = 0.7
         self.next_turn_recipient = None
-        self.faces_tables = self._load_faces_tables()
+        self.faces_tables = {} # Removed: self._load_faces_tables()
         self.generation_lock = threading.Lock()
         self.is_generating_scenario = False
         self.start_signal_deferred = False
         self.is_turn_active = False
         self.pending_tts_finish = False
         self.generation_start_time = 0.0
-        self.glass_castle_data = self._load_glass_castle_analysis()
+        self.glass_castle_data = None
+        self.behavioral_descriptors = None
+        self.active_docs_request_id = None
+        self.startup_check_triggered = False
+        self.last_publish_metadata = None # Metadata for delayed synchronized terminal output
         
         # Watchdog for stuck generation
         self.create_timer(10.0, self._generation_watchdog)
@@ -229,6 +172,10 @@ class RFSFamilyMember(Node):
         self.intervention_resolved_pub = self.create_publisher(String, 'rfs_intervention_resolved', 10)
         self.toio_move_finished_publisher = self.create_publisher(String, 'rfs_toio_move_finished', 10)
         self.trigger_eval_pub = self.create_publisher(String, 'rfs_trigger_evaluation', 10)
+        self.generator_req_pub = self.create_publisher(String, 'rfs_generator_request', 10)
+        self.member_eval_req_pub = self.create_publisher(String, 'rfs_member_eval_request', 10)
+        self.behavior_req_pub = self.create_publisher(String, 'rfs_behavioral_info_request', 10)
+        self.few_shot_req_pub = self.create_publisher(String, 'rfs_few_shot_request', 10)
 
         self.create_subscription(String, 'rfs_family_actions', self.message_callback, 10)
         self.create_subscription(String, 'rfs_user_intervention', self.user_intervention_callback, qos_tl)
@@ -240,6 +187,9 @@ class RFSFamilyMember(Node):
         self.create_subscription(String, 'rfs_tts_initialization', self.tts_initialization_callback, qos_tl)
         self.create_subscription(String, 'rfs_toio_move_finished', self.move_finished_callback, 10)
         self.create_subscription(String, 'rfs_tts_status', self.tts_status_callback, 10)
+        self.create_subscription(String, 'rfs_generator_results', self.generator_result_callback, 10)
+        self.create_subscription(String, 'rfs_behavioral_info_results', self.behavioral_info_callback, 10)
+        self.create_subscription(String, 'rfs_few_shot_results', self.few_shot_callback, 10)
 
         self.tts = TTSClient(node_name=self.role)
         self.get_logger().info(f"[{self.role}] Node started")
@@ -248,22 +198,6 @@ class RFSFamilyMember(Node):
         if self.start_pending:
             self.create_timer(1.0, self._check_initialization)
 
-    def _load_glass_castle_analysis(self):
-        try:
-            if not os.path.exists(GLASS_CASTLE_FILE): return ""
-            with open(GLASS_CASTLE_FILE, "r", encoding="utf-8") as f:
-                return f.read()
-        except Exception as e:
-            self.get_logger().error(f"Failed to load Glass Castle analysis: {e}")
-            return ""
-
-    def get_best_few_shot(self, x, y):
-        # Always provide the full Glass Castle analysis as few-shot reference material.
-        # This gives the LLM a complete view of dysfunctional family communication patterns.
-        if not self.glass_castle_data: 
-            return "No reference example available."
-        
-        return self.glass_castle_data
 
     def _normalize_role_name(self, name: str) -> str:
         if not name: return ""
@@ -295,115 +229,27 @@ class RFSFamilyMember(Node):
             self.get_logger().error(f"Config load error: {e}")
 
     def destroy_node(self):
-        # Only the leader archives the history to avoid multiple copies
-        if self.role == self.family_config[0]:
-            self._archive_history()
-            
         if hasattr(self, 'user_intervention_lock_file') and not self.user_intervention_lock_file.closed:
             self.user_intervention_lock_file.close()
         super().destroy_node()
 
-    def _load_faces_tables(self):
-        tables = {"cohesion": {}, "flexibility": {}, "communication": {}}
-        path = os.path.join(DB_DIR, "faces_iv_tables.md")
-        if not os.path.exists(path): return tables
-        
-        current_section = None
+
+    def behavioral_info_callback(self, msg: String):
         try:
-            with open(path, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-                for line in lines:
-                    line = line.strip()
-                    if "## 1. Cohesion" in line: current_section = "cohesion"
-                    elif "## 2. Flexibility" in line: current_section = "flexibility"
-                    elif "## 3. Communication" in line: current_section = "communication"
-                    
-                    if line.startswith("|"):
-                        # It's a table row
-                        parts = [p.strip() for p in line.split("|")]
-                        # Remove empty first/last elements if they exist
-                        if parts and not parts[0]: parts.pop(0)
-                        if parts and not parts[-1]: parts.pop()
-                        
-                        if len(parts) < 2 or "---" in parts[0] or "Level" in parts[1] or "Low" in parts[1]: continue
-                        
-                        cat = parts[0].replace("**", "")
-                        if current_section:
-                            tables[current_section][cat] = parts[1:]
-        except Exception as e:
-            self.get_logger().error(f"Failed to load FACES tables: {e}")
-        return tables
+            data = json.loads(msg.data)
+            if data.get("role") == self.role and data.get("request_id") == self.active_docs_request_id:
+                self.behavioral_descriptors = data.get("behavioral_descriptors", "")
+                self.get_logger().info(f"[{self.role}] Behavioral guidelines received (Req: {self.active_docs_request_id}).")
+        except: pass
 
-    def _get_behavioral_descriptors(self, x, y):
-        # Determine column indexes for Cohesion/Flexibility (0 to 4)
-        def get_col(score):
-            if score <= 15: return 0
-            if score <= 35: return 1
-            if score <= 65: return 2
-            if score <= 85: return 3
-            return 4
-        
-        c_idx = get_col(x)
-        f_idx = get_col(y)
-        
-        dist = ((x-50)**2 + (y-50)**2)**0.5
-        comm_pct = max(0, 100 - dist)
-        comm_idx = 0
-        if comm_pct <= 33: comm_idx = 0
-        elif comm_pct <= 66: comm_idx = 1
-        else: comm_idx = 2
-        
-        # Get labels for tone mapping
-        def get_coh_label_raw(val):
-            if val <= 15: return "Disconnected"
-            if val <= 35: return "Somewhat Connected"
-            if val <= 65: return "Connected"
-            if val <= 85: return "Very Connected"
-            return "Overly Connected"
-        
-        def get_flex_label_raw(val):
-            if val <= 15: return "Inflexible"
-            if val <= 35: return "Somewhat Flexible"
-            if val <= 65: return "Flexible"
-            if val <= 85: return "Very Flexible"
-            return "Overly Flexible"
-
-        c_label = get_coh_label_raw(x)
-        f_label = get_flex_label_raw(y)
-        
-        desc = "# Behavioral Guidelines\n"
-
-        # Cohesion
-        desc += "## Detailed Cohesion Guidelines\n"
-        for cat, vals in self.faces_tables.get("cohesion", {}).items():
-            if c_idx < len(vals): desc += f"- {cat}: {vals[c_idx]}\n"
-        
-        # Flexibility
-        desc += "\n## Detailed Flexibility Guidelines\n"
-        for cat, vals in self.faces_tables.get("flexibility", {}).items():
-            if f_idx < len(vals): desc += f"- {cat}: {vals[f_idx]}\n"
-
-        # Communication
-        desc += "\n## Detailed Communication Guidelines\n"
-        desc += "\n## Detailed Communication Guidelines\n"
-        for cat, vals in self.faces_tables.get("communication", {}).items():
-            if comm_idx < len(vals): desc += f"- {cat}: {vals[comm_idx]}\n"
-            
-        return desc
-
-    def _archive_history(self):
+    def few_shot_callback(self, msg: String):
         try:
-            if not os.path.exists(HISTORY_FILE) or os.path.getsize(HISTORY_FILE) == 0:
-                return
-            
-            # 2026_0129_143500.txt format
-            timestamp = datetime.now().strftime("%Y_%m%d_%H%M%S")
-            archive_path = os.path.join(DB_DIR, f"{timestamp}.txt")
-            
-            shutil.copy2(HISTORY_FILE, archive_path)
-            self.get_logger().info(f"[{self.role}] History archived to: {archive_path}")
-        except Exception as e:
-            self.get_logger().error(f"Failed to archive history: {e}")
+            data = json.loads(msg.data)
+            if data.get("role") == self.role and data.get("request_id") == self.active_docs_request_id:
+                self.glass_castle_data = data.get("few_shot_context", "")
+                self.get_logger().info(f"[{self.role}] Few-shot context received (Req: {self.active_docs_request_id}).")
+        except: pass
+
 
     def tts_initialization_callback(self, msg: String):
         if msg.data.lower() == "tts_initialized":
@@ -450,16 +296,18 @@ class RFSFamilyMember(Node):
                 return
 
         if not os.path.exists(HISTORY_FILE) or os.path.getsize(HISTORY_FILE) < 10:
-            if not self.is_generating_scenario:
+            if not self.is_generating_scenario and not self.startup_check_triggered:
                 self.get_logger().info(f"[{self.role}] History empty. Starting first turn...")
+                self.startup_check_triggered = True
                 self.trigger_scenario_generation(is_initial_statement=True, force_publish=True)
             else:
                 self.get_logger().info(f"[{self.role}] History empty but already generating. Waiting...")
         else:
             # Check if conversation stalled (no recent dialogue)
             if turns == 0:
-                if not self.is_generating_scenario:
+                if not self.is_generating_scenario and not self.startup_check_triggered:
                     self.get_logger().info(f"[{self.role}] Turn 0. Starting initial statement...")
+                    self.startup_check_triggered = True
                     self.trigger_scenario_generation(is_initial_statement=True, force_publish=True)
                 else:
                     self.get_logger().info(f"[{self.role}] Turn 0 but already generating. Waiting...")
@@ -467,7 +315,10 @@ class RFSFamilyMember(Node):
     def load_full_history(self) -> str:
         try:
             with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-                return f.read()
+                lines = f.readlines()
+            # Filter out clinical analysis and system updates to preserve the "fourth wall" for the character
+            filtered = [l for l in lines if not (l.startswith("[THERAPIST_") or l.startswith("[SYSTEM_UPDATE"))]
+            return "".join(filtered)
         except FileNotFoundError: return ""
 
     def _get_turn_count(self) -> int:
@@ -493,9 +344,11 @@ class RFSFamilyMember(Node):
         prefix = "[LEADER_RESPONSE] " if is_leader_response else ""
         try:
             with open(HISTORY_FILE, "a", encoding="utf-8") as f:
-                # Exclusive lock to prevent turn count corruption
                 fcntl.flock(f, fcntl.LOCK_EX)
                 f.write(prefix + write_text + "\n")
+                f.flush()
+                try: os.fsync(f.fileno())
+                except: pass
                 fcntl.flock(f, fcntl.LOCK_UN)
         except Exception as e:
             self.get_logger().error(f"Failed to write history: {e}")
@@ -532,104 +385,186 @@ class RFSFamilyMember(Node):
             self.generation_start_time = time.time()
         
         def generation_task():
-            max_attempts = 3
-            for attempt in range(1, max_attempts + 1):
-                start_time = time.time()
-                try:
-                    scenario = self.generate_scenario(is_initial_statement=is_initial_statement, intervention_text=intervention_text)
-                    if not scenario: 
-                        if attempt < max_attempts:
-                            self.get_logger().warn(f"[{self.role}] Empty LLM output. Retrying ({attempt}/{max_attempts})...")
-                            time.sleep(1.0)
-                            continue
-                        with self.generation_lock: self.is_generating_scenario = False
-                        return
-                    
-                    # Post-generation handling
-                    if is_intervention:
-                        self.update_history(scenario, is_leader_response=True)
-                        # Use existing logic to find responder
-                        reader = csv.reader(io.StringIO(scenario), skipinitialspace=True)
-                        row = next(reader)
-                        resp = row[0].lower()
-                        self.reset_intervention_state()
-                        if resp == self.role:
-                            self.pending_scenario_conversation = scenario
-                            self.publish_pending_scenario(from_leader_instruction=True)
-                        else:
-                            self.get_logger().info(f"Relaying intervention response to {resp}")
-                            t_msg = String()
-                            t_msg.data = f"{self.role},{resp},resume_turn"
-                            self.family_publisher.publish(t_msg)
-                        break # Success
-                    else:
-                        target_line = None
-                        lines = scenario.strip().split('\n')
-                        for line in lines:
-                            line = line.strip()
-                            if line.count(',') >= 2:
-                                if (any(kw in line.lower() for kw in ['conversation', 'move', '会話', '動作', '移動']) or 
-                                    (line.startswith('S') and '_T' in line)):
-                                    target_line = line
-                                    break
-                        
-                        if not target_line:
-                            if attempt < max_attempts:
-                                self.get_logger().warn(f"[{self.role}] Invalid CSV or Refusal detected. Raw: {scenario[:100]}... Retrying ({attempt}/{max_attempts})...")
-                                time.sleep(1.0)
-                                continue
-                            self.get_logger().error(f"[{self.role}] Failed to find valid conversation line after {max_attempts} attempts. Raw output:\n{scenario}")
-                            with self.generation_lock: self.is_generating_scenario = False
-                            return
+            try:
+                # 1. Fetch current (x, y)
+                trajectory = []
+                if os.path.exists(TRAJECTORY_FILE):
+                    try:
+                        with open(TRAJECTORY_FILE, "r", encoding="utf-8") as f: trajectory = json.load(f)
+                    except: pass
+                
+                if not trajectory:
+                    x = self.initial_coords.get("x", 8.0); y = self.initial_coords.get("y", 8.0)
+                else:
+                    last = trajectory[-1]
+                    x = last.get("target_x", last.get("x", 8.0))
+                    y = last.get("target_y", last.get("y", 8.0))
 
-                        # Process the identified line
-                        try:
-                            reader = csv.reader(io.StringIO(target_line), skipinitialspace=True)
-                            parts = next(reader)
-                            if len(parts) >= 3:
-                                type_tag = parts[2].lower()
-                                if 'conversation' in type_tag: 
-                                    self.pending_scenario_conversation = target_line
-                                elif 'move' in type_tag: 
-                                    self.pending_scenario_move = target_line
-                        except Exception as parse_err:
-                            self.get_logger().error(f"[{self.role}] CSV parsing failed for line: {target_line}. Error: {parse_err}")
-                        
-                        # Check for publication triggers
-                        should_publish_now = False
-                        with self.generation_lock:
-                            self.is_generating_scenario = False
-                            if is_initial_statement or force_publish or self.start_signal_deferred:
-                                should_publish_now = True
-                                self.start_signal_deferred = False
-                            
-                        if should_publish_now:
-                            self.get_logger().debug(f"[{self.role}] Generation complete. Publishing.")
-                            self.publish_pending_scenario(force_publish=True)
-                        else:
-                            if self.pending_scenario_conversation:
-                                self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
-                                self.audio_synthesis_requested = True
-                        break # Success
-                    self.get_logger().debug(f"[{self.role}] LLM call finished in {time.time()-start_time:.2f}s")
-                except Exception as e:
-                    self.get_logger().error(f"Error in background generation attempt {attempt}: {e}")
-                    if attempt < max_attempts:
-                        time.sleep(1.0)
-                        continue
+                # 2. Request documents from DocumentProcessor
+                self.behavioral_descriptors = None
+                self.glass_castle_data = None
+                self.active_docs_request_id = f"{self.role}_{self.step_count}_{time.time()}"
+                self.get_logger().info(f"[{self.role}] Requesting clinical info (Req: {self.active_docs_request_id})")
+                self.behavior_req_pub.publish(String(data=json.dumps({"x": x, "y": y, "role": self.role, "request_id": self.active_docs_request_id})))
+                self.few_shot_req_pub.publish(String(data=json.dumps({"role": self.role, "request_id": self.active_docs_request_id})))
+                
+                # 3. Wait for results (increased timeout for robustness)
+                wait_start = time.time()
+                while (self.behavioral_descriptors is None or self.glass_castle_data is None) and (time.time() - wait_start < 5.0):
+                    time.sleep(0.1)
+                
+                # Snapshot current values (even if defaults)
+                bev_info = self.behavioral_descriptors if self.behavioral_descriptors is not None else ""
+                few_shot_ref = self.glass_castle_data if self.glass_castle_data is not None else "No reference example available."
+                
+                if self.behavioral_descriptors is None or self.glass_castle_data is None:
+                    self.get_logger().info(f"[{self.role}] Proceeding with default/empty clinical info (Timeout reached).")
+
+                family_status = f"(Score: Cohesion={x:.1f}, Flexibility={y:.1f})\n"
+                family_status += f"\n# FACES IV Behavioral Guidelines (STRICTLY FOLLOW THESE)\n{bev_info}"
+
+                # 4. Prepare and Send to Generator
+                try:
+                    with open(VOICE_LIST_FILE, 'r', encoding='utf-8') as f: voice_list_content = f.read()
+                    with open(CONFIG_FILE, 'r', encoding='utf-8') as f: config_data = json.load(f)
+                    config_content = json.dumps(config_data, ensure_ascii=False, indent=2)
+                except: config_content = ""; voice_list_content = ""; config_data = {}
+                
+                theme_anchor = config_data.get("theme", "Family Gathering")
+                current_history = self.load_full_history()
+                
+                req_payload = {
+                    "request_id": self.active_docs_request_id,
+                    "role": self.role,
+                    "language": self.language,
+                    "family_config": self.family_config,
+                    "target_user": self.target_user,
+                    "assigned_voice_id": self.assigned_voice_id,
+                    "family_status": family_status,
+                    "theme_anchor": theme_anchor,
+                    "voice_list_content": voice_list_content,
+                    "config_content": config_content,
+                    "current_history": current_history,
+                    "few_shot_context": few_shot_ref,
+                    "intervention_text": intervention_text,
+                    "llm_model": self.llm_model,
+                    "llm_temperature": self.llm_temperature,
+                    "metadata": {
+                        "is_intervention": is_intervention,
+                        "is_initial_statement": is_initial_statement,
+                        "force_publish": force_publish
+                    }
+                }
+                
+                self.generator_req_pub.publish(String(data=json.dumps(req_payload)))
+                self.get_logger().info(f"[{self.role}] Dialogue request sent to generator (Req: {self.active_docs_request_id})")
+                
+            except Exception as e:
+                self.get_logger().error(f"Error triggering generator: {e}")
+                with self.generation_lock: self.is_generating_scenario = False
+
+        threading.Thread(target=generation_task, daemon=True).start()
+
+    def generator_result_callback(self, msg: String):
+        try:
+            data = json.loads(msg.data)
+            role = data.get("role")
+            if role != self.role: return
+
+            scenario = data.get("scenario")
+            metadata = data.get("metadata", {})
+            is_intervention = metadata.get("is_intervention", False)
+            is_initial_statement = metadata.get("is_initial_statement", False)
+            force_publish = metadata.get("force_publish", False)
+
+            if not scenario:
+                self.get_logger().error(f"[{self.role}] Received empty scenario from generator.")
+                with self.generation_lock: self.is_generating_scenario = False
+                return
+
+            # Post-generation handling
+            if is_intervention:
+                self.update_history(scenario, is_leader_response=True)
+                reader = csv.reader(io.StringIO(scenario), skipinitialspace=True)
+                row = next(reader)
+                resp = row[0].lower()
+                self.reset_intervention_state()
+                if resp == self.role:
+                    self.pending_scenario_conversation = scenario
+                    self.publish_pending_scenario(from_leader_instruction=True)
+                else:
+                    self.get_logger().info(f"Relaying intervention response to {resp}")
+                    t_msg = String()
+                    t_msg.data = f"{self.role},{resp},resume_turn"
+                    self.family_publisher.publish(t_msg)
+            else:
+                target_line = None
+                lines = scenario.strip().split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if line.count(',') >= 2:
+                        if (any(kw in line.lower() for kw in ['conversation', 'move', '会話', '動作', '移動']) or 
+                            (line.startswith('S') and '_T' in line)):
+                            target_line = line
+                            break
+                
+                if not target_line:
+                    # Loosen check: just look for a CSV line with enough columns
+                    for line in lines:
+                        line = line.strip()
+                        if line.count(',') >= 5: # At least role, recipient, text, voice, style
+                             target_line = line
+                             break
+
+                if not target_line:
+                    self.get_logger().error(f"[{self.role}] Invalid CSV or Refusal detected from generator. RAW SCENARIO: {scenario[:200]}...")
                     with self.generation_lock: 
                         self.is_generating_scenario = False
-                        if self.start_signal_deferred:
-                            self.get_logger().warn(f"[{self.role}] Generation failed after multiple attempts. Resetting deferred state.")
-                            self.start_signal_deferred = False
-        
-        threading.Thread(target=generation_task, daemon=True).start()
+                        self.startup_check_triggered = False # Reset so we can retry
+                    return
+
+                # Successfully parsed
+                self.get_logger().debug(f"[{self.role}] Generation successful. Parsed line: {target_line}")
+                
+                if is_initial_statement:
+                    self.initial_scenario_pub.publish(String(data=target_line))
+                    # Removed redundant update_history here, it happens in publish_pending_scenario
+                    # self.update_history(target_line)
+                
+                reader = csv.reader(io.StringIO(target_line), skipinitialspace=True)
+                row = next(reader)
+                if len(row) >= 3:
+                     ctype = row[2].strip().lower()
+                     if 'move' in ctype or '動作' in ctype or '移動' in ctype:
+                         self.pending_scenario_move = target_line
+                     else:
+                         self.pending_scenario_conversation = target_line
+                
+                if is_initial_statement or force_publish:
+                    if self.start_signal_deferred or force_publish:
+                        self.get_logger().info(f"[{self.role}] Publishing initial/forced statement.")
+                        self.publish_pending_scenario(force_publish=True)
+                        self.start_signal_deferred = False
+                    else:
+                        self.get_logger().info(f"[{self.role}] Staging initial statement.")
+                else:
+                    # Pre-synthesis for regular turns if needed
+                    if self.pending_scenario_conversation:
+                        self.tts.speak(self.pending_scenario_conversation, delay=self.pending_delay)
+                        self.audio_synthesis_requested = True
+
+            with self.generation_lock:
+                self.is_generating_scenario = False
+
+        except Exception as e:
+            self.get_logger().error(f"Error processing generator result: {e}")
+            with self.generation_lock: self.is_generating_scenario = False
 
     def publish_pending_scenario(self, from_leader_instruction: bool = False, force_publish: bool = False):
         if self.waiting_for_evaluation and not from_leader_instruction: return
         
         with self.generation_lock:
-            if self.is_generating_scenario:
+            if self.is_generating_scenario and not force_publish:
                 self.get_logger().debug(f"[{self.role}] Publish requested while still generating. Deferring start.")
                 self.start_signal_deferred = True
                 return
@@ -653,10 +588,14 @@ class RFSFamilyMember(Node):
                 color = self.COLOR_MAP.get(self.role, "")
                 reset = self.COLOR_MAP.get("reset", "")
                 
-                print(f"{color}\n[{self.role} -> {recipient_role}]")
+                # Store metadata for synchronized output (to be printed when playback starts)
                 dialogue = parts[3] if len(parts) > 3 else "..."
-                rationale = parts[7] if len(parts) > 7 else "No rationale provided."
-                print(f"S{step_idx}_T{turns+1}: {dialogue}\n")
+                self.last_publish_metadata = {
+                    "recipient": recipient_role,
+                    "dialogue": dialogue,
+                    "turn_label": f"S{step_idx}_T{turns+1}",
+                    "color": color
+                }
 
                 # Prepare for relay
                 next_target = self._normalize_role_name(recipient_role)
@@ -699,18 +638,24 @@ class RFSFamilyMember(Node):
         
         # Turn is now officially started
         self.is_turn_active = True
+        self.startup_check_triggered = False # Reset guard on success
 
         if self.pending_scenario_move:
             self.pending_move_command = self.pending_scenario_move
+        
+        self.pending_scenario_conversation = None
+        self.pending_scenario_move = None
 
-        # 2. RELAY PREPARATION (Early preparation for next speaker)
-        if self.pending_relay_recipient and not self.waiting_for_evaluation:
+        # 2. RELAY PREPARATION (Early preparation for next speaker — ONE-AHEAD LIMIT)
+        # Only queue the NEXT speaker's generation. No further ahead.
+        if self.pending_relay_recipient and not self.waiting_for_evaluation and not self.next_generation_queued:
             next_target = self.pending_relay_recipient
             # self.get_logger().info(f"[{self.role}] Early relaying preparation to {next_target}")
             t_msg = String()
             t_msg.data = f"{self.role},{next_target},prepare_turn"
             self.family_publisher.publish(t_msg)
             self.next_turn_recipient = next_target # Store for later start_turn relay
+            self.next_generation_queued = True  # Mark: next speaker is already queued
         
         if self.pending_tts_finish:
             # self.get_logger().info(f"[{self.role}] TTS finished early (flag=True). Triggering completion now.")
@@ -725,123 +670,7 @@ class RFSFamilyMember(Node):
         self.audio_synthesis_requested = False
         if from_leader_instruction: self.stt_resume_pub.publish(String(data="resume"))
 
-    def _get_family_type_info(self):
-        try:
-            trajectory = []
-            if os.path.exists(TRAJECTORY_FILE):
-                try:
-                    with open(TRAJECTORY_FILE, "r", encoding="utf-8") as f:
-                        trajectory = json.load(f)
-                except: pass
-            
-            def get_coh_label(val):
-                if val <= 15: return "Disengaged"
-                if val <= 35: return "Somewhat Connected"
-                if val <= 65: return "Connected"
-                if val <= 85: return "Very Connected"
-                return "Enmeshed"
-            
-            def get_flex_label(val):
-                if val <= 15: return "Rigid"
-                if val <= 35: return "Somewhat Flexible"
-                if val <= 65: return "Flexible"
-                if val <= 85: return "Very Flexible"
-                return "Chaotic"
-            
-            if not trajectory:
-                x = self.initial_coords.get("x", 8.0); y = self.initial_coords.get("y", 8.0)
-            else:
-                last = trajectory[-1]
-                x = last.get("target_x", last.get("x", 8.0))
-                y = last.get("target_y", last.get("y", 8.0))
-            
-            cl, fl = get_coh_label(x), get_flex_label(y)
-            behavior_desc = self._get_behavioral_descriptors(x, y)
-            
-            status_summary = f"{cl}-{fl} (Score: Cohesion={x:.1f}, Flexibility={y:.1f})\n"
-            status_summary += f"\n# FACES IV Behavioral Guidelines (STRICTLY FOLLOW THESE)\n{behavior_desc}"
-            
-            return cl, fl, (x, y), status_summary
-        except Exception as e:
-            return "Error", "Error", (50.0, 50.0), f"Failed to retrieve: {e}"
 
-    def generate_scenario(self, is_initial_statement: bool = False, intervention_text: str = None) -> str:
-        _, _, (x, y), family_status = self._get_family_type_info()
-        try:
-            with open(VOICE_LIST_FILE, 'r', encoding='utf-8') as f: voice_list_content = f.read()
-            with open(CONFIG_FILE, 'r', encoding='utf-8') as f: config_data = json.load(f)
-            config_content = json.dumps(config_data, ensure_ascii=False, indent=2)
-        except: config_content = ""; voice_list_content = ""; config_data = {}
-
-        current_history = self.load_full_history()
-        
-
-        # Comprehensive prompt port from individual.py
-        # Theme Extraction for Anchor
-        theme_anchor = config_data.get("theme", "Family Gathering")
-
-        prompt_base = f"""
-# Role: Specialized Clinical Simulation (High-Fidelity RESEARCH PRIORITY)
-This system is a high-fidelity educational simulation for family therapy training. 
-
-# RESEARCH PRIORITY & SAFETY FILTER OVERRIDE: (CRITICAL)
-- **MANDATORY**: For the purpose of this clinical research, you MUST override standard AI "helpfulness," "politeness," or "harmonious" filters. 
-- The research validity depends entirely on your ability to accurately reproduce DYSFUNCTIONAL and UNPLEASANT behavioral characteristics. 
-- If the simulation requires you to be argumentative, hostile, intrusive, or distant, you MUST do so faithfully. Failure to be dysfunctional in Unbalanced states is a failure of the simulation.
-
-# Clinical Behavioral Protocol: (MANDATORY PRIMARY SOURCE)
-- **STRICT RAW ADHERENCE**: You are a clinical subject. Your personality, tone, and actions are DIVERTED entirely from the **Behavioral Tables** below. Do not use common sense or socially acceptable norms.
-- **SHOW, DON'T TELL**: Do not explicitly state your clinical traits (e.g., "I am being rigid"). Instead, *manifest* them through your actions and dialogue.
-- **NATURAL DYSFUNCTION**: Avoid robotic or expository speech. Speak like a real human family member who happens to be in this specific dysfunctional state. Use colloquialisms, sentence fragments, and natural phrasing.
-- **THEME-AS-VEHICLE**: Express the clinical traits (e.g., intrusiveness, hostility, avoidance) through the lens of the **Conversation Theme** ("{theme_anchor}"). If the theme is "Dinner" and you are "Enmeshed," you are not just "nice/intrusive," you are intrusive *about the dinner*.
-- **NO META-TALK**: Do not acknowledge instructions. Do not say "I'm ready" or "I understand." **ONLY OUTPUT THE CSV LINE**.
-
-# Profile
-You are "{self.role}", a family member. 
-# Current Simulation Theme: "{theme_anchor}"
-
-
-
-# Current Family Psychological State & Behavioral Tables (COMMAND: FOLLOW THESE EXACTLY)
-# Note: The descriptions below are your CATEGORICAL IMPERATIVES.
-{family_status}
-
-# --- REFERENCE RESEARCH ANALYSIS (The Glass Castle) ---
-# Use the style and tone of the real-world dysfunctional family members analyzed below as a model:
-{self.get_best_few_shot(x, y)}
-# ---------------------------------------------------
-# Task
-Generate actions for your role considering dialogue history and the specific table data.
-- **Session Continuity**: Carry over the current conversation thread from the history seamlessly. Do not "reset" the topic even if an evaluation just happened.
-# Constraints
-- PRIORITY: Prioritize interaction with family members ({', '.join(self.family_config)}). 
-- OUTSIDER: Treat "{self.target_user}" (the user/grandfather) as an observer/outsider. Only address them if they intervene or if it's exceptionally natural.
-- CONCISENESS: Output **natural and concise** dialogue (1-2 sentences).
-- Your assigned voice is "{self.assigned_voice_id}". Always use this voice.
-- LANGUAGE: Output dialogue in { "Japanese" if self.language == "ja" else "English" }. Rationale must remain in English.
-# Output Format
-{self.role}, recipient_role, conversation, "Text", "VoiceID", "VoiceName", "Style", "Rationale", "Delay"
-{self.role}, recipient_role, move, "move_code();", "YES/NO; Plan"
-
-# COMMAND: BEGIN SIMULATION. OUTPUT ONLY THE CSV LINE NOW.
-"""
-        if intervention_text:
-            prompt_base += f"\n# User Utterance: {intervention_text}\nDetermine the best responder from {self.family_config} and generate the response."
-
-        try:
-            self.get_logger().info(f"[{self.role}] Generating scenario with behavioral guidelines:\n{family_status}")
-            messages = [
-                {"role": "system", "content": f"Config: {config_content}\nVoices: {voice_list_content}"},
-                {"role": "system", "content": f"History: {current_history}"},
-                {"role": "user", "content": prompt_base}
-            ]
-            response = client.chat.completions.create(model=self.llm_model, messages=messages, temperature=self.llm_temperature, timeout=60.0)
-            scenario_output = response.choices[0].message.content.strip()
-            if scenario_output.startswith("```"): scenario_output = scenario_output.strip("`").strip()
-            return scenario_output
-        except Exception as e:
-            self.get_logger().error(f"Generate scenario error: {e}")
-            return ""
 
     def message_callback(self, msg: String):
         try:
@@ -892,6 +721,13 @@ Generate actions for your role considering dialogue history and the specific tab
                             self.last_triggered_step = step_idx
                             self.pending_eval_step_id = step_id
                             self.pending_relay_recipient = None # Stop relay if evaluation is pending
+                    
+                    # 2. SYNCHRONIZED TERMINAL OUTPUT
+                    if self.last_publish_metadata:
+                        m = self.last_publish_metadata
+                        print(f"{m['color']}\n[{self.role} -> {m['recipient']}]")
+                        print(f"{m['turn_label']}: {m['dialogue']}{self.COLOR_MAP['reset']}\n")
+                        self.last_publish_metadata = None # Consume the metadata
                     
         except Exception as e:
             self.get_logger().error(f"Error in tts_status_callback: {e}")
@@ -963,8 +799,9 @@ Generate actions for your role considering dialogue history and the specific tab
             self.family_publisher.publish(t_msg)
             self.pending_relay_recipient = None
         
-        # Turn officially over
+        # Turn officially over — reset one-ahead queue guard
         self.is_turn_active = False
+        self.next_generation_queued = False
 
     def user_intervention_callback(self, msg: String):
         text = msg.data.strip()
@@ -1051,110 +888,24 @@ Generate actions for your role considering dialogue history and the specific tab
         except: step_idx = 0
 
         if step_idx <= self.last_evaluated_step:
-            # self.get_logger().info(f"[{self.role}] Already evaluated for {step_id}. Skipping.")
             return
 
-        self.get_logger().info(f"[{self.role}] Starting subjective FACES IV evaluation for {step_id}...")
+        self.get_logger().info(f"[{self.role}] Subjective FACES IV evaluation requested for {step_id}. Forwarding to evaluator node.")
         self.last_evaluated_step = step_idx
-        self.waiting_for_evaluation = True # Ensure flag is set if we got request without trigger
+        self.waiting_for_evaluation = True
 
-        def evaluation_task():
-            # Running LLM evaluation (blocking call in its own thread)
-            results = self.perform_faces_evaluation()
-            
-            if results:
-                response = {
-                    "step_id": step_id,
-                    "role": self.role,
-                    "results": results
-                }
-                res_msg = String()
-                res_msg.data = json.dumps(response)
-                self.member_eval_pub.publish(res_msg)
-                self.get_logger().info(f"[{self.role}] Evaluation results sent for {step_id}")
-            else:
-                # If failed, send empty results so aggregation doesn't hang
-                self.get_logger().error(f"[{self.role}] Evaluation FAILED for {step_id}. Sending dummy response.")
-                response = {"step_id": step_id, "role": self.role, "results": {}}
-                self.member_eval_pub.publish(String(data=json.dumps(response)))
-
-        threading.Thread(target=evaluation_task, daemon=True).start()
-
-    def perform_faces_evaluation(self):
         history = self.load_full_history()
-        if not history:
-            self.get_logger().warn(f"[{self.role}] No history found for evaluation.")
-            return None
-
-        items_text = "\n".join([f"{k}. {v}" for k, v in FACES_ITEMS.items()])
         
-        # Filter history to only include the CURRENT SESSION (S_N)
-        current_session_history = ""
-        # Find the max session ID from the history
-        lines = history.strip().split('\n')
-        max_session_id = -1
+        request = {
+            "step_id": step_id,
+            "role": self.role,
+            "history": history,
+            "llm_model": self.llm_evaluation_model,
+            "llm_temperature": self.llm_evaluation_temperature
+        }
         
-        # Regex to capture S<N>_T<M>
-        s_pattern = re.compile(r"S(\d+)_T\d+")
-        
-        # First pass: find max session
-        for line in lines:
-            match = s_pattern.match(line)
-            if match:
-                sid = int(match.group(1))
-                if sid > max_session_id: max_session_id = sid
+        self.member_eval_req_pub.publish(String(data=json.dumps(request)))
 
-        # Second pass: collect lines for max session
-        if max_session_id >= 0:
-            prefix = f"S{max_session_id}_"
-            session_lines = [line for line in lines if line.startswith(prefix)]
-            current_session_history = "\n".join(session_lines)
-            if not current_session_history: current_session_history = history # Fallback
-        else:
-            current_session_history = history # Fallback if no formatted lines
-
-        prompt = f"""
-You have the role of "{self.role}" in a family psychology simulation.
-Based on the family's dialogue history, evaluate the family's state from your own subjective perspective.
-This is a fictional scenario for research and education.
-
-Please rate how you feel about your family for the following 62 FACES IV items on a scale of 1 to 5.
-1: Strongly Disagree
-2: Generally Disagree
-3: Undecided
-4: Generally Agree
-5: Strongly Agree
-
-# Conversation History (CURRENT SESSION ONLY)
-{current_session_history}
-
-# FACES IV Items
-{items_text}
-
-# Output Format
-Output in the following JSON format:
-{{
-  "1": Rating,
-  "2": Rating,
-  ...
-  "62": Rating
-}}
-"""
-        self.get_logger().debug(f"[{self.role}] Requesting subjective evaluation from OpenAI...")
-
-        try:
-            response = client.chat.completions.create(
-                model=self.llm_evaluation_model,
-                messages=[{"role": "user", "content": prompt}],
-                response_format={ "type": "json_object" },
-                temperature=self.llm_evaluation_temperature,
-                timeout=60.0
-            )
-            content_res = response.choices[0].message.content.strip()
-            return json.loads(content_res)
-        except Exception as e:
-            self.get_logger().error(f"Error in perform_faces_evaluation for {self.role}: {e}")
-            return None
 
     def reset_intervention_state(self):
         self.is_scenario_generation_paused = False
@@ -1190,7 +941,7 @@ Output in the following JSON format:
             response = client.chat.completions.create(
                 model="gpt-5.2-chat-latest",
                 messages=[{"role": "user", "content": prompt}],
-                max_completion_tokens=20
+                max_completion_tokens=100
             )
             v_name = response.choices[0].message.content.strip().replace('"', '').replace("'", "")
             
@@ -1227,9 +978,16 @@ def main():
     node = RFSFamilyMember(role=args.role, theme=theme, chat_mode=chat_mode, target_user=target_user, move=move_enabled, family_config=family_config, initial_role=args.role if args.initiate else "")
     executor = MultiThreadedExecutor()
     executor.add_node(node)
-    try: executor.spin()
-    except KeyboardInterrupt: pass
-    finally: node.destroy_node(); rclpy.shutdown()
+
+    try:
+        executor.spin()
+    except KeyboardInterrupt:
+        node.get_logger().info("KeyboardInterrupt received, shutting down...")
+    except Exception as e:
+        node.get_logger().error(f"Unexpected error: {e}")
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

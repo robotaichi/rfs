@@ -64,6 +64,19 @@ pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py P
    source install/setup.bash
    ```
 
+### データの永続性とアーカイブ
+
+RFSには、すべてのセッションデータ（会話履歴、評価プロット、軌跡データ）を確実に保存するための堅牢なアーカイブシステムが備わっています。
+
+- ** centralized管理**: アーカイブ処理はローンチファイル (`rfs_all.launch.py`) によって一括管理されます。
+- **終了時アーカイブ**: シミュレーションを終了（Ctrl+C）すると、現在のセッションファイルが自動的に `src/rfs_database/archive/YYYYMMDD_HHMMSS/` 形式のタイムスタンプ付きフォルダに移動されます。
+- **起動時クリーンアップ**: 予期せぬクラッシュなどで前回のセッションデータが残っていた場合、新しいセッションを開始する前にそれらを自動的にアーカイブし、データの消失を防ぎます。
+- **アーカイブされるファイル**:
+    - `conversation_history.txt`: 会話の全ログ。
+    - `evaluation_plot.png`: FACES IV 円環モデルのプロット。
+    - `evaluation_trajectory.json`: ステップごとの心理的軌跡データ。
+    - `evaluation_history.csv`: 定量的な評価データ。
+
 ### Bluetooth スピーカーとToioの紐付け (オプション)
 
 toio™ ロボットの上にスピーカーを載せて移動させる場合、各 toio™ と Bluetooth スピーカーを正しく紐付ける必要があります。本システムでは [ELUT EMBS-HFSASBK](https://www.amazon.co.jp/ELUT-%E3%83%8F%E3%83%B3%E3%82%BA%E3%83%95%E3%83%AA%E3%83%BC%E3%83%BB%E3%82%B9%E3%83%9E%E3%83%BC%E3%83%88%E3%82%A2%E3%82%B7%E3%82%B9%E3%83%88%E3%82%B9%E3%83%94%E3%83%BC%E3%82%AB%E3%83%BC-%E3%83%96%E3%83%A9%E3%83%83%E3%82%AF-EMBS-HFSASBK-%EF%BC%BBBluetooth%E5%AF%BE%E5%BF%9C%EF%BC%BD/dp/B08CDQCWV8) のような小型 Bluetooth スピーカーの使用を想定しています。

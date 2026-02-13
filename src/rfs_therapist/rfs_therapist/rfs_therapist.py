@@ -12,6 +12,7 @@ import threading
 import csv
 import io
 import datetime
+import time
 import shutil
 from rfs_interfaces.srv import TTSService
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
@@ -60,6 +61,7 @@ class RFSTherapist(Node):
         super().__init__('rfs_therapist')
         self.role = "therapist"
         self.tts = TTSClient(node_name=self.role)
+        self.archival_lock = threading.Lock()
         
         self.TRAJECTORY_FILE = os.path.join(DB_DIR, "evaluation_trajectory.json")
         self.OMEGA_1 = 0.1
@@ -90,51 +92,19 @@ class RFSTherapist(Node):
         self.create_subscription(String, 'rfs_user_intervention', self.user_intervention_callback, 10)
         self.create_subscription(String, 'rfs_trigger_evaluation', self.trigger_callback, 10)
         self.create_subscription(String, 'rfs_member_evaluation_results', self.member_evaluation_callback, 10)
+        self.create_subscription(String, 'rfs_evaluator_results', self.evaluator_result_callback, 10)
 
         self.family_publisher = self.create_publisher(String, 'rfs_family_actions', 10)
         self.request_eval_pub = self.create_publisher(String, 'rfs_request_member_evaluation', 10)
+        self.evaluator_req_pub = self.create_publisher(String, 'rfs_evaluator_request', 10)
         self.complete_pub = self.create_publisher(String, 'rfs_evaluation_complete', 10)
         self.plot_pub = self.create_publisher(String, 'rfs_faces_plot_updated', 10)
-
-        # Reset viewer state and initial plot if trajectory exists
-        if self.role == "therapist":
-            self._archive_and_clear_history()
-            
-        # Log active navigation parameters
-        self.get_logger().info(f"[{self.role}] Simulation Parameters: OMEGA_1={self.OMEGA_1}, OMEGA_2={self.OMEGA_2}, OMEGA_3={self.OMEGA_3}, LEARNING_RATE={self.LEARNING_RATE_SCALING}")
 
         self.init_plot()
         self.get_logger().info("RFS Therapist Node Started.")
 
-    def _archive_and_clear_history(self):
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        history_file = os.path.join(DB_DIR, "conversation_history.txt")
-        trajectory_file = os.path.join(DB_DIR, "evaluation_trajectory.json")
-        plot_file = os.path.join(DB_DIR, "evaluation_plot.png")
-        bg_file = os.path.join(DB_DIR, "evaluation_plot_bg.png")
-        csv_file = os.path.join(DB_DIR, "evaluation_history.csv")
-        
-        archive_dir = os.path.join(DB_DIR, "archive", timestamp)
-        
-        # Check if we have anything to archive
-        files_to_archive = [history_file, trajectory_file, plot_file, bg_file, csv_file]
-        inputs_exist = any(os.path.exists(f) for f in files_to_archive)
-        
-        if inputs_exist:
-            os.makedirs(archive_dir, exist_ok=True)
-            self.get_logger().info(f"Archiving previous session to {archive_dir}...")
-            
-            for f in files_to_archive:
-                if os.path.exists(f):
-                    try:
-                        # User requested COPY and save. We copy first, then remove to clear for new session.
-                        shutil.copy2(f, os.path.join(archive_dir, os.path.basename(f)))
-                        os.remove(f)
-                        self.get_logger().info(f"Archived: {os.path.basename(f)}")
-                    except Exception as e:
-                        self.get_logger().error(f"Failed to archive {f}: {e}")
-        else:
-            self.get_logger().info("No previous session files found to archive.")
+    def destroy_node(self):
+        super().destroy_node()
 
     def init_plot(self):
         # Notify viewer to clear state first
@@ -155,7 +125,7 @@ class RFSTherapist(Node):
             ty = last.get("target_y")
             self.generate_plot(x, y, 1.0, 1.0, 1.0, traj, tx=tx, ty=ty)
         else:
-            # Show S0 from initial_coords and make it blink
+            # Show S0 from initial_coords
             s0_x = self.initial_coords.get("x", 8.0)
             s0_y = self.initial_coords.get("y", 8.0)
             self.generate_plot(s0_x, s0_y, 1.0, 1.0, 1.0, [{"target_x": s0_x, "target_y": s0_y}])
@@ -165,12 +135,8 @@ class RFSTherapist(Node):
             if os.path.exists(CONFIG_FILE):
                 with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                     config = json.load(f)
-                    self.OMEGA_1 = config.get("w1", 0.1)
-                    self.OMEGA_2 = config.get("w2", 0.1)
-                    self.OMEGA_3 = config.get("w3", 0.05) # Realigned default
                     self.family_config = config.get("family_config", [])
                     self.initial_coords = config.get("initial_coords", {"x": 8.0, "y": 8.0})
-                    self.LEARNING_RATE_SCALING = config.get("learning_rate_scaling", 0.001) # Realigned default
         except: pass
 
     def _load_faces_tables(self):
@@ -223,15 +189,9 @@ class RFSTherapist(Node):
 
     def trigger_callback(self, msg: String):
         step_id = msg.data
-        if step_id in self.processed_steps:
-            self.get_logger().info(f"Trigger ignored for {step_id} (Already processed).")
-            return
-        # Deduplicate: if evaluation is already pending or in progress for this step
-        if step_id in self.member_results:
-            self.get_logger().info(f"Trigger ignored for {step_id} (Already in progress).")
-            return
+        if step_id in self.processed_steps: return
+        if step_id in self.member_results: return
             
-        self.get_logger().debug(f"Trigger received for {step_id}. Requesting evaluations...")
         self.member_results[step_id] = {}
         self.request_eval_pub.publish(String(data=step_id))
 
@@ -245,136 +205,73 @@ class RFSTherapist(Node):
                 
                 received = len(self.member_results[step_id])
                 total = len(self.family_config)
-                self.get_logger().debug(f"[Therapist] Received FACES IV: {received}/{total}")
                 
                 if received >= total:
                     if step_id not in self.processed_steps:
-                        self.evaluate_aggregated(step_id)
-                        self.processed_steps.add(step_id)
-                    self.complete_pub.publish(String(data=step_id))
+                        # DELEGATE TO EVALUATOR
+                        req = {"step_id": step_id, "results": self.member_results[step_id]}
+                        self.evaluator_req_pub.publish(String(data=json.dumps(req)))
         except Exception as e:
             self.get_logger().error(f"Error in evaluation aggregation: {e}")
 
-    def evaluate_aggregated(self, step_id):
-        aggregated_results = self.member_results.get(step_id, {})
-        ratings = {}
-        for item_id in range(1, 63):
-            item_scores = []
-            for role, results in aggregated_results.items():
-                score = results.get(str(item_id))
-                if isinstance(score, dict): score = score.get("rating")
-                if score is not None: item_scores.append(float(score))
-            ratings[item_id] = sum(item_scores)/len(item_scores) if item_scores else 3.0
+    def evaluator_result_callback(self, msg: String):
+        try:
+            data = json.loads(msg.data)
+            step_id = data.get("step_id")
+            x, y = data.get("x"), data.get("y")
+            tx, ty = data.get("tx"), data.get("ty")
+            pcts = data.get("pcts")
+            coh_ratio = data.get("coh_ratio")
+            flex_ratio = data.get("flex_ratio")
+            tot_ratio = data.get("tot_ratio")
+            mean_ratings = data.get("mean_ratings")
+            target_scores = data.get("target_scores")
             
-        self.calculate_scores(ratings, step_id, aggregated_results)
-
-    def calculate_scores(self, ratings, step_id, aggregated_results):
-        scores = {k: sum(ratings.get(i, 3.0) for i in items) for k, items in self.scales.items()}
-        
-        # Percentile Lookup
-        def get_pct(scale, raw):
-            raw = max(7, min(35, int(raw)))
-            if scale.startswith("Balanced"):
-                table = {
-                    7:16, 8:18, 9:20, 10:22, 11:24, 12:25, 13:26, 14:27, 15:28, 16:30, 17:32,
-                    18:35, 19:36, 20:38, 21:40, 22:45, 23:50, 24:55, 25:58, 26:60, 27:62,
-                    28:65, 29:68, 30:70, 31:75, 32:80, 33:82, 34:84, 35:85
-                }
-                return table.get(raw, 50)
-            else:
-                table = {
-                    7:10, 8:12, 9:13, 10:14, 11:15, 12:16, 13:18, 14:20, 15:24, 16:26,
-                    17:30, 18:32, 19:34, 20:36, 21:40, 22:45, 23:50, 24:55, 25:60, 26:64,
-                    27:68, 28:70, 29:75, 30:80, 31:85, 32:90, 33:95, 34:98, 35:99
-                }
-                return table.get(raw, 30)
-
-        pcts = {k: get_pct(k, v) for k, v in scores.items()}
-        # Communication special
-        comm_raw = max(10, min(50, int(scores["Communication"])))
-        comm_pct_table = {50:99, 40:70, 30:24, 20:10, 10:10} # Interpolated
-        pcts["Communication"] = 10 + (comm_raw-10) * (99-10)/(50-10) # Simple linear interp
-
-        # Ratios
-        unb_coh = (pcts["Disengaged"] + pcts["Enmeshed"]) / 2.0
-        coh_ratio = pcts["Balanced Cohesion"] / unb_coh if unb_coh > 0 else 1.0
-        unb_flex = (pcts["Rigid"] + pcts["Chaotic"]) / 2.0
-        flex_ratio = pcts["Balanced Flexibility"] / unb_flex if unb_flex > 0 else 1.0
-        tot_ratio = (pcts["Balanced Cohesion"] + pcts["Balanced Flexibility"]) / (unb_coh + unb_flex) if (unb_coh + unb_flex) > 0 else 1.0
-
-        # Dimension Scores (formal FACES IV calculation provided by user)
-        # Formula: Balanced + (High_Unbalanced - Low_Unbalanced) / 2
-        coh_dim = pcts["Balanced Cohesion"] + (pcts["Enmeshed"] - pcts["Disengaged"]) / 2.0
-        flex_dim = pcts["Balanced Flexibility"] + (pcts["Chaotic"] - pcts["Rigid"]) / 2.0
-        
-        # Clamp Score: 5 (Score < 5), Score (5 <= Score <= 95), 95 (Score > 95)
-        x = max(5.0, min(95.0, coh_dim))
-        y = max(5.0, min(95.0, flex_dim))
-        self._last_x, self._last_y = x, y
-
-        # Determine Family Type for Debug
-        def get_label(val, labels):
-            if val <= 15: return labels[0]
-            if val <= 35: return labels[1]
-            if val <= 65: return labels[2]
-            if val <= 85: return labels[3]
-            return labels[4]
-        
-        coh_label = get_label(x, ["Disengaged", "Somewhat Connected", "Connected", "Very Connected", "Enmeshed"])
-        flex_label = get_label(y, ["Rigid", "Somewhat Flexible", "Flexible", "Very Flexible", "Chaotic"])
-        
-        family_type = f"{coh_label}-{flex_label}"
-        if coh_label in ["Connected", "Very Connected"] and flex_label in ["Flexible", "Very Flexible"]:
-            balanced_type = "Balanced"
-        elif coh_label in ["Disengaged", "Enmeshed"] or flex_label in ["Rigid", "Chaotic"]:
-            balanced_type = "Unbalanced"
-        else:
-            balanced_type = "Mid-range"
+            self.processed_steps.add(step_id)
             
-        self.get_logger().info(f"[{self.role}] Current Family Type: {family_type} ({balanced_type}) at ({x:.1f}, {y:.1f})")
-        details = self._get_detailed_behavior(x, y)
-        if details:
-            self.get_logger().info(f"[{self.role}] Clinical Behavioral Descriptions:\n{details}")
-        # Gradient Descent for NEXT session target
-        # Decouple: current state x,y is fixed as the outcome of the current turns
-        # new_scores represents the targeted Percentile Scores for next session
-        new_scores = self.calculate_gradient(pcts, x, y)
-        
-        # Target Dimension Scores for NEXT session (RED POINT)
-        # Using pure Gradient Descent outcome from current state
-        tx = new_scores["Balanced Cohesion"] + (new_scores["Enmeshed"] - new_scores["Disengaged"]) / 2.0
-        ty = new_scores["Balanced Flexibility"] + (new_scores["Chaotic"] - new_scores["Rigid"]) / 2.0
-        tx = max(5.0, min(95.0, tx)); ty = max(5.0, min(95.0, ty))
+            # Clinical Labeling Logic
+            def get_label(val, labels):
+                if val <= 15: return labels[0]
+                if val <= 35: return labels[1]
+                if val <= 65: return labels[2]
+                if val <= 85: return labels[3]
+                return labels[4]
+            
+            coh_label = get_label(x, ["Disengaged", "Somewhat Connected", "Connected", "Very Connected", "Enmeshed"])
+            flex_label = get_label(y, ["Rigid", "Somewhat Flexible", "Flexible", "Very Flexible", "Chaotic"])
+            family_type = f"{coh_label}-{flex_label}"
+            
+            self.get_logger().info(f"[{self.role}] Current Family Type: {family_type} at ({x:.1f}, {y:.1f})")
+            details = self._get_detailed_behavior(x, y)
+            if details:
+                self.get_logger().info(f"[{self.role}] Clinical Behavioral Descriptions:\n{details}")
+            
+            self.update_history_with_targets(target_scores, tx, ty)
 
-        self.update_history_with_targets(new_scores, tx, ty)
+            # Trajectory update
+            traj = []
+            if os.path.exists(self.TRAJECTORY_FILE):
+                try:
+                    with open(self.TRAJECTORY_FILE, 'r') as f: traj = json.load(f)
+                except: pass
 
-        # Trajectory
-        traj = []
-        if os.path.exists(self.TRAJECTORY_FILE):
-            try:
-                with open(self.TRAJECTORY_FILE, 'r') as f: traj = json.load(f)
-            except: pass
+            if not traj:
+                traj.append({"step": "S0", "target_x": self.initial_coords.get("x", 8.0), "target_y": self.initial_coords.get("y", 8.0)})
 
-        if not traj:
-            # Initialize with S0 target
-            traj.append({
-                "step": "S0",
-                "target_x": self.initial_coords.get("x", 8.0),
-                "target_y": self.initial_coords.get("y", 8.0)
-            })
-
-        traj.append({
-            "step": step_id, 
-            "result_x": x, "result_y": y,
-            "target_x": tx, "target_y": ty
-        })
-        with open(self.TRAJECTORY_FILE, 'w') as f: json.dump(traj, f)
-        
-        # Phase 14: CSV Logging with Dimension Scores
-        self.log_evaluation_to_csv(step_id, aggregated_results, ratings, pcts, x, y, tx, ty, coh_ratio, flex_ratio, tot_ratio, new_scores)
-
-        self.get_logger().info(f"FACES IV Succeeded: Result({x:.1f}, {y:.1f}), Target({tx:.1f}, {ty:.1f})")
-        self.generate_plot(x, y, coh_ratio, flex_ratio, tot_ratio, traj, tx=tx, ty=ty)
+            traj.append({"step": step_id, "result_x": x, "result_y": y, "target_x": tx, "target_y": ty})
+            with open(self.TRAJECTORY_FILE, 'w') as f: json.dump(traj, f)
+            
+            # Logging
+            self.log_evaluation_to_csv(step_id, self.member_results[step_id], mean_ratings, pcts, x, y, tx, ty, coh_ratio, flex_ratio, tot_ratio, target_scores)
+            
+            self.get_logger().info(f"FACES IV Succeeded: Result({x:.1f}, {y:.1f}), Target({tx:.1f}, {ty:.1f})")
+            self.generate_plot(x, y, coh_ratio, flex_ratio, tot_ratio, traj, tx=tx, ty=ty)
+            
+            # Finalize step
+            self.complete_pub.publish(String(data=step_id))
+            
+        except Exception as e:
+            self.get_logger().error(f"Error processing evaluator results: {e}")
 
     def log_evaluation_to_csv(self, step_id, member_results, mean_ratings, current_pcts, x, y, tx, ty, coh_ratio, flex_ratio, tot_ratio, target_scores):
         csv_file = os.path.join(DB_DIR, "evaluation_history.csv")
@@ -384,32 +281,16 @@ class RFSTherapist(Node):
             with open(csv_file, 'a', encoding='utf-8', newline='') as f:
                 writer = csv.writer(f)
                 if not file_exists:
-                    # Write Header
-                    header = ["Timestamp", "StepID", "Cohesion_Dim", "Flexibility_Dim", "Target_X", "Target_Y", 
-                             "Coh_Ratio", "Flex_Ratio", "Tot_Ratio"]
-                    # Add summaries for target scores
-                    for k in target_scores.keys():
-                        header.append(f"Target_{k}")
-                    # Add JSON blobs for details to keep CSV manageable but complete
+                    header = ["Timestamp", "StepID", "Cohesion_Dim", "Flexibility_Dim", "Target_X", "Target_Y", "Coh_Ratio", "Flex_Ratio", "Tot_Ratio"]
+                    for k in target_scores.keys(): header.append(f"Target_{k}")
                     header.extend(["Member_Raw_Scores_JSON", "Mean_Ratings_JSON"])
                     writer.writerow(header)
                 
-                row = [
-                    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    step_id,
-                    round(x, 2), round(y, 2), round(tx, 2), round(ty, 2),
-                    round(coh_ratio, 2), round(flex_ratio, 2), round(tot_ratio, 2)
-                ]
-                # Target Scores
-                for k in target_scores.keys():
-                    row.append(round(target_scores[k], 2))
-                
-                # Detailed JSON strings
+                row = [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), step_id, round(x, 2), round(y, 2), round(tx, 2), round(ty, 2), round(coh_ratio, 2), round(flex_ratio, 2), round(tot_ratio, 2)]
+                for k in target_scores.keys(): row.append(round(target_scores[k], 2))
                 row.append(json.dumps(member_results, ensure_ascii=False))
                 row.append(json.dumps(mean_ratings, ensure_ascii=False))
-                
                 writer.writerow(row)
-            self.get_logger().info(f"Evaluation results logged to {csv_file}")
         except Exception as e:
             self.get_logger().error(f"Failed to log evaluation to CSV: {e}")
 
@@ -417,105 +298,61 @@ class RFSTherapist(Node):
         try:
             import matplotlib.pyplot as plt
             import matplotlib.patches as patches
-        except ImportError:
-            self.get_logger().error("Matplotlib is required for plotting. Please install it (pip install matplotlib).")
-            return
+        except: return
 
         fig, ax = plt.subplots(figsize=(12, 12))
         fig.subplots_adjust(left=0.15, right=0.82, top=0.92, bottom=0.12)
-        
-        ax.set_xlim(0, 5)
-        ax.set_ylim(0, 5)
+        ax.set_xlim(0, 5); ax.set_ylim(0, 5)
         
         gap = 0.04
         rect_size = 1.0 - gap * 2
         for i in range(5):
             for j in range(5):
-                if (i == 0 and j == 0) or (i == 0 and j == 4) or (i == 4 and j == 0) or (i == 4 and j == 4):
-                    color = '#A9A9A9'
-                elif 1 <= i <= 3 and 1 <= j <= 3:
-                    color = 'white'
-                else:
-                    color = '#D3D3D3'
+                if (i == 0 and j == 0) or (i == 0 and j == 4) or (i == 4 and j == 0) or (i == 4 and j == 4): color = '#A9A9A9'
+                elif 1 <= i <= 3 and 1 <= j <= 3: color = 'white'
+                else: color = '#D3D3D3'
                 rect = patches.Rectangle((i + gap, j + gap), rect_size, rect_size, facecolor=color, edgecolor='black', linewidth=1)
                 ax.add_patch(rect)
 
         labels_x = [(0.5, "Disengaged"), (1.5, "Somewhat\nConnected"), (2.5, "Connected"), (3.5, "Very\nConnected"), (4.5, "Enmeshed")]
-        for pos, text in labels_x:
-            ax.text(pos, -0.15, text, ha='center', va='top', fontsize=10, fontweight='bold')
+        for pos, text in labels_x: ax.text(pos, -0.15, text, ha='center', va='top', fontsize=10, fontweight='bold')
         ax.set_xlabel("COHESION", fontsize=14, fontweight='bold', labelpad=30)
 
         labels_y = [(0.5, "Rigid"), (1.5, "Somewhat\nFlexible"), (2.5, "Flexible"), (3.5, "Very\nFlexible"), (4.5, "Chaotic")]
-        for pos, text in labels_y:
-            ax.text(-0.15, pos, text, ha='right', va='center', rotation=0, fontsize=10, fontweight='bold')
+        for pos, text in labels_y: ax.text(-0.15, pos, text, ha='right', va='center', rotation=0, fontsize=10, fontweight='bold')
         ax.set_ylabel("FLEXIBILITY", fontsize=14, fontweight='bold', labelpad=40)
 
         tick_vals = [0, 8, 15, 16, 25, 35, 36, 50, 65, 66, 75, 85, 86, 95, 100]
         tick_pos = [self.get_visual_coord(v) for v in tick_vals]
-        ax.set_xticks(tick_pos)
-        ax.set_xticklabels([str(v) for v in tick_vals], fontsize=8, rotation=0)
-        ax.set_yticks(tick_pos)
-        ax.set_yticklabels([str(v) for v in tick_vals], fontsize=8)
-
+        ax.set_xticks(tick_pos); ax.set_xticklabels([str(v) for v in tick_vals], fontsize=8); ax.set_yticks(tick_pos); ax.set_yticklabels([str(v) for v in tick_vals], fontsize=8)
         ax.text(0.5, 1.05, "FACES IV Circumplex Model", transform=ax.transAxes, fontsize=16, fontweight='bold', ha='center', va='bottom')
 
-        # Current status label
         if x is not None and y is not None:
             tx_val = tx if tx is not None else 0.0
             ty_val = ty if ty is not None else 0.0
-            label_text = f"Result (Blue): ({x:.1f}, {y:.1f})\nNext Target (Red): ({tx_val:.1f}, {ty_val:.1f})\n"
-            label_text += f"Coh Ratio: {coh_ratio:.2f}\nFlex Ratio: {flex_ratio:.2f}\nTot Ratio: {tot_ratio:.2f}"
-            ax.text(1.05, 0.95, label_text, transform=ax.transAxes, color='black', fontsize=10, fontweight='bold', va='top', ha='left',
-                    bbox=dict(facecolor='white', alpha=0.9, edgecolor='black'))
+            label_text = f"Result (Blue): ({x:.1f}, {y:.1f})\nNext Target (Red): ({tx_val:.1f}, {ty_val:.1f})\nCoh Ratio: {coh_ratio:.2f}\nFlex Ratio: {flex_ratio:.2f}\nTot Ratio: {tot_ratio:.2f}"
+            ax.text(1.05, 0.95, label_text, transform=ax.transAxes, color='black', fontsize=10, fontweight='bold', va='top', ha='left', bbox=dict(facecolor='white', alpha=0.9, edgecolor='black'))
 
-        # Draw Trajectory
         if trajectory:
-            # S0: Initial Target
             s0 = trajectory[0]
-            prev_tx = s0.get("target_x", 8.0)
-            prev_ty = s0.get("target_y", 8.0)
+            prev_tx = s0.get("target_x", 8.0); prev_ty = s0.get("target_y", 8.0)
             v_prev_tx, v_prev_ty = self.get_visual_coord(prev_tx), self.get_visual_coord(prev_ty)
-            
-            # Start with Target (S0) - BLUE as requested by user
-            # We don't plot it here if it's the ONLY point and we want it to blink
-            if len(trajectory) > 1:
-                ax.plot(v_prev_tx, v_prev_ty, 'bo', markersize=8, label='Initial / Result (Blue)', alpha=0.6, zorder=5)
+            if len(trajectory) > 1: ax.plot(v_prev_tx, v_prev_ty, 'bo', markersize=8, alpha=0.6, zorder=5)
 
             for i in range(1, len(trajectory)):
                 step = trajectory[i]
                 rx, ry = step.get("result_x"), step.get("result_y")
                 tax, tay = step.get("target_x"), step.get("target_y")
-                
                 if rx is not None and ry is not None:
                     v_rx, v_ry = self.get_visual_coord(rx), self.get_visual_coord(ry)
-                    
-                    # 1. Connection from Previous Target to Current Result (Dotted)
-                    ax.annotate("", xy=(v_rx, v_ry), xytext=(v_prev_tx, v_prev_ty),
-                                arrowprops=dict(arrowstyle="->", linestyle=':', color='gray', lw=2, alpha=0.6))
-                    
-                    # 2. Plot Result Point (Blue)
-                    # Don't plot if it's the very last thing in the whole trajectory (for blinking)
-                    # But in this structure, Target (tax, tay) is usually the last thing if present.
-                    is_last_marker = (i == len(trajectory) - 1 and (tax is None or tay is None))
-                    if not is_last_marker:
-                        ax.plot(v_rx, v_ry, 'bo', markersize=10, markeredgecolor='black', zorder=7)
-                    
+                    ax.annotate("", xy=(v_rx, v_ry), xytext=(v_prev_tx, v_prev_ty), arrowprops=dict(arrowstyle="->", linestyle=':', color='gray', lw=2, alpha=0.6))
+                    if not (i == len(trajectory) - 1 and (tax is None or tay is None)): ax.plot(v_rx, v_ry, 'bo', markersize=10, markeredgecolor='black', zorder=7)
                     if tax is not None and tay is not None:
                         v_tax, v_tay = self.get_visual_coord(tax), self.get_visual_coord(tay)
-                        
-                        # 3. Connection from Current Result to Next Target (Solid)
-                        ax.annotate("", xy=(v_tax, v_tay), xytext=(v_rx, v_ry),
-                                    arrowprops=dict(arrowstyle="->", color='red', lw=2.5, alpha=0.8))
-                        
-                        # 4. Plot Target Point (Red)
-                        # Don't plot if it's the last thing
-                        if i < len(trajectory) - 1:
-                            ax.plot(v_tax, v_tay, 'ro', markersize=8, markeredgecolor='black', zorder=8)
-                        
+                        ax.annotate("", xy=(v_tax, v_tay), xytext=(v_rx, v_ry), arrowprops=dict(arrowstyle="->", color='red', lw=2.5, alpha=0.8))
+                        if i < len(trajectory) - 1: ax.plot(v_tax, v_tay, 'ro', markersize=8, markeredgecolor='black', zorder=8)
                         v_prev_tx, v_prev_ty = v_tax, v_tay
 
-        # Legend (Custom) - Render BEFORE BG save so it doesn't blink
-        # Add proxy handles for legend since we skipped some dots
         from matplotlib.lines import Line2D
         legend_elements = [
             Line2D([0], [0], marker='o', color='w', label='Result (Blue)', markerfacecolor='b', markersize=10, markeredgecolor='black'),
@@ -525,208 +362,48 @@ class RFSTherapist(Node):
         ]
         ax.legend(handles=legend_elements, loc='lower left', bbox_to_anchor=(1.02, 0))
 
-        # Save BG for blinking (No current point yet)
         bg_save_path = os.path.join(DB_DIR, "evaluation_plot_bg.png")
         plt.savefig(bg_save_path)
-
-        # Now Draw the final (blinking) marker
         if trajectory:
             last_step = trajectory[-1]
-            # Priority: Target if exists, else Result
-            if last_step.get("target_x") is not None and last_step.get("target_y") is not None:
+            if last_step.get("target_x") is not None:
                 v_lx, v_ly = self.get_visual_coord(last_step["target_x"]), self.get_visual_coord(last_step["target_y"])
                 ax.plot(v_lx, v_ly, 'ro', markersize=16, markeredgecolor='black', zorder=10)
-            elif last_step.get("result_x") is not None and last_step.get("result_y") is not None:
+            elif last_step.get("result_x") is not None:
                 v_lx, v_ly = self.get_visual_coord(last_step["result_x"]), self.get_visual_coord(last_step["result_y"])
                 ax.plot(v_lx, v_ly, 'bo', markersize=16, markeredgecolor='black', zorder=10)
-            elif len(trajectory) == 1:
-                # S0 Target only
-                tx0 = last_step.get("target_x", 8.0)
-                ty0 = last_step.get("target_y", 8.0)
-                v_lx, v_ly = self.get_visual_coord(tx0), self.get_visual_coord(ty0)
-                ax.plot(v_lx, v_ly, 'bo', markersize=16, markeredgecolor='black', zorder=10)
-
+        
         save_path = os.path.join(DB_DIR, "evaluation_plot.png")
-        plt.savefig(save_path)
-        plt.close()
-
-        plot_msg = String()
-        plot_msg.data = save_path
-        self.plot_pub.publish(plot_msg)
+        plt.savefig(save_path); plt.close()
+        self.plot_pub.publish(String(data=save_path))
 
     def get_visual_coord(self, score):
-        # Map 0-100 scores to visual coordinates piece-wise linearly
-        # Ensure specific mid-point values (8, 25, 50, 75, 95) align with visual centers (X.5).
-        # Boundaries: [Start, Mid, End] -> [Start+Gap, X.5, End-Gap]
-        
         gap = 0.04
-        
-        # Range definition: (BlockIndex, min_s, mid_s, max_s)
-        ranges = [
-            (0, 0, 8, 15),
-            (1, 16, 25, 35),
-            (2, 36, 50, 65),
-            (3, 66, 75, 85),
-            (4, 86, 95, 100)
-        ]
-        
-        # Find which block the score belongs to
+        ranges = [(0, 0, 8, 15), (1, 16, 25, 35), (2, 36, 50, 65), (3, 66, 75, 85), (4, 86, 95, 100)]
         target_range = None
         for r in ranges:
-            if r[1] <= score <= r[3]:
-                target_range = r
-                break
-        
-        if target_range is None:
-            # Fallback or clamp
-            if score < 0: target_range = ranges[0]
-            else: target_range = ranges[4]
-
+            if r[1] <= score <= r[3]: target_range = r; break
+        if target_range is None: target_range = ranges[0] if score < 0 else ranges[4]
         idx, min_s, mid_s, max_s = target_range
-        
-        # Visual coordinates for this block
-        vis_start = idx + gap
-        vis_mid = idx + 0.5
-        vis_end = idx + 1.0 - gap
-        
+        vis_start, vis_mid, vis_end = idx + gap, idx + 0.5, idx + 1.0 - gap
         if score <= mid_s:
-            # Mapping [min_s, mid_s] -> [vis_start, vis_mid]
-            if mid_s == min_s: return vis_start # Avoid division by zero
-            norm = (score - min_s) / (mid_s - min_s)
-            return vis_start + norm * (vis_mid - vis_start)
+            if mid_s == min_s: return vis_start
+            return vis_start + (score - min_s) / (mid_s - min_s) * (vis_mid - vis_start)
         else:
-            # Mapping [mid_s, max_s] -> [vis_mid, vis_end]
             if max_s == mid_s: return vis_end
-            norm = (score - mid_s) / (max_s - mid_s)
-            return vis_mid + norm * (vis_end - vis_mid)
-
-    def calculate_gradient(self, pcts, x, y):
-        # Extract current values
-        c_bal = pcts["Balanced Cohesion"]
-        f_bal = pcts["Balanced Flexibility"]
-        c_dis = pcts["Disengaged"]
-        c_enm = pcts["Enmeshed"]
-        f_rig = pcts["Rigid"]
-        f_cha = pcts["Chaotic"]
-        comm = pcts["Communication"]
-
-        # Calculate helper variables
-        B = c_bal + f_bal
-        U = c_dis + c_enm + f_rig + f_cha
-
-        # User Request Phase 46: "Treat -35 as 5.0, and >95 as 95.0"
-        # If the raw score implies a value outside the 5-95 range, we Shift the Balanced Score
-        # to reset the baseline to the boundary (5.0 or 95.0) BEFORE calculating gradients.
-        raw_x = c_bal + (c_enm - c_dis) / 2.0
-        raw_y = f_bal + (f_cha - f_rig) / 2.0
-
-        if raw_x < 5.0: c_bal += (5.0 - raw_x)
-        elif raw_x > 95.0: c_bal += (95.0 - raw_x)
-
-        if raw_y < 5.0: f_bal += (5.0 - raw_y)
-        elif raw_y > 95.0: f_bal += (95.0 - raw_y)
-        
-        # Recalculate helper variables with SHIFTED values
-        B = c_bal + f_bal
-        U = c_dis + c_enm + f_rig + f_cha
-        
-        # Learning rate eta (Ultra-slow progression for research fidelity)
-        eta = self.LEARNING_RATE_SCALING * 1.0
-
-        
-        # Calculate gradients 
-        # Objective J = w1*(U/2B) - w2*Comm + w3*0.5*((x-50)^2 + (y-50)^2)
-        # Update gradients to use independent weights for Cohesion (w1) and Flexibility (w2)
-        # grad_bal_prefix_coh = - (w1 * U_coh) / ... but strictly we separate the Penalty term
-        # Approximation: Apply w1 to Cohesion imbalance (Dis+Enm) and w2 to Flex imbalance (Rig+Cha)
-        
-        # Current U is sum of all. Let's split.
-        U_coh = c_dis + c_enm
-        U_flex = f_rig + f_cha
-        
-        # Gradients for Balanced Scales (Driving FORCE to increase Balance)
-        # Component from w1 (acting on Cohesion Imbalance) -> Increases Balanced Cohesion
-        grad_c_bal_prefix = - (self.OMEGA_1 * U_coh) / (2.0 * max(1.0, c_bal**2)) # Avoiding div/0 or huge spikes
-        grad_c_bal = grad_c_bal_prefix + self.OMEGA_3 * (x - 50.0)
-
-        # Component from w2 (acting on Flexibility Imbalance) -> Increases Balanced Flexibility
-        grad_f_bal_prefix = - (self.OMEGA_2 * U_flex) / (2.0 * max(1.0, f_bal**2))
-        grad_f_bal = grad_f_bal_prefix + self.OMEGA_3 * (y - 50.0)
-        
-        # Gradients for Unbalanced Scales (Driving FORCE to decrease Imbalance)
-        grad_c_unbal_prefix = self.OMEGA_1 / (2.0 * max(1.0, c_bal))
-        grad_f_unbal_prefix = self.OMEGA_2 / (2.0 * max(1.0, f_bal))
-
-        # grad_high_unbal -> (1/2), grad_low_unbal -> (-1/2) matching formula derivatives
-        grad_c_enm = grad_c_unbal_prefix + (self.OMEGA_3 / 2.0) * (x - 50.0)
-        grad_c_dis = grad_c_unbal_prefix - (self.OMEGA_3 / 2.0) * (x - 50.0)
-        grad_f_cha = grad_f_unbal_prefix + (self.OMEGA_3 / 2.0) * (y - 50.0)
-        grad_f_rig = grad_f_unbal_prefix - (self.OMEGA_3 / 2.0) * (y - 50.0)
-
-        self.get_logger().info(f"Gradients: C_Bal={grad_c_bal:.2f}, C_Dis={grad_c_dis:.2f} | F_Bal={grad_f_bal:.2f}, F_Cha={grad_f_cha:.2f}")
-        
-        grad_comm = - self.OMEGA_2
-        
-        # Update amounts
-        delta_c_bal = - eta * grad_c_bal
-        delta_f_bal = - eta * grad_f_bal
-        delta_c_dis = - eta * grad_c_dis
-        delta_c_enm = - eta * grad_c_enm
-        delta_f_rig = - eta * grad_f_rig
-        delta_f_cha = - eta * grad_f_cha
-        delta_comm = - eta * grad_comm
-
-        # Adjacency constraint
-        def get_cell_idx(v):
-            if v <= 15: return 0
-            if v <= 35: return 1
-            if v <= 65: return 2
-            if v <= 85: return 3
-            return 4
-        
-        next_x_raw = (c_bal + delta_c_bal) + ((c_enm + delta_c_enm) - (c_dis + delta_c_dis)) / 2.0
-        next_y_raw = (f_bal + delta_f_bal) + ((f_cha + delta_f_cha) - (f_rig + delta_f_rig)) / 2.0
-        
-        curr_i, curr_j = get_cell_idx(x), get_cell_idx(y)
-        ranges = [(0, 15), (16, 35), (36, 65), (66, 85), (86, 100)]
-        low_x, high_x = ranges[max(0, curr_i - 1)][0], ranges[min(4, curr_i + 1)][1]
-        low_y, high_y = ranges[max(0, curr_j - 1)][0], ranges[min(4, curr_j + 1)][1]
-        
-        alpha = 1.0
-        dx, dy = next_x_raw - x, next_y_raw - y
-        if dx != 0:
-            if x + dx > high_x: alpha = min(alpha, (high_x - x) / dx)
-            if x + dx < low_x:  alpha = min(alpha, (low_x - x) / dx)
-        if dy != 0:
-            if y + dy > high_y: alpha = min(alpha, (high_y - y) / dy)
-            if y + dy < low_y:  alpha = min(alpha, (low_y - y) / dy)
-            
-        if alpha < 1.0:
-            delta_c_bal *= alpha; delta_f_bal *= alpha; delta_c_dis *= alpha
-            delta_c_enm *= alpha; delta_f_rig *= alpha; delta_f_cha *= alpha; delta_comm *= alpha
-
-        new_scores = {
-            "Balanced Cohesion": max(5.0, min(99.0, c_bal + delta_c_bal)),
-            "Balanced Flexibility": max(5.0, min(99.0, f_bal + delta_f_bal)),
-            "Disengaged": max(5.0, min(99.0, c_dis + delta_c_dis)),
-            "Enmeshed": max(5.0, min(99.0, c_enm + delta_c_enm)),
-            "Rigid": max(5.0, min(99.0, f_rig + delta_f_rig)),
-            "Chaotic": max(5.0, min(99.0, f_cha + delta_f_cha)),
-            "Communication": max(5.0, min(99.0, comm + delta_comm))
-        }
-
-        return new_scores
+            return vis_mid + (score - mid_s) / (max_s - mid_s) * (vis_end - vis_mid)
 
     def update_history_with_targets(self, scores, tx, ty):
-        # Already calculated in calculate_scores with steering boost
-        
         update = f"\n[THERAPIST_STALL_SESSION_ANALYSIS]\n"
-        update += f"Current Result Position: ({self._last_x:.1f}, {self._last_y:.1f})\n" if hasattr(self, '_last_x') else ""
         update += f"Determined Therapeutic Target for Next Session: ({tx:.1f}, {ty:.1f})\n"
         update += "Targeted FACES IV Percentile Scores (Steering towards center):\n"
         for k, v in scores.items(): update += f"- {k}: {int(v)}\n"
         update += "(Strategic Objective: Aggressively maneuver family towards the 'Balanced' zone (50, 50))\n"
-        with open(HISTORY_FILE, "a", encoding="utf-8") as f: f.write(update)
+        with open(HISTORY_FILE, "a", encoding="utf-8") as f:
+            f.write(update)
+            f.flush()
+            try: os.fsync(f.fileno())
+            except: pass
 
     def family_actions_callback(self, msg: String): pass
     def user_intervention_callback(self, msg: String): pass
@@ -734,9 +411,16 @@ class RFSTherapist(Node):
 def main():
     rclpy.init()
     node = RFSTherapist()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt received, initiating shutdown...")
+    except Exception as e:
+        print(f"Unexpected error in spin: {e}")
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

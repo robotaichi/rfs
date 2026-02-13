@@ -20,7 +20,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'rfs_therapist = rfs_therapist.rfs_therapist:main'
+            'rfs_therapist = rfs_therapist.rfs_therapist:main',
+            'rfs_evaluator = rfs_therapist.rfs_evaluator:main',
+            'rfs_optimizer = rfs_therapist.rfs_optimizer:main'
         ],
     },
 )

@@ -64,6 +64,19 @@ pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py P
    source install/setup.bash
    ```
 
+### Data Persistence & Archival
+
+RFS includes a robust archival system to ensure all session data (conversation history, evaluation plots, and trajectories) is preserved.
+
+- **Centralized Management**: Archival is managed by the launch script (`rfs_all.launch.py`).
+- **Shutdown Archival**: When you terminate the simulation (Ctrl+C), all current session files are automatically moved to a timestamped folder in `src/rfs_database/archive/YYYYMMDD_HHMMSS/`.
+- **Startup Cleanup**: If any leftover data from a previous session is found upon startup, it is automatically archived before the new session begins, preventing data loss even after unexpected crashes.
+- **Archived Files**:
+    - `conversation_history.txt`: Full dialogue log.
+    - `evaluation_plot.png`: FACES IV Circumplex plot.
+    - `evaluation_trajectory.json`: Step-by-step psychological trajectory.
+    - `evaluation_history.csv`: Quantitative evaluation data.
+
 ### Bluetooth Speaker & Toio Mapping (Optional)
 
 If you plan to place speakers on top of [toio™](https://toio.io/) robots for physical movement, you must correctly map each toio™ cube to its corresponding Bluetooth speaker. This system is designed for small Bluetooth speakers like the [ELUT EMBS-HFSASBK](https://www.amazon.co.jp/ELUT-%E3%83%8F%E3%83%B3%E3%82%BA%E3%83%95%E3%83%AA%E3%83%BC%E3%83%BB%E3%82%B9%E3%83%9E%E3%83%BC%E3%83%88%E3%82%A2%E3%82%B7%E3%82%B9%E3%83%88%E3%82%B9%E3%83%94%E3%83%BC%E3%82%AB%E3%83%BC-%E3%83%96%E3%83%A9%E3%83%83%E3%82%AF-EMBS-HFSASBK-%EF%BC%BBBluetooth%E5%AF%BE%E5%BF%9C%EF%BC%BD/dp/B08CDQCWV8).

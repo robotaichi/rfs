@@ -1,1 +1,0 @@
-S0_T1,daughter,father,conversation,クリスマスも勝手に祝えば？私は忙しいの。,Leda,Leda,Normal,Expressing disengaged and inflexible traits by dismissing Christmas celebration plans.,1.5
