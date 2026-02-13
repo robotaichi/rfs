@@ -68,7 +68,7 @@ pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py P
 
 RFSには、すべてのセッションデータ（会話履歴、評価プロット、軌跡データ）を確実に保存するための堅牢なアーカイブシステムが備わっています。
 
-- ** centralized管理**: アーカイブ処理はローンチファイル (`rfs_all.launch.py`) によって一括管理されます。
+- **一元管理 (Centralized Management)**: アーカイブ処理はローンチファイル (`rfs_all.launch.py`) によって一括管理されます。
 - **終了時アーカイブ**: シミュレーションを終了（Ctrl+C）すると、現在のセッションファイルが自動的に `src/rfs_database/archive/YYYYMMDD_HHMMSS/` 形式のタイムスタンプ付きフォルダに移動されます。
 - **起動時クリーンアップ**: 予期せぬクラッシュなどで前回のセッションデータが残っていた場合、新しいセッションを開始する前にそれらを自動的にアーカイブし、データの消失を防ぎます。
 - **アーカイブされるファイル**:
