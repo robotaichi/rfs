@@ -96,6 +96,8 @@ docker compose up --build
 
 Open **http://localhost:6080/vnc.html** in your browser, click **"Connect"**, and you'll see the XFCE desktop environment.
 
+![RFS running in Docker via noVNC](docs/images/rfs_docker.png)
+
 **4. Launch RFS**
 - Double-click the **"RFS Launch"** icon on the desktop
 - Or open a terminal and run:

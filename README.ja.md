@@ -96,6 +96,8 @@ docker compose up --build
 
 ブラウザで **http://localhost:6080/vnc.html** を開き、**「接続」** ボタンをクリックすると、XFCEデスクトップが表示されます。
 
+![Docker上でnoVNC経由で動作するRFS](docs/images/rfs_docker.png)
+
 **4. RFSの起動**
 - デスクトップの **「RFS Launch」** アイコンをダブルクリック
 - または、ターミナルを開いて以下を実行:
