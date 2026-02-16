@@ -40,7 +40,7 @@ else
     echo "[entrypoint] No host PulseAudio — starting internal PulseAudio + audio bridge..."
     pulseaudio --start --exit-idle-time=-1 2>/dev/null || true
     sleep 1
-    # Start audio bridge for browser-based audio (TTS/STT on Windows/Mac)
+    # Start audio bridge WebSocket server (TTS/STT via browser)
     python3 /home/ubuntu/rfs/docker/audio_bridge.py &
     AUDIO_BRIDGE_PID=$!
     echo "[entrypoint] Audio bridge started (PID: $AUDIO_BRIDGE_PID)"
@@ -75,9 +75,9 @@ echo ""
 echo "============================================="
 echo "  ✅ RFS is ready!"
 echo ""
-echo "  🌐 Desktop:  http://localhost:${NOVNC_PORT}/vnc.html"
+echo "  🌐 Open in browser: http://localhost:${NOVNC_PORT}/vnc.html"
 if [ -z "${PULSE_SERVER:-}" ]; then
-    echo "  🔊 Audio:    http://localhost:6083"
+    echo "  🔊 Audio bridge: enabled (click 🔇 icon in VNC page)"
 fi
 echo ""
 echo "  📋 To launch RFS:"

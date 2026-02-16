@@ -1,0 +1,91 @@
+S0_T1,daughter,father,conversation,ツリーの下にプレゼント置いてもさ、あの頃の穴は埋まらないから。期待してないし。,Leda,Leda,Normal,"She dismisses the symbolic family gesture and emphasizes emotional distance, maintaining disengaged cohesion and rigid stance.",0.5
+S0_T2,father,daughter,conversation,期待してないなら、最初から何も受け取るな。俺は俺のやり方でやる、それだけだ。,Achird,Achird,Normal,"He responds rigidly and authoritatively, rejecting her emotional statement and emphasizing individual decision-making and emotional separateness.",0.5
+S0_T3,daughter,father,conversation,別に受け取らないよ。あなたのやり方に付き合う気もないし、私は私で過ごすから。,Leda,Leda,Normal,"She reinforces emotional distance and individual decision-making, rejecting involvement while maintaining a rigid, disengaged stance.",0.5
+S0_T4,father,daughter,conversation,好きにしろ。俺も静かに飲んでるほうが性に合ってる、お前と無理に同じ部屋にいる必要もない。,Achird,Achird,Normal,"He reinforces emotional distance and individual space, asserting separateness while maintaining authoritarian detachment and low cohesion.",0.5
+S0_T5,daughter,father,conversation,じゃあそうすれば。私は上で一人で食べるから、わざわざ顔合わせなくていいでしょ。,Leda,Leda,Normal,"She reinforces emotional and physical separation, choosing to spend the holiday meal alone while maintaining rigid boundaries and detached cohesion.",0.5
+S0_T6,father,daughter,conversation,勝手にしろ。下は下で静かにやる、わざわざお前の機嫌に付き合う気はない。,Achird,Achird,Normal,"He reinforces emotional and physical separation, asserting independent space and dismissing her choice with authoritarian detachment, maintaining disengaged cohesion and rigid stance.",0.5
+S0_T7,daughter,father,conversation,別にあなたの静かな夜を邪魔する気ないし。私も上で電気つけて、ひとりで済ませるから。,Leda,Leda,Normal,"She maintains emotional and physical separation, reinforcing individual space and rejecting shared holiday time while keeping a controlled, detached tone.",0.5
+S0_T8,father,daughter,conversation,好きに明るくしてろ。ただ、俺の時間に口出すなよ。,Achird,Achird,Normal,"He reinforces emotional and physical separation, asserting individual space and authoritarian boundaries while maintaining low cohesion and rigid stance.",0.5
+S0_T9,daughter,father,conversation,口出しなんてしないよ。そっちこそ、酔って昔みたいに絡んでこないで。,Leda,Leda,Normal,"She asserts emotional and physical boundaries while referencing past negative behavior, maintaining disengaged cohesion and rigid stance.",0.5
+S0_T10,father,daughter,conversation,絡んだ覚えはない。昔の話を盾にして俺を決めつけるな、俺は俺の夜を過ごすだけだ。,Achird,Achird,Normal,"He denies wrongdoing, rejects her framing, and reasserts individual autonomy with rigid, authoritarian tone while maintaining emotional distance.",0.5
+
+[THERAPIST_STALL_SESSION_ANALYSIS]
+Determined Therapeutic Target for Next Session: (17.2, 17.2)
+Targeted FACES IV Percentile Scores (Steering towards center):
+- Balanced Cohesion: 55
+- Balanced Flexibility: 40
+- Disengaged: 90
+- Enmeshed: 14
+- Rigid: 65
+- Chaotic: 20
+- Communication: 16
+(Strategic Objective: Aggressively maneuver family towards the 'Balanced' zone (50, 50))
+S1_T11,daughter,father,conversation,決めつけたいわけじゃないよ。ただ、今夜くらいは静かにしてほしいだけ。私も、穏やかに食べたいし。,Leda,Leda,Normal,"She slightly softens her stance, expressing a personal need for calm while maintaining emotional distance and referencing the holiday dinner context. Some openness appears, but guarded.",0.5
+S1_T12,father,daughter,conversation,…わかったよ。騒ぐ気はない。ただ、俺だって少しくらい普通に過ごしたいだけだ。,Achird,Achird,Normal,"He shows slight willingness to respect her request for calm, but asserts his own needs and maintains emotional separateness with a guarded tone.",0.5
+S1_T13,daughter,father,conversation,普通って何かは知らないけど、荒れないならそれでいいよ。私も今日は余計なこと言わないようにするから。,Leda,Leda,Normal,"She cautiously accepts his statement while subtly implying past volatility, expressing conditional cooperation and restrained openness without fully trusting him.",0.5
+S1_T14,father,daughter,conversation,余計なことって言うがな、お前の一言一言が刺さる時もあるんだよ。今日は…俺も噛みつかないようにする。,Achird,Achird,Normal,"He admits being hurt, shows slight self-disclosure and willingness to regulate behavior, but maintains guarded tone and subtle blame, reflecting somewhat connected yet still defensive stance.",0.5
+S1_T15,daughter,father,conversation,刺さるって言われても、私だって平気じゃないよ。でも今日は…静かに食べられれば、それでいい。,Leda,Leda,Normal,"She acknowledges mutual hurt with limited self-disclosure while maintaining emotional distance and prioritizing a calm dinner, reflecting somewhat connected but guarded stance.",0.5
+S1_T16,father,daughter,conversation,わかった、落ち着いて食えばいいだろ。たださ…俺を爆弾みたいに扱うのはやめてくれ。ここは俺の家でもある。,Achird,Achird,Normal,"He agrees to a calm dinner, showing some flexibility, but reveals lingering hurt and defensiveness about being treated as volatile, maintaining emotional separateness.",0.5
+S1_T17,daughter,father,conversation,消そうとしてるわけじゃないよ。ただ、急に空気が変わるのが怖いだけ。今日はそれがなければいい。,Leda,Leda,Normal,"She clarifies she is not trying to erase him, reveals vulnerability about unpredictability, and sets a conditional hope for calm while maintaining guarded emotional distance.",0.5
+S1_T18,father,daughter,conversation,急に荒れたりはしない。俺ももう若くないし…ちゃんと自分で抑えるつもりだ、だから怯えた目で見るな。,Achird,Achird,Normal,"He reassures her while defensively asking not to be viewed as volatile, showing some self-regulation but lingering hurt and pride.",0.5
+S1_T19,daughter,father,conversation,怯えてるつもりはないよ。ただ…急に声が大きくなると体が勝手に固まるだけ。今日は穏やかなら、それでいいから。,Leda,Leda,Normal,"She clarifies her reaction as conditioned fear rather than accusation, showing limited vulnerability while maintaining emotional distance and a conditional desire for calm.",0.5
+S1_T20,father,daughter,conversation,声が上がったら…自分で外に出る。お前の体が固まるほどのことは、もうしない。,Achird,Achird,Normal,"He offers a concrete self-regulation step while acknowledging her fear response, showing some empathy but maintaining personal autonomy and controlled tone.",0.5
+
+[THERAPIST_STALL_SESSION_ANALYSIS]
+Determined Therapeutic Target for Next Session: (20.4, 31.8)
+Targeted FACES IV Percentile Scores (Steering towards center):
+- Balanced Cohesion: 35
+- Balanced Flexibility: 39
+- Disengaged: 46
+- Enmeshed: 16
+- Rigid: 47
+- Chaotic: 32
+- Communication: 34
+(Strategic Objective: Aggressively maneuver family towards the 'Balanced' zone (50, 50))
+S2_T21,daughter,father,conversation,外に出るとか大げさにしなくていいよ。ただ、普通の声でいてくれればそれでいいの。ごちそうも冷めるし。,Leda,Leda,Normal,"She downplays his dramatic self-regulation plan, asks for simple consistency, and ties it to the dinner context while maintaining guarded but somewhat connected tone.",0.5
+S2_T22,father,daughter,conversation,大げさに聞こえたなら悪かったよ。普通に食う、それだけだ…皿の音よりでかい声は出さない。,Achird,Achird,Normal,"He slightly apologizes while maintaining pride, agrees to regulate his voice, and references dinner sounds to stay grounded in the situation. Some connection but still guarded.",0.5
+S2_T23,daughter,father,conversation,皿の音より小さい声って、そんな比べ方しなくていいから。普通に、落ち着いてくれればそれで十分。,Leda,Leda,Normal,"She reacts to his metaphor, gently rejecting the dramatic framing while expressing a simple need for calm; somewhat connected but guarded.",0.5
+S2_T24,father,daughter,conversation,いちいち言い回しまで直すなよ。黙って食ってりゃ、それで済む話だろ。,Achird,Achird,Normal,"He feels mildly criticized for his phrasing, responds defensively but keeps the focus on simply eating quietly, maintaining separateness with controlled irritation.",0.5
+S2_T25,daughter,father,conversation,言い回し責めてるんじゃない、そういう返し方されると身構えるだけ。温かいうちに食べたいだけ。,Leda,Leda,Normal,"She clarifies intent while expressing her emotional trigger, maintaining guarded self-disclosure and keeping focus on the dinner context without escalating.",0.5
+S2_T26,father,daughter,conversation,身構えさせたいわけじゃない。そんなつもりはないんだ…ただ、いちいち怯えられると俺も落ち着かなくなる。,Achird,Achird,Normal,"He clarifies intent while expressing his own discomfort at being feared, showing partial self-disclosure but maintaining defensiveness and emotional distance.",0.5
+S2_T27,daughter,father,conversation,怖がってるって決めつけないでよ。落ち着いて座ってられれば、それで十分なんだから。,Leda,Leda,Normal,"She resists being labeled as fearful, asserts her need for emotional steadiness, and maintains guarded but somewhat connected stance without escalating conflict.",0.5
+S2_T28,father,daughter,conversation,決めつけてるつもりはない。ただ…こっちも責められてる気がすると、肩に力が入るんだ。飯くらい、普通に向き合おう。,Achird,Achird,Normal,"He denies labeling her, admits his own tension when feeling accused, and suggests calmly facing the meal together, showing partial self-disclosure but guarded defensiveness.",0.5
+S2_T29,daughter,father,conversation,向き合うって言われると構えるけど…ただ同じテーブルに座って、静かに食べられればそれでいい。ツリーの明かりもついてるし。,Leda,Leda,Normal,"She reacts to his phrasing with guarded vulnerability, clarifies her modest expectation of simply sharing the table peacefully, and references the holiday setting indirectly while maintaining emotional distance.",0.5
+S2_T30,father,daughter,conversation,構えるなって言われても難しいかもしれんが…俺も逃げる気はない。同じテーブルで、黙って食えばいいんだろ。,Achird,Achird,Normal,"He responds to her guarded phrasing by acknowledging difficulty, expressing tentative commitment to stay at the table, maintaining emotional distance but signaling willingness to share space.",0.5
+
+[THERAPIST_STALL_SESSION_ANALYSIS]
+Determined Therapeutic Target for Next Session: (21.2, 20.8)
+Targeted FACES IV Percentile Scores (Steering towards center):
+- Balanced Cohesion: 35
+- Balanced Flexibility: 39
+- Disengaged: 46
+- Enmeshed: 18
+- Rigid: 60
+- Chaotic: 23
+- Communication: 30
+(Strategic Objective: Aggressively maneuver family towards the 'Balanced' zone (50, 50))
+S3_T31,daughter,father,conversation,逃げなくていいよ。ただ変に意気込まないで、いつも通り座っててくれればそれでいい。,Leda,Leda,Normal,"She softens slightly by telling him he doesn’t need to flee, asks for normalcy without dramatizing, maintaining guarded distance but allowing shared space.",0.5
+S3_T32,father,daughter,conversation,指図されなくても分かってる。今日は余計なことしない、ただ飯を口に運ぶだけだ。,Achird,Achird,Normal,"He reacts defensively to feeling managed, asserts autonomy, but agrees to keep behavior steady and contained during dinner, maintaining somewhat connected yet guarded stance.",0.5
+S3_T33,daughter,father,conversation,管理してるつもりはないよ。ただ…向かいに座って、普通に食べられたらそれでいいの。,Leda,Leda,Normal,"She denies trying to control him, softens slightly, and clarifies her modest expectation of calmly sharing the table, maintaining guarded but somewhat connected stance.",0.5
+S3_T34,father,daughter,conversation,分かってる。向かいに座る、それだけだ…余計な駆け引きはしない。,Achird,Achird,Normal,"He agrees to sit together, signals restraint, maintains guarded tone and subtle control while avoiding repetition and keeping emotional distance.",0.5
+S3_T35,daughter,father,conversation,駆け引きなんて最初からしてないよ。ただ、目の前の料理ちゃんと味わえたらそれでいい。変に張り合わなくていいから。,Leda,Leda,Normal,"She denies manipulation, emphasizes simple shared activity (eating), and subtly asks him to drop competitiveness. Guarded but somewhat connected, maintaining separateness with mild vulnerability.",0.5
+S3_T36,father,daughter,conversation,張り合ってるつもりはない。ただな、向かいに座るだけで試されてる気がするんだよ。そんな顔で見られるとさ。,Achird,Achird,Normal,"He denies competitiveness but reveals insecurity and perceived judgment, showing partial self-disclosure while maintaining defensiveness and emotional distance.",0.5
+S3_T37,daughter,father,conversation,試してるつもりないよ。ただ、こっちも構えちゃうだけ。料理の湯気くらい、普通に見てたいのに。,Leda,Leda,Normal,"She denies judging him, admits her own guarded reaction, and brings focus back to the shared meal, maintaining emotional distance but some vulnerability.",0.5
+S3_T38,father,daughter,conversation,湯気くらい静かに見ればいいだろ。そんなに警戒しなくても、俺は皿ひっくり返したりしない。,Achird,Achird,Normal,"He reacts to her wish for a calm moment by agreeing in principle but defensively referencing past volatility, signaling lingering hurt and guarded reassurance while staying brief.",0.5
+S3_T39,daughter,father,conversation,そういう例え出る時点で、こっちは力抜けないの。普通に座って、普通に食べたいだけ。,Leda,Leda,Normal,"She reacts to his defensive metaphor, pointing out that even mentioning past volatility keeps her guarded, while restating her modest desire for a calm shared meal.",0.5
+S3_T40,father,daughter,conversation,いちいち揚げ足取られると、こっちも身構えるんだよ。だが今日は…皿に当たることはしない、それで十分だろ。,Achird,Achird,Normal,"He reacts defensively to feeling criticized for his wording, expresses his own tension, but reaffirms controlled behavior in a restrained, somewhat connected yet guarded manner.",0.5
+
+[THERAPIST_STALL_SESSION_ANALYSIS]
+Determined Therapeutic Target for Next Session: (17.2, 24.5)
+Targeted FACES IV Percentile Scores (Steering towards center):
+- Balanced Cohesion: 38
+- Balanced Flexibility: 38
+- Disengaged: 59
+- Enmeshed: 18
+- Rigid: 60
+- Chaotic: 33
+- Communication: 25
+(Strategic Objective: Aggressively maneuver family towards the 'Balanced' zone (50, 50))
+S4_T41,daughter,father,conversation,揚げ足なんて取ってない。ただ、普通の夕飯みたいに過ごしたいだけなの。いちいち戦わなくていいでしょ。,Leda,Leda,Normal,"She denies attacking him, expresses desire for ordinary shared dinner without conflict, shows some openness but maintains guarded tone and mild accusation, preserving separateness.",0.5
+S4_T42,father,daughter,conversation,戦ってるつもりはない。ただな、普通って言葉を突きつけられると、俺が異常みたいに聞こえるんだよ。,Achird,Achird,Normal,"He reacts defensively to her framing of conflict, expresses personal hurt about being implied as abnormal, maintains separateness but shows some self-disclosure.",0.5
+S4_T43,daughter,father,conversation,異常なんて思ってないよ。ただ…身構えなくて済む夜にしたいだけ。そんなに難しいこと言ってる？,Leda,Leda,Normal,"She clarifies she is not labeling him as abnormal, expresses desire for emotional safety, but keeps a guarded tone with mild challenge, maintaining partial connection and separateness.",0.5

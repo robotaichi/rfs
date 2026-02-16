@@ -82,7 +82,7 @@ docker compose up --build
 
 **4. 音声の有効化（Windows/Mac のみ）**
 
-別のブラウザタブで **http://localhost:6083** を開き、**「🔊 Connect Audio」** をクリックします。RFS使用中はこのタブを開いたままにしてください。DockerコンテナとブラウザでTTS/STTの音声をやり取りします。
+VNCデスクトップに接続後、右下の **🔇** ボタンをクリックし、**「🔊 Connect」** を押してください。DockerコンテナとブラウザでTTS/STTの音声ストリーミングが有効になります。
 
 > [!NOTE]
 > Linuxの場合は、ネイティブオーディオパススルーを使用できます：
@@ -116,7 +116,6 @@ docker compose down
 | 設定項目 | 詳細 |
 | :--- | :--- |
 | **ブラウザアクセス** | `http://localhost:6080/vnc.html` |
-| **オーディオブリッジ** | `http://localhost:6083` (Windows/Mac) |
 | **解像度変更** | `.env` の `VNC_RESOLUTION` を変更（デフォルト: `1920x1080`） |
 | **VNCパスワード設定** | `.env` の `VNC_PASSWORD` を設定 |
 | **セッションデータ** | Docker Volume `rfs-session-data` に自動保存 |

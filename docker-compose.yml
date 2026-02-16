@@ -14,7 +14,6 @@ services:
     ports:
       - "6080:6080"       # noVNC (browser access)
       - "6082:6082"       # Audio bridge WebSocket
-      - "6083:6083"       # Audio bridge control page
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}

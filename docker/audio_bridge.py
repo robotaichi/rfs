@@ -11,14 +11,10 @@ Audio Input (Browser → STT):
 """
 
 import asyncio
-import http.server
 import json
 import os
-import signal
 import subprocess
 import sys
-import threading
-from pathlib import Path
 
 try:
     import websockets
@@ -29,12 +25,9 @@ except ImportError:
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 WS_PORT = 6082
-HTTP_PORT = 6083
 SAMPLE_RATE = 24000
 CHANNELS = 1
 FRAME_SIZE = 4800  # 200ms of 24kHz mono s16le = 4800 samples * 2 bytes
-
-HTML_FILE = Path(__file__).parent / "audio_client.html"
 
 # ── Globals ───────────────────────────────────────────────────────────────────
 output_clients: set = set()       # Clients receiving TTS audio
@@ -167,35 +160,9 @@ async def handle_client(websocket):
         print(f"[audio_bridge] Client disconnected: {client_addr}")
 
 
-# ── HTTP Server for audio_client.html ─────────────────────────────────────────
-def start_http_server():
-    """Serve audio_client.html on HTTP_PORT."""
-    class Handler(http.server.SimpleHTTPRequestHandler):
-        def do_GET(self):
-            if self.path in ("/", "/index.html", "/audio.html"):
-                self.send_response(200)
-                self.send_header("Content-Type", "text/html; charset=utf-8")
-                self.end_headers()
-                self.wfile.write(HTML_FILE.read_bytes())
-            else:
-                self.send_response(404)
-                self.end_headers()
-
-        def log_message(self, format, *args):
-            pass  # Suppress HTTP logs
-
-    server = http.server.HTTPServer(("0.0.0.0", HTTP_PORT), Handler)
-    print(f"[audio_bridge] Audio control page: http://localhost:{HTTP_PORT}")
-    server.serve_forever()
-
-
 # ── Main ──────────────────────────────────────────────────────────────────────
 async def main():
     setup_pulseaudio_virtual_devices()
-
-    # Start HTTP server in background thread
-    http_thread = threading.Thread(target=start_http_server, daemon=True)
-    http_thread.start()
 
     # Start WebSocket server
     print(f"[audio_bridge] WebSocket server starting on port {WS_PORT}...")

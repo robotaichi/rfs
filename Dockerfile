@@ -83,6 +83,10 @@ RUN id -u ubuntu &>/dev/null || useradd -m -s /bin/bash ubuntu \
     && usermod -aG sudo ubuntu \
     && echo "ubuntu ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
+# ─── Audio overlay for noVNC (inject while still root) ───────────────────────
+COPY docker/audio_overlay.js /usr/share/novnc/audio_overlay.js
+RUN sed -i 's|</body>|<script defer src="audio_overlay.js"></script></body>|' /usr/share/novnc/vnc.html
+
 USER ubuntu
 WORKDIR /home/ubuntu
 

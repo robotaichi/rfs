@@ -116,7 +116,6 @@ docker compose down
 | Setting | Details |
 | :--- | :--- |
 | **Browser Access** | `http://localhost:6080/vnc.html` |
-| **Audio Bridge** | `http://localhost:6083` (Windows/Mac) |
 | **Change Resolution** | Modify `VNC_RESOLUTION` in `.env` (Default: `1920x1080`) |
 | **Set VNC Password** | Set `VNC_PASSWORD` in `.env` |
 | **Session Data** | Auto-saved to Docker Volume `rfs-session-data` |
