@@ -110,7 +110,7 @@ Open **http://localhost:6080/vnc.html** in your browser, click **"Connect"**, an
 docker compose down
 ```
 
-**Common Commands**
+**📌 Common Commands**
 
 | Action | Command |
 | :--- | :--- |
@@ -128,7 +128,7 @@ docker compose down
 | **Set VNC Password** | Set `VNC_PASSWORD` in `.env` |
 | **Session Data** | Auto-saved to Docker Volume `rfs-session-data` |
 
-**Troubleshooting**
+**🔧 Troubleshooting**
 
 | Issue | Cause | Solution |
 | :--- | :--- | :--- |

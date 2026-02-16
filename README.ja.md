@@ -110,7 +110,7 @@ docker compose up --build
 docker compose down
 ```
 
-**よく使うコマンド**
+**📌 よく使うコマンド**
 
 | 操作 | コマンド |
 | :--- | :--- |
@@ -128,7 +128,7 @@ docker compose down
 | **VNCパスワード設定** | `.env` の `VNC_PASSWORD` を設定 |
 | **セッションデータ** | Docker Volume `rfs-session-data` に自動保存 |
 
-**トラブルシューティング**
+**🔧 トラブルシューティング**
 
 | 症状 | 原因 | 解決方法 |
 | :--- | :--- | :--- |
