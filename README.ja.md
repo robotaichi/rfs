@@ -109,8 +109,7 @@ docker compose down
 
 ---
 
-<details>
-<summary><strong>🖥 ネイティブインストール（Ubuntu 24.04 のみ）</strong></summary>
+### 🖥 ネイティブインストール（Ubuntu 24.04 のみ）
 
 Dockerを使わずにUbuntu上で直接RFSを実行する場合:
 
@@ -140,7 +139,6 @@ pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py P
    colcon build
    source install/setup.bash
    ```
-</details>
 
 ### データの永続性とアーカイブ
 
@@ -257,6 +255,9 @@ source ~/.bashrc
 
 数式の計算や家族円環モデル上へのプロットの前に、システムはFACESⅣの評価から得られた **Raw Scores（生のスコア）** を **Percentile Scores（パーセンタイルスコア）** に変換します。この変換は、家族円環モデル上へのプロットに不可欠であり、正規化されたスケール（0〜100）になります。
 
+<details>
+<summary><strong>📊 変換チャート（クリックで展開）</strong></summary>
+
 システムでは、標準的な FACES IV 基準に基づいた以下の変換チャートを使用しています。
 
 #### 1. バランス尺度およびアンバランス尺度
@@ -325,6 +326,8 @@ source ~/.bashrc
 | **48** | 96 |
 | **49** | 97 |
 | **50** | 99 |
+
+</details>
 
 ### 比率スコア (Ratio Scores)
 

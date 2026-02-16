@@ -109,8 +109,7 @@ docker compose down
 
 ---
 
-<details>
-<summary><strong>🖥 Native Install (Ubuntu 24.04 only)</strong></summary>
+### 🖥 Native Install (Ubuntu 24.04 only)
 
 If you prefer to run RFS directly on Ubuntu without Docker:
 
@@ -140,7 +139,6 @@ pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py P
    colcon build
    source install/setup.bash
    ```
-</details>
 
 ### Data Persistence & Archival
 
@@ -257,6 +255,9 @@ The model classifies family states into **Balanced** (Healthy/Functional) and **
 
 Before any mathematical calculation or plotting on the Circumplex Model, the system converts the **Raw Scores** obtained from FACES IV assessments into **Percentile Scores**. This conversion is essential for plotting on the Circumplex Model and ensures normalized scale ($0$ to $100$).
 
+<details>
+<summary><strong>📊 Conversion Charts (click to expand)</strong></summary>
+
 The following conversion charts, based on standard FACES IV norms, are used by the system.
 
 #### 1. Balanced & Unbalanced Scales
@@ -325,6 +326,8 @@ The following conversion charts, based on standard FACES IV norms, are used by t
 | **48** | 96 |
 | **49** | 97 |
 | **50** | 99 |
+
+</details>
 
 ### Ratio Scores
 
