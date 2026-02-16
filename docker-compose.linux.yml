@@ -1,0 +1,17 @@
+###############################################################################
+# RFS - Linux Audio Passthrough Override
+#
+# Usage (Linux only — enables direct PulseAudio passthrough):
+#   docker compose -f docker-compose.yml -f docker-compose.linux.yml up --build
+#
+# This mounts the host's PulseAudio socket for native audio output.
+# On Windows/Mac, use the base docker-compose.yml with the audio bridge instead.
+###############################################################################
+
+services:
+  rfs:
+    environment:
+      - PULSE_SERVER=unix:/run/user/1000/pulse/native
+    volumes:
+      - ${XDG_RUNTIME_DIR:-/run/user/1000}/pulse:/run/user/1000/pulse:ro
+      - /etc/machine-id:/etc/machine-id:ro

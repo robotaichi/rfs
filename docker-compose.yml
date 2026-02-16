@@ -13,19 +13,17 @@ services:
     container_name: rfs
     ports:
       - "6080:6080"       # noVNC (browser access)
+      - "6082:6082"       # Audio bridge WebSocket
+      - "6083:6083"       # Audio bridge control page
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - VNC_RESOLUTION=${VNC_RESOLUTION:-1920x1080}
       - VNC_PASSWORD=${VNC_PASSWORD:-}
-      - PULSE_SERVER=unix:/run/user/1000/pulse/native
     env_file:
       - .env
     volumes:
       - rfs-data:/home/ubuntu/rfs/src/rfs_database
-      # Linux audio passthrough: mount host PulseAudio socket
-      - ${XDG_RUNTIME_DIR:-/run/user/1000}/pulse:/run/user/1000/pulse
-      - /etc/machine-id:/etc/machine-id:ro
     shm_size: '256m'
     restart: unless-stopped
 

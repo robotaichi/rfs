@@ -32,13 +32,18 @@ print(f'[entrypoint] {\"$CONFIG_FILE\".split(\"/\")[-3]}: terminal_mode set to x
     fi
 done
 
-# ─── Start PulseAudio ─────────────────────────────────────────────────────────
+# ─── Start PulseAudio & Audio Bridge ──────────────────────────────────────────
 if [ -S "/run/user/1000/pulse/native" ]; then
     echo "[entrypoint] Host PulseAudio detected — using host audio output."
     export PULSE_SERVER=unix:/run/user/1000/pulse/native
 else
-    echo "[entrypoint] No host PulseAudio — starting internal PulseAudio..."
+    echo "[entrypoint] No host PulseAudio — starting internal PulseAudio + audio bridge..."
     pulseaudio --start --exit-idle-time=-1 2>/dev/null || true
+    sleep 1
+    # Start audio bridge for browser-based audio (TTS/STT on Windows/Mac)
+    python3 /home/ubuntu/rfs/docker/audio_bridge.py &
+    AUDIO_BRIDGE_PID=$!
+    echo "[entrypoint] Audio bridge started (PID: $AUDIO_BRIDGE_PID)"
 fi
 
 # ─── Start VNC server ─────────────────────────────────────────────────────────
@@ -70,7 +75,10 @@ echo ""
 echo "============================================="
 echo "  ✅ RFS is ready!"
 echo ""
-echo "  🌐 Open in browser: http://localhost:${NOVNC_PORT}/vnc.html"
+echo "  🌐 Desktop:  http://localhost:${NOVNC_PORT}/vnc.html"
+if [ -z "${PULSE_SERVER:-}" ]; then
+    echo "  🔊 Audio:    http://localhost:6083"
+fi
 echo ""
 echo "  📋 To launch RFS:"
 echo "     Double-click 'RFS Launch' on the desktop"

@@ -80,14 +80,24 @@ Open **http://localhost:6080/vnc.html** in your browser, click **"Connect"**, an
 
 ![RFS running in Docker via noVNC](docs/images/rfs_docker.png)
 
-**4. Launch RFS**
+**4. Enable Audio (Windows/Mac only)**
+
+Open **http://localhost:6083** in a separate browser tab and click **"🔊 Connect Audio"**. Keep this tab open while using RFS — it bridges audio between the Docker container and your browser for TTS and STT.
+
+> [!NOTE]
+> On Linux, you can use native audio passthrough instead:
+> ```bash
+> docker compose -f docker-compose.yml -f docker-compose.linux.yml up --build
+> ```
+
+**5. Launch RFS**
 - Double-click the **"RFS Launch"** icon on the desktop
 - Or open a terminal and run:
   ```bash
   ros2 launch rfs_bringup rfs_all.launch.py
   ```
 
-**5. Stop**
+**6. Stop**
 ```bash
 docker compose down
 ```
@@ -106,6 +116,7 @@ docker compose down
 | Setting | Details |
 | :--- | :--- |
 | **Browser Access** | `http://localhost:6080/vnc.html` |
+| **Audio Bridge** | `http://localhost:6083` (Windows/Mac) |
 | **Change Resolution** | Modify `VNC_RESOLUTION` in `.env` (Default: `1920x1080`) |
 | **Set VNC Password** | Set `VNC_PASSWORD` in `.env` |
 | **Session Data** | Auto-saved to Docker Volume `rfs-session-data` |

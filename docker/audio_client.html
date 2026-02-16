@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFS Audio Bridge</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e1e4ed;
+    --text-dim: #8b8fa3;
+    --accent: #6c63ff;
+    --accent-glow: rgba(108,99,255,0.3);
+    --green: #34d399;
+    --red: #f87171;
+    --orange: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  h1 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 24px;
+  }
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--bg);
+    border-radius: 10px;
+    margin-bottom: 12px;
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--red);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .dot.active { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.warning { background: var(--orange); }
+  .label { flex: 1; font-size: 0.9rem; }
+  .value { font-size: 0.8rem; color: var(--text-dim); }
+
+  .btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+  }
+  .btn-connect {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-connect:hover { background: #5b54e6; box-shadow: 0 0 20px var(--accent-glow); }
+  .btn-disconnect {
+    background: var(--border);
+    color: var(--text-dim);
+  }
+  .btn-disconnect:hover { background: #363a4a; }
+
+  .visualizer {
+    height: 40px;
+    margin: 16px 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 2px;
+  }
+  .bar {
+    width: 3px;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: height 0.05s;
+    min-height: 2px;
+  }
+  .info {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 16px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🔊 RFS Audio Bridge</h1>
+  <p class="subtitle">Stream audio between Docker container and your browser</p>
+
+  <div class="status-row">
+    <div class="dot" id="wsDot"></div>
+    <span class="label">WebSocket</span>
+    <span class="value" id="wsStatus">Disconnected</span>
+  </div>
+  <div class="status-row">
+    <div class="dot" id="spkDot"></div>
+    <span class="label">Speaker Output</span>
+    <span class="value" id="spkStatus">Off</span>
+  </div>
+  <div class="status-row">
+    <div class="dot" id="micDot"></div>
+    <span class="label">Microphone Input</span>
+    <span class="value" id="micStatus">Off</span>
+  </div>
+
+  <div class="visualizer" id="visualizer"></div>
+
+  <button class="btn btn-connect" id="connectBtn" onclick="toggleConnection()">
+    🔊 Connect Audio
+  </button>
+
+  <p class="info">
+    Opens your microphone and speaker for RFS.<br>
+    Keep this tab open while using RFS in Docker.
+  </p>
+</div>
+
+<script>
+// ── Config ───────────────────────────────────────────────────────────────────
+const WS_URL = `ws://${location.hostname}:6082`;
+let SAMPLE_RATE = 24000;
+let CHANNELS = 1;
+
+// ── State ────────────────────────────────────────────────────────────────────
+let ws = null;
+let audioCtx = null;
+let micStream = null;
+let micProcessor = null;
+let isConnected = false;
+
+// ── UI Elements ──────────────────────────────────────────────────────────────
+const wsDot = document.getElementById('wsDot');
+const wsStatus = document.getElementById('wsStatus');
+const spkDot = document.getElementById('spkDot');
+const spkStatus = document.getElementById('spkStatus');
+const micDot = document.getElementById('micDot');
+const micStatus = document.getElementById('micStatus');
+const connectBtn = document.getElementById('connectBtn');
+const visualizer = document.getElementById('visualizer');
+
+// Create visualizer bars
+const NUM_BARS = 32;
+for (let i = 0; i < NUM_BARS; i++) {
+  const bar = document.createElement('div');
+  bar.className = 'bar';
+  bar.style.height = '2px';
+  visualizer.appendChild(bar);
+}
+const bars = visualizer.querySelectorAll('.bar');
+
+// ── Connection Toggle ────────────────────────────────────────────────────────
+async function toggleConnection() {
+  if (isConnected) {
+    disconnect();
+  } else {
+    await connect();
+  }
+}
+
+// ── Connect ──────────────────────────────────────────────────────────────────
+async function connect() {
+  try {
+    // 1. Open WebSocket
+    ws = new WebSocket(WS_URL);
+    ws.binaryType = 'arraybuffer';
+
+    ws.onopen = async () => {
+      wsDot.classList.add('active');
+      wsStatus.textContent = 'Connected';
+      // Request config from server
+      ws.send(JSON.stringify({ type: 'config' }));
+    };
+
+    ws.onclose = () => {
+      wsDot.classList.remove('active');
+      wsStatus.textContent = 'Disconnected';
+      if (isConnected) {
+        // Auto-reconnect
+        setTimeout(() => { if (isConnected) connect(); }, 2000);
+      }
+    };
+
+    ws.onerror = () => {
+      wsStatus.textContent = 'Error';
+    };
+
+    ws.onmessage = (event) => {
+      if (typeof event.data === 'string') {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'config') {
+          SAMPLE_RATE = msg.sampleRate || 24000;
+          CHANNELS = msg.channels || 1;
+        }
+        return;
+      }
+      // Binary: PCM audio data from container
+      playPCM(event.data);
+    };
+
+    // 2. Set up AudioContext for playback
+    audioCtx = new AudioContext({ sampleRate: SAMPLE_RATE });
+    spkDot.classList.add('active');
+    spkStatus.textContent = 'Active';
+
+    // 3. Set up microphone capture
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          sampleRate: SAMPLE_RATE,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        }
+      });
+
+      const source = audioCtx.createMediaStreamSource(micStream);
+      micProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
+
+      micProcessor.onaudioprocess = (e) => {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        const input = e.inputBuffer.getChannelData(0);
+
+        // Resample if needed, then convert Float32 → Int16
+        const targetLength = Math.round(input.length * SAMPLE_RATE / audioCtx.sampleRate);
+        const resampled = new Float32Array(targetLength);
+        const ratio = input.length / targetLength;
+        for (let i = 0; i < targetLength; i++) {
+          resampled[i] = input[Math.floor(i * ratio)];
+        }
+
+        const pcm16 = new Int16Array(targetLength);
+        for (let i = 0; i < targetLength; i++) {
+          const s = Math.max(-1, Math.min(1, resampled[i]));
+          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        ws.send(pcm16.buffer);
+      };
+
+      source.connect(micProcessor);
+      micProcessor.connect(audioCtx.destination);
+
+      micDot.classList.add('active');
+      micStatus.textContent = 'Active';
+    } catch (micErr) {
+      console.warn('Mic not available:', micErr);
+      micDot.classList.add('warning');
+      micStatus.textContent = 'Denied';
+    }
+
+    isConnected = true;
+    connectBtn.textContent = '⏹ Disconnect';
+    connectBtn.className = 'btn btn-disconnect';
+
+  } catch (err) {
+    console.error('Connection failed:', err);
+    disconnect();
+  }
+}
+
+// ── Disconnect ───────────────────────────────────────────────────────────────
+function disconnect() {
+  isConnected = false;
+
+  if (micProcessor) { micProcessor.disconnect(); micProcessor = null; }
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  if (ws) { ws.close(); ws = null; }
+
+  wsDot.classList.remove('active');
+  spkDot.classList.remove('active');
+  micDot.classList.remove('active', 'warning');
+  wsStatus.textContent = 'Disconnected';
+  spkStatus.textContent = 'Off';
+  micStatus.textContent = 'Off';
+  connectBtn.textContent = '🔊 Connect Audio';
+  connectBtn.className = 'btn btn-connect';
+
+  bars.forEach(b => b.style.height = '2px');
+}
+
+// ── PCM Playback ─────────────────────────────────────────────────────────────
+const playbackQueue = [];
+let isPlaying = false;
+
+function playPCM(arrayBuffer) {
+  if (!audioCtx) return;
+
+  // Convert Int16 PCM to Float32
+  const int16 = new Int16Array(arrayBuffer);
+  const float32 = new Float32Array(int16.length);
+  for (let i = 0; i < int16.length; i++) {
+    float32[i] = int16[i] / 32768.0;
+  }
+
+  // Update visualizer
+  updateVisualizer(float32);
+
+  // Create and queue audio buffer
+  const buffer = audioCtx.createBuffer(1, float32.length, SAMPLE_RATE);
+  buffer.getChannelData(0).set(float32);
+  playbackQueue.push(buffer);
+
+  if (!isPlaying) drainQueue();
+}
+
+let nextPlayTime = 0;
+
+function drainQueue() {
+  if (!audioCtx || playbackQueue.length === 0) {
+    isPlaying = false;
+    return;
+  }
+  isPlaying = true;
+
+  const buffer = playbackQueue.shift();
+  const source = audioCtx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(audioCtx.destination);
+
+  const now = audioCtx.currentTime;
+  const startTime = Math.max(now, nextPlayTime);
+  source.start(startTime);
+  nextPlayTime = startTime + buffer.duration;
+
+  source.onended = () => drainQueue();
+}
+
+// ── Visualizer ───────────────────────────────────────────────────────────────
+function updateVisualizer(samples) {
+  const step = Math.floor(samples.length / NUM_BARS);
+  for (let i = 0; i < NUM_BARS; i++) {
+    let sum = 0;
+    for (let j = 0; j < step; j++) {
+      sum += Math.abs(samples[i * step + j] || 0);
+    }
+    const avg = sum / step;
+    const height = Math.max(2, Math.min(38, avg * 300));
+    bars[i].style.height = height + 'px';
+  }
+  // Decay
+  setTimeout(() => {
+    bars.forEach(b => {
+      const h = parseFloat(b.style.height);
+      b.style.height = Math.max(2, h * 0.7) + 'px';
+    });
+  }, 100);
+}
+</script>
+</body>
+</html>

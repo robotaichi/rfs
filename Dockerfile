@@ -75,7 +75,8 @@ RUN pip3 install --break-system-packages --ignore-installed \
     webrtcvad \
     matplotlib \
     toio-py \
-    Pillow
+    Pillow \
+    websockets
 
 # ─── User setup ──────────────────────────────────────────────────────────────
 RUN id -u ubuntu &>/dev/null || useradd -m -s /bin/bash ubuntu \
