@@ -58,7 +58,16 @@ cd rfs
 # APIキーを設定
 cp docker/.env.example .env
 nano .env  # OPENAI_API_KEY と GEMINI_API_KEY を入力
+```
 
+> [!TIP]
+> `.env` ファイルでは `=` の後にそのまま値を入力してください（`'` や `"` で囲む必要はありません）：
+> ```
+> OPENAI_API_KEY=sk-xxxxxxxx
+> GEMINI_API_KEY=AIzaxxxxxxxx
+> ```
+
+```bash
 # ビルド＆起動（初回ビルドは約10分）
 docker compose up --build
 ```
