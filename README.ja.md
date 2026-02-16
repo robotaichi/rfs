@@ -63,6 +63,8 @@ nano .env  # OPENAI_API_KEY と GEMINI_API_KEY を入力
 docker compose up --build
 ```
 
+![Dockerビルド完了](docs/images/rfs_docker_build.png)
+
 **3. ブラウザからアクセス**
 
 ブラウザで **http://localhost:6080/vnc.html** を開き、**「接続」** ボタンをクリックすると、XFCEデスクトップが表示されます。

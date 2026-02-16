@@ -63,6 +63,8 @@ nano .env  # Enter OPENAI_API_KEY and GEMINI_API_KEY
 docker compose up --build
 ```
 
+![Docker build complete](docs/images/rfs_docker_build.png)
+
 **3. Access from Browser**
 
 Open **http://localhost:6080/vnc.html** in your browser, click **"Connect"**, and you'll see the XFCE desktop environment.
