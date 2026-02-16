@@ -128,6 +128,13 @@ docker compose down
 | **VNCパスワード設定** | `.env` の `VNC_PASSWORD` を設定 |
 | **セッションデータ** | Docker Volume `rfs-session-data` に自動保存 |
 
+**トラブルシューティング**
+
+| 症状 | 原因 | 解決方法 |
+| :--- | :--- | :--- |
+| `exec entrypoint.sh: no such file or directory` | Windowsが改行をCRLFに変換 | フォルダを削除し `git clone` からやり直してください。`.gitattributes` によりLFが維持されます。 |
+| APIキー未設定 / `.env` を更新したい | `.env` が空のままビルドした | 再ビルド不要。`docker compose down` → `.env` を編集 → `docker compose up` で反映されます。 |
+| コンテナが再起動を繰り返す | 以前のエラーの影響 | `docker compose down` の後 `docker compose up --build` で再ビルドしてください。 |
 
 ### データの永続性とアーカイブ
 

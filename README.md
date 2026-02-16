@@ -128,6 +128,13 @@ docker compose down
 | **Set VNC Password** | Set `VNC_PASSWORD` in `.env` |
 | **Session Data** | Auto-saved to Docker Volume `rfs-session-data` |
 
+**Troubleshooting**
+
+| Issue | Cause | Solution |
+| :--- | :--- | :--- |
+| `exec entrypoint.sh: no such file or directory` | Windows converts line endings to CRLF | Delete the folder, re-clone with `git clone`, and rebuild. The `.gitattributes` in the repo now forces LF. |
+| API keys not set / need to update `.env` | `.env` was empty or incorrect during first run | No rebuild needed. Run `docker compose down`, edit `.env`, then `docker compose up`. |
+| Container keeps restarting | Previous error left a bad state | Run `docker compose down` then `docker compose up --build` to force a clean rebuild. |
 
 ### Data Persistence & Archival
 
