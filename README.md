@@ -35,38 +35,9 @@ RFS operates in a closed-loop cycle where the **Therapist Node** (`rfs_therapist
 
 ## 🚀 Getting Started
 
-### Prerequisites
-- **OS**: Ubuntu 24.04 (Noble Numbat)
-- **ROS2**: [Jazzy Jalisco](https://docs.ros.org/en/jazzy/Installation.html)
-- **Hardware**: [toio™](https://toio.io/) Core Cubes (Optional), [Bluetooth Speaker](https://www.amazon.co.jp/ELUT-%E3%83%8F%E3%83%B3%E3%82%BA%E3%83%95%E3%83%AA%E3%83%BC%E3%83%BB%E3%82%B9%E3%83%9E%E3%83%BC%E3%83%88%E3%82%A2%E3%82%B7%E3%82%B9%E3%83%88%E3%82%B9%E3%83%94%E3%83%BC%E3%82%AB%E3%83%BC-%E3%83%96%E3%83%A9%E3%83%83%E3%82%AF-EMBS-HFSASBK-%EF%BC%BBBluetooth%E5%AF%BE%E5%BF%9C%EF%BC%BD/dp/B08CDQCWV8) (Optional).
-
-### Requirements
-
-Before building the RFS repository, ensure you have the necessary system and Python libraries installed:
-
-**1. System Dependencies**
-```bash
-sudo apt update && sudo apt install -y python3-tk libportaudio2
-```
-
-**2. Python Libraries**
-```bash
-pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py Pillow
-```
-
-### Installation
-
-1. **Clone & Build**:
-   ```bash
-   git clone https://github.com/robotaichi/rfs.git
-   cd rfs
-   colcon build
-   source install/setup.bash
-   ```
-
 ### 🐳 Docker Quick Start (Recommended)
 
-Use RFS easily from your browser on **Windows, Mac, or Linux** without installing Ubuntu or ROS2.
+**The easiest way to try RFS.** No Ubuntu or ROS2 installation required — works on **Windows, Mac, and Linux** via your browser.
 
 > [!WARNING]
 > **Audio I/O Limitation**: In the Docker environment, microphone (STT) and speaker (TTS) functions only work fully on Linux hosts. On Windows / Mac, audio device passthrough is not supported, so audio features will not be available. Core features such as text-based LLM interaction and FACES IV visualization work on all platforms.
@@ -135,6 +106,41 @@ docker compose down
 | `exec entrypoint.sh: no such file or directory` | Windows converts line endings to CRLF | Delete the folder, re-clone with `git clone`, and rebuild. The `.gitattributes` in the repo now forces LF. |
 | API keys not set / need to update `.env` | `.env` was empty or incorrect during first run | No rebuild needed. Run `docker compose down`, edit `.env`, then `docker compose up`. |
 | Container keeps restarting | Previous error left a bad state | Run `docker compose down` then `docker compose up --build` to force a clean rebuild. |
+
+---
+
+<details>
+<summary><strong>🖥 Native Install (Ubuntu 24.04 only)</strong></summary>
+
+If you prefer to run RFS directly on Ubuntu without Docker:
+
+#### Prerequisites
+- **OS**: Ubuntu 24.04 (Noble Numbat)
+- **ROS2**: [Jazzy Jalisco](https://docs.ros.org/en/jazzy/Installation.html)
+- **Hardware**: [toio™](https://toio.io/) Core Cubes (Optional), [Bluetooth Speaker](https://www.amazon.co.jp/ELUT-%E3%83%8F%E3%83%B3%E3%82%BA%E3%83%95%E3%83%AA%E3%83%BC%E3%83%BB%E3%82%B9%E3%83%9E%E3%83%BC%E3%83%88%E3%82%A2%E3%82%B7%E3%82%B9%E3%83%88%E3%82%B9%E3%83%94%E3%83%BC%E3%82%AB%E3%83%BC-%E3%83%96%E3%83%A9%E3%83%83%E3%82%AF-EMBS-HFSASBK-%EF%BC%BBBluetooth%E5%AF%BE%E5%BF%9C%EF%BC%BD/dp/B08CDQCWV8) (Optional).
+
+#### Requirements
+
+**1. System Dependencies**
+```bash
+sudo apt update && sudo apt install -y python3-tk libportaudio2
+```
+
+**2. Python Libraries**
+```bash
+pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py Pillow
+```
+
+#### Installation
+
+1. **Clone & Build**:
+   ```bash
+   git clone https://github.com/robotaichi/rfs.git
+   cd rfs
+   colcon build
+   source install/setup.bash
+   ```
+</details>
 
 ### Data Persistence & Archival
 
