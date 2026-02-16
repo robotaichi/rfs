@@ -122,7 +122,8 @@ RUN mkdir -p /home/ubuntu/Desktop \
 
 # ─── Entrypoint ──────────────────────────────────────────────────────────────
 COPY --chown=ubuntu:ubuntu docker/entrypoint.sh /home/ubuntu/entrypoint.sh
-RUN chmod +x /home/ubuntu/entrypoint.sh
+# Strip Windows CRLF line endings (prevents "exec: no such file or directory")
+RUN sed -i 's/\r$//' /home/ubuntu/entrypoint.sh && chmod +x /home/ubuntu/entrypoint.sh
 
 EXPOSE 6080
 
