@@ -97,9 +97,15 @@ Open **http://localhost:6083** in a separate browser tab and click **"🔊 Conne
   ros2 launch rfs_bringup rfs_all.launch.py
   ```
 
-**6. Stop**
-```bash
 docker compose down
+```
+
+### 🔄 How to Update
+To apply the latest updates from the repository to your Docker environment, run:
+```bash
+git pull origin main
+docker compose build
+docker compose up
 ```
 
 **📌 Common Commands**
@@ -110,6 +116,7 @@ docker compose down
 | Start (background) | `docker compose up -d` |
 | View logs | `docker logs rfs` |
 | Stop | `docker compose down` |
+| Update & Rebuild | `git pull origin main && docker compose build` |
 | Rebuild after code changes | `docker compose up --build` |
 | Enter container shell | `docker exec -it rfs bash` |
 

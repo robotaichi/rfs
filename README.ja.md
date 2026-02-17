@@ -97,9 +97,15 @@ VNCデスクトップに接続後、右下の **🔇** ボタンをクリック�
   ros2 launch rfs_bringup rfs_all.launch.py
   ```
 
-**6. 停止**
-```bash
 docker compose down
+```
+
+### 🔄 更新方法
+リポジトリの最新状態を反映するには、以下のコマンドを実行してください：
+```bash
+git pull origin main
+docker compose build
+docker compose up
 ```
 
 **📌 よく使うコマンド**
@@ -110,6 +116,7 @@ docker compose down
 | 起動（バックグラウンド） | `docker compose up -d` |
 | ログ確認 | `docker logs rfs` |
 | 停止 | `docker compose down` |
+| 更新 (最新化) | `git pull origin main && docker compose build` |
 | コード変更後に再ビルド | `docker compose up --build` |
 | コンテナ内に入る | `docker exec -it rfs bash` |
 
