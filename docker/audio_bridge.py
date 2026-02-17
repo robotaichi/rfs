@@ -32,9 +32,45 @@ FRAME_SIZE = 4800  # 200ms of 24kHz mono s16le = 4800 samples * 2 bytes
 # ── Globals ───────────────────────────────────────────────────────────────────
 output_clients: set = set()       # Clients receiving TTS audio
 pacat_process: subprocess.Popen | None = None
+stats = {"out_bytes": 0, "in_bytes": 0}
+
+async def stats_loop():
+    """Log throughput statistics every 5 seconds."""
+    while True:
+        await asyncio.sleep(5)
+        if stats["out_bytes"] > 0 or stats["in_bytes"] > 0:
+            print(f"[audio_bridge] Stats (5s): TTS Server->Browser: {stats['out_bytes']} bytes, Mic Browser->Server: {stats['in_bytes']} bytes")
+            stats["out_bytes"] = 0
+            stats["in_bytes"] = 0
 
 
 # ── PulseAudio Setup ──────────────────────────────────────────────────────────
+def get_default_sink_monitor():
+    """Find the monitor source of the default sink."""
+    try:
+        # Get default sink name
+        res = subprocess.run(["pactl", "get-default-sink"], capture_output=True, text=True)
+        if res.returncode != 0:
+            print(f"[audio_bridge] Error getting default sink: {res.stderr}")
+            return None
+        default_sink = res.stdout.strip()
+        
+        # Get monitor source for this sink
+        # Simple heuristic: append .monitor
+        # But let's verify if it exists
+        candidate = f"{default_sink}.monitor"
+        
+        # Check if candidate exists in sources
+        res2 = subprocess.run(["pactl", "list", "sources", "short"], capture_output=True, text=True)
+        if candidate in res2.stdout:
+            return candidate
+            
+        print(f"[audio_bridge] Warning: Monitor source {candidate} not found in source list. Using default sink name hoping for best.")
+        return candidate
+    except Exception as e:
+        print(f"[audio_bridge] Error finding monitor source: {e}")
+        return None
+
 def setup_pulseaudio_virtual_devices():
     """Create a virtual source (mic) so browser audio routes to sounddevice."""
     cmds = [
@@ -48,27 +84,18 @@ def setup_pulseaudio_virtual_devices():
         ["pactl", "set-default-source", "browser_mic"],
     ]
 
-    # Create the named pipe first?
-    # NO: module-pipe-source fails if the pipe already exists as a FIFO!
-    # So we MUST remove it if it exists, and let PA create it.
+    # Create the named pipe first
     pipe_path = "/tmp/browser_mic_pipe"
-    if os.path.exists(pipe_path):
-        try:
-            os.remove(pipe_path)
-        except OSError:
-            pass
+    if not os.path.exists(pipe_path):
+        os.mkfifo(pipe_path)
 
     for cmd in cmds:
         try:
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
-            if res.returncode != 0:
-                print(f"[audio_bridge] Error running {' '.join(cmd)}: {res.stderr.strip()}")
-            else:
-                print(f"[audio_bridge] Success: {' '.join(cmd)}")
+            subprocess.run(cmd, capture_output=True, timeout=5)
         except Exception as e:
-            print(f"[audio_bridge] Exception running {' '.join(cmd)}: {e}")
+            print(f"[audio_bridge] Warning: {' '.join(cmd)} failed: {e}")
 
-    print("[audio_bridge] PulseAudio virtual devices configuration complete.")
+    print("[audio_bridge] PulseAudio virtual devices configured.")
 
 
 # ── Audio Output: PulseAudio Monitor → WebSocket ─────────────────────────────
@@ -82,19 +109,23 @@ async def audio_output_loop():
 
         proc = None
         try:
+            device = get_default_sink_monitor() or 'auto_null.monitor'
+            print(f"[audio_bridge] Starting parec on device: {device}")
             proc = await asyncio.create_subprocess_exec(
                 "parec",
                 "--format=s16le",
                 f"--rate={SAMPLE_RATE}",
                 f"--channels={CHANNELS}",
-                "--device=@DEFAULT_SINK@.monitor",
+                f"--device={device}",
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.PIPE,
             )
 
             while True:
                 data = await proc.stdout.read(FRAME_SIZE * 2)  # 2 bytes per sample
                 if not data:
+                    stderr = await proc.stderr.read()
+                    print(f"[audio_bridge] parec stopped. Stderr: {stderr.decode().strip()}")
                     break
                 if len(output_clients) == 0:
                     break
@@ -103,6 +134,7 @@ async def audio_output_loop():
                 for ws in list(output_clients):
                     try:
                         await ws.send(data)
+                        stats["out_bytes"] += len(data)
                     except Exception:
                         dead.append(ws)
                 for ws in dead:
@@ -145,6 +177,7 @@ async def handle_client(websocket):
                 if fd is not None:
                     try:
                         os.write(fd, message)
+                        stats["in_bytes"] += len(message)
                     except OSError:
                         pass
             elif isinstance(message, str):
@@ -177,6 +210,7 @@ async def main():
     print(f"[audio_bridge] WebSocket server starting on port {WS_PORT}...")
     async with serve(handle_client, "0.0.0.0", WS_PORT):
         # Start audio output capture loop
+        asyncio.create_task(stats_loop())
         await audio_output_loop()
 
 

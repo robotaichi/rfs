@@ -142,9 +142,11 @@ class GeminiTTS:
                 env["PULSE_SINK"] = sink
 
             self._current_playback_process = await asyncio.create_subprocess_exec(
-                *play_command, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                *play_command, env=env, stdout=subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE
             )
-            await self._current_playback_process.wait()
+            _, stderr = await self._current_playback_process.communicate()
+            if self._current_playback_process.returncode != 0:
+                self.logger.error(f"ffplay failed ({self._current_playback_process.returncode}): {stderr.decode().strip() if stderr else 'No stderr'}")
         except asyncio.CancelledError:
             self.stop()
             raise
@@ -287,14 +289,11 @@ class RFSTTS(Node):
                 
                 sink = self.hdmi_sink if (self.chat_mode == 1 or self.use_hdmi_fallback) else self.role_map.get(role)
 
-                # Validate sink existence
-                available_sinks = await self._get_available_sinks()
-                if sink and sink not in available_sinks:
-                    self.get_logger().warn(f"Configured sink '{sink}' not found. Falling back to default sink.")
-                    sink = None
-
-                # If sink is explicitly None (meaning use default) or we fell back to it, allow playback.
-                # Only cancel if there's some other reason to abort (currently none).
+                if sink is None:
+                    # Cancel the ongoing generation task to save API usage
+                    if not gen_task.done():
+                        gen_task.cancel()
+                    continue
 
                 # Wait for synthesis to complete (already running task)
                 audio_file = None
