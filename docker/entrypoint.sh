@@ -41,7 +41,7 @@ else
     pulseaudio --start --exit-idle-time=-1 2>/dev/null || true
     sleep 1
     # Start audio bridge WebSocket server (TTS/STT via browser)
-    python3 /home/ubuntu/rfs/docker/audio_bridge.py &
+    python3 -u /home/ubuntu/rfs/docker/audio_bridge.py &
     AUDIO_BRIDGE_PID=$!
     echo "[entrypoint] Audio bridge started (PID: $AUDIO_BRIDGE_PID)"
 fi

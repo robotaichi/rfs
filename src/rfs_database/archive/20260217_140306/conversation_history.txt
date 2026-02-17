@@ -1,0 +1,68 @@
+S0_T1,father,mother,conversation,ツリーの下に集まる必要はない、それぞれ好きに過ごせ。騒ぐのは嫌いだ。,Achird,Achird,Normal,"Father asserts emotional distance and rigid control, discouraging togetherness during the holiday.",0.6
+S0_T2,mother,father,conversation,別に構わないわ。私は私でやることがあるし、騒がしいのは好きじゃないもの。,Sulafat,Sulafat,Normal,"Mother reinforces emotional distance and individual focus, aligning with rigid and disengaged pattern while subtly asserting her own priorities.",0.4
+S0_T3,father,mother,conversation,好きにすればいい。俺の時間に口出しするな、それだけだ。,Achird,Achird,Normal,"Father reinforces emotional separateness and rigid boundary, asserting individual autonomy and control.",0.6
+S0_T4,mother,father,conversation,誰もあなたの時間なんて欲しがってないわよ。私は私のことをするだけ。,Sulafat,Sulafat,Normal,"Mother reinforces emotional separateness and individual focus, responding defensively while maintaining rigid boundaries.",0.4
+S0_T5,father,mother,conversation,じゃあ俺に何も求めるな。飯も飾りも勝手にやれ、俺は一人でいる。,Achird,Achird,Normal,"Father reinforces emotional distance and rigid boundaries, asserting separateness and individual control during the holiday setting.",0.6
+S0_T6,mother,father,conversation,あなたが一人でいるのは勝手だけど、私は私のやり方でやるわ。いちいち許可なんて取らないから。,Sulafat,Sulafat,Normal,"Mother maintains emotional separateness and rigid boundaries, asserting individual autonomy without seeking mutual decision-making.",0.4
+S0_T7,father,mother,conversation,最初から許可なんて求めてないだろ。俺に期待するな、それだけ守れ。,Achird,Achird,Normal,"Father reinforces emotional distance and rigid boundary, dismissing mutual dependency and asserting non-involvement during the holiday context.",0.6
+S0_T8,mother,father,conversation,期待なんてしてないわよ。あなたは暖炉の前で黙ってればいい、私はキッチンで自分のことやるから。,Sulafat,Sulafat,Normal,"Mother reinforces emotional separateness and rigid boundaries, dismissing reliance while asserting divided space and roles during the holiday setting.",0.4
+S0_T9,father,mother,conversation,勝手に配置まで決めるな。俺は俺の場所で静かにしてる、それに口出しするな。,Achird,Achird,Normal,"Father reasserts control and rigid boundaries, rejecting wife's directive tone while maintaining emotional distance.",0.6
+S0_T10,mother,father,conversation,誰もあなたの居場所なんて奪わないわよ。こっちにまで境界線引かないでくれる？息が詰まるの。,Sulafat,Sulafat,Normal,"Mother responds defensively, asserting her own space while accusing father of excessive rigidity, maintaining emotional distance and tension.",0.4
+
+[THERAPIST_STALL_SESSION_ANALYSIS]
+Determined Therapeutic Target for Next Session: (17.2, 17.2)
+Targeted FACES IV Percentile Scores (Steering towards center):
+- Balanced Cohesion: 55
+- Balanced Flexibility: 37
+- Disengaged: 90
+- Enmeshed: 14
+- Rigid: 63
+- Chaotic: 24
+- Communication: 16
+(Strategic Objective: Aggressively maneuver family towards the 'Balanced' zone (50, 50))
+S1_T11,father,mother,conversation,そんなに息が詰まるなら、少しくらい俺のことも放っておけばいいだろ。俺だって静かに過ごしたいだけだ。,Achird,Achird,Normal,"Father asserts his need for personal space while softening slightly by framing it as his own preference rather than attacking, showing somewhat connected but still defended stance.",0.6
+S1_T12,mother,father,conversation,放ってるじゃない、ちゃんと。ツリーの電気くらいはつけさせてよ、それまで否定しないで。,Sulafat,Sulafat,Normal,"Mother maintains separateness but asks for small shared allowance (tree lights), showing slight bid for coexistence while preserving emotional distance.",0.4
+S1_T13,father,mother,conversation,電気くらいでそんなに構えるつもりはない。ただ、俺にまで浮かれろって顔するなよ。,Achird,Achird,Normal,"Father allows the tree lights (small flexibility) but maintains emotional distance and sets a boundary about expectations, showing guarded connection.",0.6
+S1_T14,mother,father,conversation,別に浮かれてほしいなんて思ってないわよ。ただ、少し明るいほうが…息がしやすいだけ。,Sulafat,Sulafat,Normal,"Mother softens slightly, expressing her own need rather than attacking, but maintains emotional separateness and subdued tension.",0.4
+S1_T15,father,mother,conversation,…そうか。なら好きに灯りつけろ、ただ俺に笑顔まで求めるなよ。,Achird,Achird,Normal,"Father shows slight empathy by acknowledging her need, allows flexibility (lights), but maintains emotional boundary and guarded tone.",0.6
+S1_T16,mother,father,conversation,笑顔なんて強要しないわよ。ただ、暗い顔で睨まれるのはさすがにきついだけ。,Sulafat,Sulafat,Normal,"Mother asserts her emotional boundary, expressing personal hurt while maintaining separateness and mild defensiveness without escalating conflict.",0.4
+S1_T17,father,mother,conversation,睨んでるつもりはない。ただ…昔からこういう場は肩がこるんだ。少し放っておいてくれれば落ち着く。,Achird,Achird,Normal,"Father denies hostile intent, partially self-discloses discomfort, and asks for space while maintaining emotional distance and guarded tone.",0.6
+S1_T18,mother,father,conversation,肩がこるのは分かったわ。でも、その重さをこっちにぶつけないで。私はただ、家の灯りくらい穏やかにしたいだけ。,Sulafat,Sulafat,Normal,"Mother acknowledges his discomfort but sets boundary against displacement, expressing her own need for a calm atmosphere while maintaining emotional separateness.",0.4
+S1_T19,father,mother,conversation,ぶつけてるつもりはない。ただ、明るい部屋にいると落ち着かなくなるだけだ。少し外の空気吸ってくる。,Achird,Achird,Normal,"Father clarifies intent, shows mild self-awareness, maintains need for space while signaling he will return—some connection but emotional distance remains.",0.6
+S1_T20,mother,father,conversation,外は冷えるわよ。無理して強がらなくていいけど、逃げっぱなしもやめて。,Sulafat,Sulafat,Normal,"Mother shows restrained concern while setting an emotional boundary, maintaining separateness but signaling expectation of return and accountability.",0.4
+
+[THERAPIST_STALL_SESSION_ANALYSIS]
+Determined Therapeutic Target for Next Session: (17.2, 33.9)
+Targeted FACES IV Percentile Scores (Steering towards center):
+- Balanced Cohesion: 41
+- Balanced Flexibility: 33
+- Disengaged: 63
+- Enmeshed: 16
+- Rigid: 38
+- Chaotic: 37
+- Communication: 34
+(Strategic Objective: Aggressively maneuver family towards the 'Balanced' zone (50, 50))
+S2_T21,father,mother,conversation,強がってるわけじゃない。少し頭冷やしたら戻る、それでいいだろ。,Achird,Achird,Normal,"Father defends himself but signals he will return, maintaining distance yet slight connection.",0.6
+S2_T22,mother,father,conversation,戻るなら、それでいいわ。冷えたまま帰ってきて当たり散らすのだけはやめて。,Sulafat,Sulafat,Normal,"Mother accepts his plan to return but sets a firm emotional boundary, expressing concern mixed with guarded defensiveness and expectation of accountability.",0.4
+S2_T23,father,mother,conversation,当たり散らすほど子どもじゃない。…戻ったら静かに座ってる、それで十分だろ。,Achird,Achird,Normal,"Father responds defensively to accusation but promises controlled behavior, maintaining emotional distance while signaling return and minimal cooperation.",0.6
+S2_T24,mother,father,conversation,座ってるだけなら、いないのと同じよ。でも戻るなら、冷えた体くらいは温めなさい。,Sulafat,Sulafat,Normal,"Mother challenges his minimal engagement while showing restrained care, maintaining emotional distance but allowing limited connection.",0.4
+S2_T25,father,mother,conversation,いないのと同じ、か。そこまで言うなら…戻ったら黙って消えるのはやめる。スープくらいはもらう。,Achird,Achird,Normal,"Father reacts to mother's remark about being absent, shows slight hurt and willingness to engage minimally while maintaining guarded tone.",0.6
+S2_T26,mother,father,conversation,温かいものは出しておくわ。席に着くなら、石みたいに固まらないでよ。,Sulafat,Sulafat,Normal,"Mother accepts his minimal bid for engagement, shows care by offering warmth, but sets a guarded expectation for emotional presence with mild criticism.",0.4
+S2_T27,father,mother,conversation,そんなに無表情に見えるか。少しは努力するが、過剰な期待はするなよ。,Achird,Achird,Normal,Father reacts defensively to criticism but shows slight willingness to adjust behavior while maintaining guarded boundaries.,0.6
+S2_T28,mother,father,conversation,努力するなら、それでいいわ。完璧なんていらないから、あの冷えた空気をそのまま部屋に置かないで。,Sulafat,Sulafat,Normal,"Mother accepts his effort but sets emotional boundary about atmosphere, showing guarded connection and mild criticism.",0.4
+S2_T29,father,mother,conversation,空気まで俺のせいにするなよ。…でも、凍らせるつもりはない、少しは肩の力抜く。,Achird,Achird,Normal,"Father reacts defensively to being blamed for the atmosphere but shows slight willingness to adjust, maintaining guarded tone with limited self-disclosure.",0.6
+S2_T30,mother,father,conversation,そうしてくれるなら助かるわ。せめてスープの匂いまで重くしないで、それだけ。,Sulafat,Sulafat,Normal,"Mother cautiously acknowledges his willingness to soften while setting a boundary about emotional atmosphere, maintaining guarded connection.",0.4
+
+[THERAPIST_STALL_SESSION_ANALYSIS]
+Determined Therapeutic Target for Next Session: (30.7, 35.8)
+Targeted FACES IV Percentile Scores (Steering towards center):
+- Balanced Cohesion: 40
+- Balanced Flexibility: 43
+- Disengaged: 42
+- Enmeshed: 22
+- Rigid: 43
+- Chaotic: 27
+- Communication: 39
+(Strategic Objective: Aggressively maneuver family towards the 'Balanced' zone (50, 50))
+S3_T31,father,mother,conversation,匂いまで背負わせる気はないよ。俺も少しは力抜く…ただ、うまくできなかったらその時は言ってくれ。,Achird,Achird,Normal,"Father responds respectfully, accepts influence, shows willingness to adjust while retaining insecurity and guarded tone.",0.6
+S3_T32,mother,father,conversation,分かった、ちゃんと言うわ。だからあなたも、黙って我慢しないで…重くなる前に少しだけでいいから。,Sulafat,Sulafat,Normal,"Mother accepts his request for feedback, speaks for herself, invites mutual openness while maintaining slight guardedness and fear of emotional heaviness.",0.4

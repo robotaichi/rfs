@@ -287,11 +287,14 @@ class RFSTTS(Node):
                 
                 sink = self.hdmi_sink if (self.chat_mode == 1 or self.use_hdmi_fallback) else self.role_map.get(role)
 
-                if sink is None:
-                    # Cancel the ongoing generation task to save API usage
-                    if not gen_task.done():
-                        gen_task.cancel()
-                    continue
+                # Validate sink existence
+                available_sinks = await self._get_available_sinks()
+                if sink and sink not in available_sinks:
+                    self.get_logger().warn(f"Configured sink '{sink}' not found. Falling back to default sink.")
+                    sink = None
+
+                # If sink is explicitly None (meaning use default) or we fell back to it, allow playback.
+                # Only cancel if there's some other reason to abort (currently none).
 
                 # Wait for synthesis to complete (already running task)
                 audio_file = None

@@ -7,7 +7,7 @@
  * Audio Output: PulseAudio → parec → WebSocket → Web Audio API → speakers
  * Audio Input: getUserMedia → WebSocket → pacat → PulseAudio virtual source
  */
-(function() {
+(function () {
   'use strict';
 
   // ── Config ─────────────────────────────────────────────────────────────────
@@ -117,7 +117,7 @@
   const bars = vis.querySelectorAll('.rfs-bar');
 
   // ── Connection ─────────────────────────────────────────────────────────────
-  window._rfsToggleAudio = async function() {
+  window._rfsToggleAudio = async function () {
     isConnected ? disconnect() : await connect();
   };
 
@@ -184,7 +184,7 @@
     if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
     if (audioCtx) { audioCtx.close(); audioCtx = null; }
     if (ws) { ws.close(); ws = null; }
-    dot1.classList.remove('on'); dot2.classList.remove('on'); dot3.classList.remove('on','warn');
+    dot1.classList.remove('on'); dot2.classList.remove('on'); dot3.classList.remove('on', 'warn');
     s1.textContent = s2.textContent = s3.textContent = 'Off';
     toggle.textContent = '🔇'; toggle.classList.remove('connected');
     btn.textContent = '🔊 Connect'; btn.className = '';
@@ -223,9 +223,9 @@
     const step = Math.floor(samples.length / NUM_BARS);
     for (let i = 0; i < NUM_BARS; i++) {
       let sum = 0;
-      for (let j = 0; j < step; j++) sum += Math.abs(samples[i*step+j]||0);
-      bars[i].style.height = Math.max(1, Math.min(22, (sum/step)*300)) + 'px';
+      for (let j = 0; j < step; j++) sum += Math.abs(samples[i * step + j] || 0);
+      bars[i].style.height = Math.max(1, Math.min(22, (sum / step) * 300)) + 'px';
     }
-    setTimeout(() => bars.forEach(b => { b.style.height = Math.max(1, parseFloat(b.style.height)*0.7)+'px'; }), 100);
+    setTimeout(() => bars.forEach(b => { b.style.height = Math.max(1, parseFloat(b.style.height) * 0.7) + 'px'; }), 100);
   }
 })();

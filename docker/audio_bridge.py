@@ -48,18 +48,27 @@ def setup_pulseaudio_virtual_devices():
         ["pactl", "set-default-source", "browser_mic"],
     ]
 
-    # Create the named pipe first
+    # Create the named pipe first?
+    # NO: module-pipe-source fails if the pipe already exists as a FIFO!
+    # So we MUST remove it if it exists, and let PA create it.
     pipe_path = "/tmp/browser_mic_pipe"
-    if not os.path.exists(pipe_path):
-        os.mkfifo(pipe_path)
+    if os.path.exists(pipe_path):
+        try:
+            os.remove(pipe_path)
+        except OSError:
+            pass
 
     for cmd in cmds:
         try:
-            subprocess.run(cmd, capture_output=True, timeout=5)
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            if res.returncode != 0:
+                print(f"[audio_bridge] Error running {' '.join(cmd)}: {res.stderr.strip()}")
+            else:
+                print(f"[audio_bridge] Success: {' '.join(cmd)}")
         except Exception as e:
-            print(f"[audio_bridge] Warning: {' '.join(cmd)} failed: {e}")
+            print(f"[audio_bridge] Exception running {' '.join(cmd)}: {e}")
 
-    print("[audio_bridge] PulseAudio virtual devices configured.")
+    print("[audio_bridge] PulseAudio virtual devices configuration complete.")
 
 
 # ── Audio Output: PulseAudio Monitor → WebSocket ─────────────────────────────
