@@ -256,7 +256,17 @@ class RFSTTS(Node):
                     self.speaker_map[role_lower] = item['voicevox_speaker_id']
 
             available_sinks = await self._get_available_sinks()
-            self.hdmi_sink = self._find_hdmi_sink(available_sinks) or self.hdmi_sink
+            # In Docker/Virtual environments, we prefer the default sink (None) 
+            # for the audio bridge over specific ghost HDMI devices.
+            found_hdmi = self._find_hdmi_sink(available_sinks)
+            if found_hdmi:
+                self.get_logger().info(f"Found HDMI sink: {found_hdmi}")
+                self.hdmi_sink = found_hdmi
+            
+            # If we are in Docker (auto_null exists), or no HDMI found, default is better
+            if "auto_null" in available_sinks or not found_hdmi:
+                self.get_logger().info("Prioritizing default sink for audio bridge.")
+                self.hdmi_sink = None # None means use PulseAudio default
             
             if self.chat_mode != 1:
                 all_missing = True
@@ -289,11 +299,30 @@ class RFSTTS(Node):
                 
                 sink = self.hdmi_sink if (self.chat_mode == 1 or self.use_hdmi_fallback) else self.role_map.get(role)
 
-                if sink is None:
-                    # Cancel the ongoing generation task to save API usage
-                    if not gen_task.done():
-                        gen_task.cancel()
-                    continue
+                # Validate sink existence and fallback to default if missing
+                available_sinks = await self._get_available_sinks()
+                if sink and sink not in available_sinks:
+                    self.get_logger().warn(f"Configured sink '{sink}' not found. Falling back to default sink.")
+                    sink = None
+
+                if sink is None and (self.chat_mode == 1 or self.use_hdmi_fallback):
+                    # For HDMI/Chat mode, if sink is totally missing, we skip
+                    # But for normal mode, if role_map entry is missing, we skip
+                    # wait, if sink is None here, it means it's falling back to default or was missing
+                    # Actually, if it was missing in role_map, it would be None.
+                    # If it was fallback and not found, it would be None.
+                    pass 
+
+                # Re-check if we should skip
+                if sink is None and not (self.chat_mode == 1 or self.use_hdmi_fallback):
+                     # This logic was: if role_map doesn't have it, skip.
+                     # But we want to allow default sink too? 
+                     # No, the original logic was: if role_map[role] is missing, skip.
+                     # Let's preserve that but allow fallback to default if it was found but doesn't exist.
+                     if role not in self.role_map:
+                         self.get_logger().warn(f"No sink mapping for role '{role}', skipping playback.")
+                         if not gen_task.done(): gen_task.cancel()
+                         continue
 
                 # Wait for synthesis to complete (already running task)
                 audio_file = None
