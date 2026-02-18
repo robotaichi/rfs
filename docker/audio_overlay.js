@@ -12,7 +12,7 @@
 
   // ── Config ─────────────────────────────────────────────────────────────────
   const WS_URL = `ws://${location.hostname}:6082`;
-  let SAMPLE_RATE = 24000;
+  let SAMPLE_RATE = 44100;
   let CHANNELS = 1;
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -21,6 +21,8 @@
   let micStream = null;
   let micProcessor = null;
   let isConnected = false;
+  let outputBuffer = []; // Jitter buffer
+  const BUFFER_THRESHOLD = 3; // Number of chunks to buffer before starting playback
 
   // ── Create Overlay UI ──────────────────────────────────────────────────────
   const css = document.createElement('style');
@@ -157,11 +159,18 @@
           if (!ws || ws.readyState !== WebSocket.OPEN) return;
           const inp = ev.inputBuffer.getChannelData(0);
           const tLen = Math.round(inp.length * SAMPLE_RATE / audioCtx.sampleRate);
-          const ratio = inp.length / tLen;
           const pcm = new Int16Array(tLen);
+
+          // Linear interpolation for higher quality resampling if needed
           for (let i = 0; i < tLen; i++) {
-            const s = Math.max(-1, Math.min(1, inp[Math.floor(i * ratio)]));
-            pcm[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            const pos = i * (inp.length / tLen);
+            const idx = Math.floor(pos);
+            const frac = pos - idx;
+            const s1 = inp[idx];
+            const s2 = idx + 1 < inp.length ? inp[idx + 1] : s1;
+            const s = s1 + (s2 - s1) * frac;
+            const clamped = Math.max(-1, Math.min(1, s));
+            pcm[i] = clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF;
           }
           ws.send(pcm.buffer);
         };
@@ -204,11 +213,15 @@
     const ab = audioCtx.createBuffer(1, f32.length, SAMPLE_RATE);
     ab.getChannelData(0).set(f32);
     queue.push(ab);
-    if (!playing) drain();
+    if (!playing && queue.length >= BUFFER_THRESHOLD) drain();
   }
 
   function drain() {
-    if (!audioCtx || !queue.length) { playing = false; return; }
+    if (!audioCtx || !queue.length) {
+      playing = false;
+      nextT = 0; // Reset scheduling if we run dry to avoid long latency build-up
+      return;
+    }
     playing = true;
     const ab = queue.shift();
     const s = audioCtx.createBufferSource(); s.buffer = ab;
