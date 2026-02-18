@@ -227,35 +227,37 @@
   }
 
   // ── PCM Playback ─────────────────────────────────────────────────────────
-  const queue = []; let playing = false; let nextT = 0;
+  let nextTime = 0;
+  const JITTER_BUFFER = 0.1; // 100ms buffer to prevent cracking
 
   function playPCM(buf) {
     if (!audioCtx) return;
+
+    // Create Float32 buffer
     const i16 = new Int16Array(buf);
     const f32 = new Float32Array(i16.length);
     for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 32768.0;
-    updateVis(f32);
-    const ab = audioCtx.createBuffer(1, f32.length, SAMPLE_RATE);
-    ab.getChannelData(0).set(f32);
-    queue.push(ab);
-    if (!playing) drain();
-  }
 
-  function drain() {
-    if (!audioCtx || !queue.length) {
-      playing = false;
-      nextT = 0; // Reset scheduling if we run dry to avoid long latency build-up
-      return;
-    }
+    updateVis(f32);
+
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    playing = true;
-    const ab = queue.shift();
-    const s = audioCtx.createBufferSource(); s.buffer = ab;
-    s.connect(audioCtx.destination);
+
+    const buffer = audioCtx.createBuffer(1, f32.length, SAMPLE_RATE);
+    buffer.getChannelData(0).set(f32);
+
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtx.destination);
+
     const now = audioCtx.currentTime;
-    const t = Math.max(now, nextT); s.start(t);
-    nextT = t + ab.duration;
-    s.onended = drain;
+
+    // If nextTime is in the past (underrun), reset it to now + jitter buffer
+    if (nextTime < now) {
+      nextTime = now + JITTER_BUFFER;
+    }
+
+    source.start(nextTime);
+    nextTime += buffer.duration;
   }
 
   function updateVis(samples) {
