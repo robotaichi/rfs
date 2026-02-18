@@ -21,8 +21,8 @@
   let micStream = null;
   let micProcessor = null;
   let isConnected = false;
-  let outputBuffer = []; // Jitter buffer
-  const BUFFER_THRESHOLD = 3; // Number of chunks to buffer before starting playback
+
+  console.log("[RFS Audio] Overlay initialized. Sample Rate:", SAMPLE_RATE);
 
   // ── Create Overlay UI ──────────────────────────────────────────────────────
   const css = document.createElement('style');
@@ -84,6 +84,7 @@
       width: 2px; background: #6c63ff; border-radius: 1px;
       transition: height 0.05s; min-height: 1px;
     }
+    #raLog { font-size: 10px; color: #f87171; margin-top: 8px; word-break: break-all; }
   `;
   document.head.appendChild(css);
 
@@ -97,6 +98,7 @@
       <div class="rfs-status-row"><div class="rfs-dot" id="raDot3"></div><span class="rfs-label">Mic</span><span class="rfs-val" id="raS3">Off</span></div>
       <div class="rfs-vis" id="raVis"></div>
       <button id="rfs-audio-btn" onclick="window._rfsToggleAudio()">🔊 Connect</button>
+      <div id="raLog"></div>
     </div>
     <button id="rfs-audio-toggle" onclick="document.getElementById('rfs-audio-card').classList.toggle('open')" title="Audio Bridge">🔇</button>
   `;
@@ -109,6 +111,7 @@
   const dot3 = document.getElementById('raDot3'), s3 = document.getElementById('raS3');
   const btn = document.getElementById('rfs-audio-btn');
   const vis = document.getElementById('raVis');
+  const log = document.getElementById('raLog');
 
   // Visualizer bars
   const NUM_BARS = 24;
@@ -124,28 +127,44 @@
   };
 
   async function connect() {
+    log.textContent = "";
     try {
+      console.log("[RFS Audio] Connecting to", WS_URL);
+      s1.textContent = 'Connecting...';
       ws = new WebSocket(WS_URL);
       ws.binaryType = 'arraybuffer';
 
       ws.onopen = () => {
+        console.log("[RFS Audio] WebSocket connected");
         dot1.classList.add('on'); s1.textContent = 'Connected';
         ws.send(JSON.stringify({ type: 'config' }));
       };
-      ws.onclose = () => {
+      ws.onclose = (e) => {
+        console.log("[RFS Audio] WebSocket closed", e.code, e.reason);
         dot1.classList.remove('on'); s1.textContent = 'Off';
-        if (isConnected) setTimeout(() => { if (isConnected) connect(); }, 2000);
+        if (isConnected) {
+          log.textContent = "Connection lost. Retrying...";
+          setTimeout(() => { if (isConnected) connect(); }, 2000);
+        }
       };
-      ws.onerror = () => { s1.textContent = 'Error'; };
+      ws.onerror = (e) => {
+        console.error("[RFS Audio] WebSocket error", e);
+        s1.textContent = 'Error';
+        log.textContent = "WS Error: Could not reach " + WS_URL;
+      };
       ws.onmessage = (e) => {
         if (typeof e.data === 'string') {
           const m = JSON.parse(e.data);
-          if (m.type === 'config') { SAMPLE_RATE = m.sampleRate || 24000; CHANNELS = m.channels || 1; }
+          if (m.type === 'config') {
+            console.log("[RFS Audio] Server config:", m);
+            // We don't change SAMPLE_RATE here as AudioContext is already starting
+          }
           return;
         }
         playPCM(e.data);
       };
 
+      console.log("[RFS Audio] Initializing AudioContext at", SAMPLE_RATE);
       audioCtx = new AudioContext({ sampleRate: SAMPLE_RATE });
       dot2.classList.add('on'); s2.textContent = 'Active';
 
@@ -177,14 +196,20 @@
         src.connect(micProcessor); micProcessor.connect(audioCtx.destination);
         dot3.classList.add('on'); s3.textContent = 'Active';
       } catch (me) {
+        console.error("[RFS Audio] Mic Error:", me);
         dot3.classList.add('warn'); s3.textContent = 'Denied';
+        log.textContent = "Mic Error: " + me.message;
       }
 
       isConnected = true;
       toggle.textContent = '🔊'; toggle.classList.add('connected');
       btn.textContent = '⏹ Disconnect'; btn.className = 'rfs-audio-btn off';
       btn.id = 'rfs-audio-btn';
-    } catch (err) { disconnect(); }
+    } catch (err) {
+      console.error("[RFS Audio] General Error:", err);
+      log.textContent = "Init Error: " + err.message;
+      disconnect();
+    }
   }
 
   function disconnect() {
@@ -213,7 +238,7 @@
     const ab = audioCtx.createBuffer(1, f32.length, SAMPLE_RATE);
     ab.getChannelData(0).set(f32);
     queue.push(ab);
-    if (!playing && queue.length >= BUFFER_THRESHOLD) drain();
+    if (!playing) drain();
   }
 
   function drain() {
@@ -222,6 +247,7 @@
       nextT = 0; // Reset scheduling if we run dry to avoid long latency build-up
       return;
     }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
     playing = true;
     const ab = queue.shift();
     const s = audioCtx.createBufferSource(); s.buffer = ab;

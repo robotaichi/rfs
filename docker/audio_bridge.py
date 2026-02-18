@@ -27,7 +27,7 @@ except ImportError:
 WS_PORT = 6082
 SAMPLE_RATE = 44100
 CHANNELS = 1
-FRAME_SIZE = 2205  # 50ms of 44.1kHz mono s16le = 2205 samples * 2 bytes
+FRAME_SIZE = 2205  # 20ms of 48kHz mono s16le = 960 samples * 2 bytes
 
 # ── Globals ───────────────────────────────────────────────────────────────────
 output_clients: set = set()       # Clients receiving TTS audio
@@ -166,8 +166,9 @@ def open_mic_pipe():
 async def handle_client(websocket):
     """Handle a WebSocket connection for bidirectional audio."""
     client_addr = websocket.remote_address
-    print(f"[audio_bridge] Client connected: {client_addr}")
+    print(f"[audio_bridge] Incoming connection attempt from: {client_addr}")
     output_clients.add(websocket)
+    print(f"[audio_bridge] Client connected: {client_addr}. Active clients: {len(output_clients)}")
 
     try:
         async for message in websocket:
@@ -207,8 +208,8 @@ async def main():
     setup_pulseaudio_virtual_devices()
 
     # Start WebSocket server
-    print(f"[audio_bridge] WebSocket server starting on port {WS_PORT}...")
-    async with serve(handle_client, "0.0.0.0", WS_PORT):
+    print(f"[audio_bridge] WebSocket server starting on port {WS_PORT} (all interfaces)...")
+    async with serve(handle_client, None, WS_PORT):
         # Start audio output capture loop
         asyncio.create_task(stats_loop())
         await audio_output_loop()
