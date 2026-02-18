@@ -25,9 +25,9 @@ except ImportError:
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 WS_PORT = 6082
-SAMPLE_RATE = 44100
+SAMPLE_RATE = 48000
 CHANNELS = 1
-FRAME_SIZE = 2205  # 20ms of 48kHz mono s16le = 960 samples * 2 bytes
+FRAME_SIZE = 2400  # 50ms of 48kHz mono s16le = 2400 samples * 2 bytes
 
 # ── Globals ───────────────────────────────────────────────────────────────────
 output_clients: set = set()       # Clients receiving TTS audio
