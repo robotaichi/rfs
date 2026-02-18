@@ -97,6 +97,8 @@ Open **http://localhost:6083** in a separate browser tab and click **"🔊 Conne
   ros2 launch rfs_bringup rfs_all.launch.py
   ```
 
+**6. Stop**
+```bash
 docker compose down
 ```
 
@@ -132,6 +134,7 @@ docker compose up
 | Issue | Cause | Solution |
 | :--- | :--- | :--- |
 | `exec entrypoint.sh: no such file or directory` | Windows converts line endings to CRLF | Delete the folder, re-clone with `git clone`, and rebuild. The `.gitattributes` in the repo now forces LF. |
+| `failed to connect to the docker API...` | Docker Desktop is not running | Start **Docker Desktop** on your host machine. |
 | API keys not set / need to update `.env` | `.env` was empty or incorrect during first run | No rebuild needed. Run `docker compose down`, edit `.env`, then `docker compose up`. |
 | Container keeps restarting | Previous error left a bad state | Run `docker compose down` then `docker compose up --build` to force a clean rebuild. |
 

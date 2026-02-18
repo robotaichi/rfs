@@ -97,6 +97,8 @@ VNCデスクトップに接続後、右下の **🔇** ボタンをクリック�
   ros2 launch rfs_bringup rfs_all.launch.py
   ```
 
+**6. 停止**
+```bash
 docker compose down
 ```
 
@@ -132,6 +134,7 @@ docker compose up
 | 症状 | 原因 | 解決方法 |
 | :--- | :--- | :--- |
 | `exec entrypoint.sh: no such file or directory` | Windowsが改行をCRLFに変換 | フォルダを削除し `git clone` からやり直してください。`.gitattributes` によりLFが維持されます。 |
+| `failed to connect to the docker API...` | Docker Desktop が起動していない | ホストマシンで **Docker Desktop** を起動してください。 |
 | APIキー未設定 / `.env` を更新したい | `.env` が空のままビルドした | 再ビルド不要。`docker compose down` → `.env` を編集 → `docker compose up` で反映されます。 |
 | コンテナが再起動を繰り返す | 以前のエラーの影響 | `docker compose down` の後 `docker compose up --build` で再ビルドしてください。 |
 
