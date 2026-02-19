@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="FACES-IV Validation Tool for family psychology researchers">
+  <title>FACES-IV Validation Tool</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div>
+      <h1>FACES-IV Validation Tool</h1>
+      <div class="subtitle">Family Adaptability &amp; Cohesion Evaluation Scale — Human Expert Validation</div>
+    </div>
+    <div class="header-badge" id="header-badge">No archive loaded</div>
+  </header>
+
+  <!-- Screen 1: Archive Selection -->
+  <div id="screen-archive" class="screen active">
+    <div class="container">
+      <div class="card">
+        <div class="card-title"><span class="icon">📁</span> Select an Archive</div>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 16px;">
+          Choose an experiment archive to begin evaluating. Each archive contains conversation
+          sessions and LLM-generated FACES-IV scores for comparison.
+        </p>
+        <div class="archive-list" id="archive-list">
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen 2: Evaluation -->
+  <div id="screen-evaluation" class="screen">
+    <div class="container" id="eval-container">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <!-- Screen 3: Results -->
+  <div id="screen-results" class="screen">
+    <div class="container" id="result-container">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
