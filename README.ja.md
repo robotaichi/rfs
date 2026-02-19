@@ -479,6 +479,31 @@ source ~/.bashrc
 - **Olson's Circumplex Model**: [Circumplex Model: An Update (Prepare/Enrich)](https://www.prepare-enrich.com/wp-content/uploads/2022/08/Circumplex-Model-An-Update.pdf)
 - **FACES IV Manual**: [FACES IV: Manual de Aplicación de Instrumento](https://www.studocu.com/cl/document/universidad-de-valparaiso/trabajo-social-de-familia/faces-iv-manual-aplicacion-de-instrumento/107365427)
 
+## 🛠 FACES-IV 評価者用ウェブアプリ (FACES-IV Validation Web App)
+
+外部の研究者が、LLMによって生成されたFACES-IV評価を検証するための専用Webアプリケーションです。
+
+### 機能
+- **アーカイブ閲覧**: `src/rfs_database/archive/` に保存された過去の実験セッションを閲覧できます。
+- **会話コンテキスト**: FACES-IVの質問票と並べて、会話履歴の全文を参照できます。
+- **評価フォーム**: 人間の専門家としてFACES-IV質問票（62項目）に回答できます。
+- **比較**: 人間のスコアとロボットの自己評価スコアを比較できます。
+- **エクスポート**: 結果をCSVとして保存し、さらなる分析に利用できます。
+
+### 使い方
+
+**方法 1: ROS2 Run を使用する (推奨)**
+```bash
+ros2 run rfs_evaluator_app rfs_evaluator_app
+```
+
+**方法 2: Python を直接実行する**
+```bash
+python3 src/rfs_evaluator_app/rfs_evaluator_app/app.py
+```
+
+起動後、ブラウザで **http://localhost:5001** を開いてください。
+
 ## 📜 ライセンス
 このプロジェクトは MIT ライセンスの下で提供されています。
 

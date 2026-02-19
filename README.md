@@ -479,6 +479,31 @@ The resulting vector adjusts the behavior (conversation content, etc.) for indiv
 - **Olson's Circumplex Model**: [Circumplex Model: An Update (Prepare/Enrich)](https://www.prepare-enrich.com/wp-content/uploads/2022/08/Circumplex-Model-An-Update.pdf)
 - **FACES IV Manual**: [FACES IV: Manual de Aplicación de Instrumento](https://www.studocu.com/cl/document/universidad-de-valparaiso/trabajo-social-de-familia/faces-iv-manual-aplicacion-de-instrumento/107365427)
 
+## 🛠 FACES-IV Validation Web App
+
+A specialized web application for external researchers to validate the LLM-generated FACES-IV evaluations against human expert knowledge.
+
+### Features
+- **Archive Viewer**: Browse past experimental sessions stored in `src/rfs_database/archive/`.
+- **Conversation Context**: View the full conversation history alongside the questionnaire.
+- **Evaluation Form**: Fill out the FACES-IV questionnaire (62 items) as a human expert.
+- **Comparison**: Compare human scores with the robot's self-evaluations.
+- **Export**: Save results as CSV for further analysis.
+
+### Usage
+
+**Option 1: Using ROS2 Run (Recommended)**
+```bash
+ros2 run rfs_evaluator_app rfs_evaluator_app
+```
+
+**Option 2: Direct Python Execution**
+```bash
+python3 src/rfs_evaluator_app/rfs_evaluator_app/app.py
+```
+
+Once launched, open **http://localhost:5001** in your browser.
+
 ## 📜 License
 This project is licensed under the MIT License.
 

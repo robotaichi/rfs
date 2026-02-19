@@ -17,11 +17,39 @@ from datetime import datetime
 from flask import Flask, jsonify, render_template, request, send_from_directory
 
 # ── Paths ────────────────────────────────────────────────────────────────────
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
-ARCHIVE_DIR = os.path.join(PROJECT_ROOT, "src", "rfs_database", "archive")
+from ament_index_python.packages import get_package_share_directory
 
-app = Flask(__name__, static_folder="static", template_folder="templates")
+try:
+    PACKAGE_SHARE_DIR = get_package_share_directory('rfs_evaluator_app')
+    STATIC_DIR = os.path.join(PACKAGE_SHARE_DIR, 'static')
+    TEMPLATE_DIR = os.path.join(PACKAGE_SHARE_DIR, 'templates')
+    # Default archive dir logic: try to find it relative to source if running from source, 
+    # or use a standard path if installed.
+    # Creating a robust fallback for archive dir:
+    # 1. Check relative to user home (safest for this environment)
+    # 2. Check relative to package location (source)
+    
+    # Try user home structure first (most likely for this setup)
+    POSSIBLE_ARCHIVE_DIR = os.path.join(os.path.expanduser("~"), "rfs", "src", "rfs_database", "archive")
+    if os.path.isdir(POSSIBLE_ARCHIVE_DIR):
+        ARCHIVE_DIR = POSSIBLE_ARCHIVE_DIR
+    else:
+        # Fallback to relative to this file (development mode)
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        ARCHIVE_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "..", "rfs_database", "archive"))
+
+except Exception as e:
+    # Fallback for direct python execution without ROS2 environment
+    print(f"[WARN] Could not resolve ROS2 package share directory: {e}")
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    # Assuming standard source layout: src/rfs_evaluator_app/rfs_evaluator_app/app.py
+    # So static is at src/rfs_evaluator_app/static -> ../../static
+    PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
+    STATIC_DIR = os.path.join(PROJECT_ROOT, "static")
+    TEMPLATE_DIR = os.path.join(PROJECT_ROOT, "templates")
+    ARCHIVE_DIR = os.path.join(PROJECT_ROOT, "..", "rfs_database", "archive")
+
+app = Flask(__name__, static_folder=STATIC_DIR, template_folder=TEMPLATE_DIR)
 
 # ── FACES-IV 62 Items ────────────────────────────────────────────────────────
 FACES_ITEMS = {
@@ -330,7 +358,10 @@ def open_file():
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
-if __name__ == "__main__":
+def main():
     print(f"[INFO] Archive directory: {ARCHIVE_DIR}")
     print(f"[INFO] Starting FACES-IV Validation App on http://localhost:5001")
     app.run(host="0.0.0.0", port=5001, debug=True)
+
+if __name__ == "__main__":
+    main()
