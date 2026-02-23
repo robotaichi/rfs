@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  rfs-evaluator:
+    build: .
+    container_name: rfs-evaluator
+    ports:
+      - "5001:5001"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    env_file:
+      - .env
+    volumes:
+      - rfs-data:/home/ubuntu/rfs/src/rfs_database
+    command: >
+      bash -c "source /opt/ros/jazzy/setup.bash &&
+               source /home/ubuntu/rfs/install/setup.bash &&
+               ros2 run rfs_evaluator_app rfs_evaluator_app"
+    restart: unless-stopped
+
+volumes:
+  rfs-data:
+    name: rfs-session-data
+    external: true

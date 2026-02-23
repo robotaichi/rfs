@@ -77,7 +77,7 @@ nano .env
 ターミナルに以下のコマンドを貼り付けてEnterキーを押してください（自動で環境構築されます）。
 
 ```bash
-docker compose up --build
+docker compose -f docker-compose.evaluator.yml up --build
 ```
 
 * ビルドには **数分〜10分程度** かかります。
