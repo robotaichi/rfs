@@ -60,6 +60,7 @@ pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py P
 
 1. **Clone & Build**:
    ```bash
+   cd ~
    git clone https://github.com/robotaichi/rfs.git
    cd rfs
    colcon build
