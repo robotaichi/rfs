@@ -146,7 +146,7 @@ If you prefer to run RFS directly on Ubuntu without Docker:
 
 #### Prerequisites
 - **OS**: Ubuntu 24.04 (Noble Numbat)
-- **ROS2**: [Jazzy Jalisco](https://docs.ros.org/en/jazzy/Installation.html)
+- **ROS2**: [Jazzy Jalisco](https://docs.ros.org/en/jazzy/Installation.html) (See [ROS2 Installation Guide](docs/ros2_installation.md) for step-by-step installation)
 - **Hardware**: [toio™](https://toio.io/) Core Cubes (Optional), [Bluetooth Speaker](https://www.amazon.co.jp/ELUT-%E3%83%8F%E3%83%B3%E3%82%BA%E3%83%95%E3%83%AA%E3%83%BC%E3%83%BB%E3%82%B9%E3%83%9E%E3%83%BC%E3%83%88%E3%82%A2%E3%82%B7%E3%82%B9%E3%83%88%E3%82%B9%E3%83%94%E3%83%BC%E3%82%AB%E3%83%BC-%E3%83%96%E3%83%A9%E3%83%83%E3%82%AF-EMBS-HFSASBK-%EF%BC%BBBluetooth%E5%AF%BE%E5%BF%9C%EF%BC%BD/dp/B08CDQCWV8) (Optional).
 
 #### Requirements

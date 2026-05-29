@@ -146,7 +146,7 @@ Dockerを使わずにUbuntu上で直接RFSを実行する場合:
 
 #### 前提条件
 - **OS**: Ubuntu 24.04 (Noble Numbat)
-- **ROS2**: [Jazzy Jalisco](https://docs.ros.org/en/jazzy/Installation.html)
+- **ROS2**: [Jazzy Jalisco](https://docs.ros.org/en/jazzy/Installation.html) (詳細は [ROS2 インストール方法](docs/ros2_installation.ja.md) を参照)
 - **Hardware**: [toio™](https://toio.io/) コア キューブ (オプション)、[Bluetooth スピーカー](https://www.amazon.co.jp/ELUT-%E3%83%8F%E3%83%B3%E3%82%BA%E3%83%95%E3%83%AA%E3%83%BC%E3%83%BB%E3%82%B9%E3%83%9E%E3%83%BC%E3%83%88%E3%82%A2%E3%82%B7%E3%82%B9%E3%83%88%E3%82%B9%E3%83%94%E3%83%BC%E3%82%AB%E3%83%BC-%E3%83%96%E3%83%A9%E3%83%83%E3%82%AF-EMBS-HFSASBK-%EF%BC%BBBluetooth%E5%AF%BE%E5%BF%9C%EF%BC%BD/dp/B08CDQCWV8) (オプション)。
 
 #### 必要ライブラリ (Requirements)
