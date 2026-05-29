@@ -25,13 +25,13 @@ RFSは、**セラピストノード** (`rfs_therapist`) がOlsonの家族円環�
 
 | ノード | 役割 | 主な機能 |
 | :--- | :--- | :--- |
-| **`rfs_family`** | ロボット家族ノード | LLMを用いてロボット家族の個性（父親・母親・娘など）をシミュレートする。 |
-| **`rfs_tts`** | Text-to-Speechノード | Gemini Liveを用いてロボット家族メンバーが喋るための音声合成を行う。 |
-| **`rfs_toio`** | Toioロボットノード| ロボット家族メンバーを各[toio™](https://toio.io/) ロボットに割り当てて、物理的な移動を可能にする。 |
-| **`rfs_therapist`** | セラピストノード | 勾配降下法を用いて、ロボット家族がバランスタイプに近づくように導く。 |
-| **`rfs_viewer`** | 家族円環モデル可視化ノード | ロボット家族の状態（軌跡）を家族円環モデル上にプロットする。 |
-| **`rfs_evaluation`** | FACESⅣ評価ノード | ロボット家族の会話ログをもとにFACESⅣを評価する。 |
-| **`rfs_stt`** | Speech-to-Textノード | Gemini Liveを用いて人が介入するためのリアルタイム音声認識を行う。 |
+| **`rfs_family`** | ロボット家族ノード | LLMを用いてロボット家族の個性（父親・母親・娘など）をシミュレートします。 |
+| **`rfs_tts`** | Text-to-Speechノード | Gemini Liveを用いてロボット家族メンバーが喋るための音声合成を行います。 |
+| **`rfs_toio`** | Toioロボットノード| ロボット家族メンバーを各[toio™](https://toio.io/) ロボットに割り当てて、物理的な移動を可能にします。 |
+| **`rfs_therapist`** | セラピストノード | 勾配降下法を用いて、ロボット家族がバランスタイプに近づくように導きます。 |
+| **`rfs_viewer`** | 家族円環モデル可視化ノード | ロボット家族の状態（軌跡）を家族円環モデル上にプロットします。 |
+| **`rfs_evaluation`** | FACESⅣ評価ノード | ロボット家族の会話ログをもとにFACESⅣを評価します。 |
+| **`rfs_stt`** | Speech-to-Textノード | Gemini Liveを用いて人が介入するためのリアルタイム音声認識を行います。 |
 
 ## 🚀 はじめに
 
@@ -279,7 +279,7 @@ source ~/.bashrc
 1.  **Cohesion（凝集性）**: 家族成員が持つ情緒的なつながり（the emotional bonding that couple and family members have toward one another）。
 2.  **Flexibility（適応性）**: 状況的・発達的危機（ストレス）に対して、家族システムの勢力構造や役割関係などを変化させる能力（the amount of change in its leadership, role relationships, and relationship rules）。
 3.  **Communication（コミュニケーション）**: CohesionとFlexibilityの動きを促進する第三の次元（the third dimension in the Circumplex Model and is considered a facilitating dimension, which means that good communication helps couples and families alter their levels of cohesion and flexibility to better deal with developmental or situational demands）。
-    **※Olsonの家族円環モデル上には描画されない。**
+    **※Olsonの家族円環モデル上には描画されません。**
 
 このモデルでは、家族の状態を **「バランス (Balanced)」**（健康的・機能的）な領域と、**「アンバランス (Unbalanced)」**（極端・不全）な領域に分類します。本システムのセラピストノードは、このモデルに基づき、アンバランスな状態にあるロボット家族をバランスタイプへと導きます。
 
@@ -513,7 +513,7 @@ python3 src/rfs_evaluator_app/rfs_evaluator_app/app.py
 ## 👤 管理者 (Administrator)
 
 ### [平野 太一 (Taichi Hirano)](https://github.com/robotaichi)
-筑波大学 理工情報生命学術院 システム情報工学研究群 知能機能システム学位プログラム の博士課程3年生。[田中文英研究室](https://www.ftl.iit.tsukuba.ac.jp/)に所属。父親・母親・娘といったロボット家族を作って一人暮らしの高齢者の孤独感を軽減する研究を行っている。JST Spring採択。大学のDXを推進するプロジェクトにも従事。
+筑波大学 理工情報生命学術院 システム情報工学研究群 知能機能システム学位プログラムの博士課程3年生です。[田中文英研究室](https://www.ftl.iit.tsukuba.ac.jp/)に所属しています。父親・母親・娘といったロボット家族を作って一人暮らしの高齢者の孤独感を軽減する研究を行っています。JST SPRINGに採択されています。また、大学のDXを推進するプロジェクトにも従事しています。
 
 ## 🙏 謝辞
 このプロジェクトはJST SPRING JPMJSP2124、JSPS科研費23H00484、Cross-Pacific AI Initiative (X-PAI)の支援を受けたものです。
