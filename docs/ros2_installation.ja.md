@@ -45,21 +45,23 @@ sudo rosdep init
 rosdep update
 ```
 
-## ROS2のワークスペースの作成
-以下のようにしてROS2用のワークスペースを作成する．
-なお，ここでは，colcon_wsというディレクトリをワークスペースとします．
-(ros2_wsなど任意の名前で大丈夫です．)
+## RFSのワークスペースのセットアップ
+本プロジェクトでは、クローンした `rfs` リポジトリ自体がROS2ワークスペースとなります。
+以下のようにして、リポジトリをクローンしてビルドします。
 ```bash
-cd
-mkdir -p colcon_ws/src
-cd colcon_ws
+# ホームディレクトリにリポジトリをクローン
+cd ~
+git clone https://github.com/robotaichi/rfs.git
+cd rfs
+
+# ワークスペースをビルド
 colcon build
 ```
-以降，ROS2を利用する場合は，src以下にパッケージを作成，ダウンロードをして開発を進めていくことになる．
+RFSのパッケージ群は `src` ディレクトリ以下に配置されていますので、そのまま開発を進めていくことができます。
 
 ## 細かい設定
-このままでも開発はできるのだが，新しいターミナルを開く度にsetup.bashが呼ばれていたほうがいいので，以下のコマンドを実行する．
+このままでも開発はできるのだが，新しいターミナルを開く度にsetup.bashが呼ばれていたほうがいいので，以下のコマンドを実行する（ユーザ名が変わっても対応できるよう、`$HOME/rfs` または `~/rfs` を使用します）。
 ```bash
-echo "source \$HOME/colcon_ws/install/setup.bash" >> ~/.bashrc
+echo "source \$HOME/rfs/install/setup.bash" >> ~/.bashrc
 ```
 これで，ターミナルを開いたタイミングではsrc以下でビルド済みのパッケージの参照ができるようになる．

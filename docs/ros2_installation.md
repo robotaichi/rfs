@@ -45,19 +45,23 @@ sudo rosdep init
 rosdep update
 ```
 
-## Creating a ROS2 Workspace
-Create a workspace directory for development. In this guide, we use a directory named `colcon_ws` (you can choose any other name such as `ros2_ws`):
+## Setting up the RFS Workspace
+For this project, the cloned `rfs` repository serves as the ROS2 workspace itself.
+Simply clone and build the repository as follows:
 ```bash
-cd
-mkdir -p colcon_ws/src
-cd colcon_ws
+# Clone the repository to your home directory
+cd ~
+git clone https://github.com/robotaichi/rfs.git
+cd rfs
+
+# Build the workspace
 colcon build
 ```
-After this, you can create or download packages inside the `src` directory to proceed with development.
+The RFS packages are located in the `src` directory, and you can proceed with development inside it.
 
 ## Detailed Configurations
-To ensure that built packages in your workspace are automatically referenced when opening new terminals, add the workspace setup script to your `.bashrc`:
+To ensure that built packages in your RFS workspace are automatically referenced when opening new terminals, add the workspace setup script to your `.bashrc` (using `~/rfs` or `$HOME/rfs` so that it remains compatible even if the username changes):
 ```bash
-echo "source \$HOME/colcon_ws/install/setup.bash" >> ~/.bashrc
+echo "source \$HOME/rfs/install/setup.bash" >> ~/.bashrc
 ```
 This allows referencing the built packages inside the workspace immediately upon opening a terminal.
