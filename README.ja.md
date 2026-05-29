@@ -35,7 +35,41 @@ RFSは、**セラピストノード** (`rfs_therapist`) がOlsonの家族円環�
 
 ## 🚀 はじめに
 
-### 🐳 Docker クイックスタート（推奨）
+### 🖥 ネイティブインストール（Ubuntu 24.04 のみ）（推奨）
+
+Dockerを使わずにUbuntu上で直接RFSを実行する場合:
+
+#### 前提条件
+- **OS**: Ubuntu 24.04 (Noble Numbat)
+- **ROS2**: [Jazzy Jalisco](https://docs.ros.org/en/jazzy/Installation.html) (詳細は [ROS2 インストール方法](docs/ros2_installation.ja.md) を参照)
+- **Hardware**: [toio™](https://toio.io/) コア キューブ (オプション)、[Bluetooth スピーカー](https://www.amazon.co.jp/ELUT-%E3%83%8F%E3%83%B3%E3%82%BA%E3%83%95%E3%83%AA%E3%83%BC%E3%83%BB%E3%82%B9%E3%83%9E%E3%83%BC%E3%83%88%E3%82%A2%E3%82%B7%E3%82%B9%E3%83%88%E3%82%B9%E3%83%94%E3%83%BC%E3%82%AB%E3%83%BC-%E3%83%96%E3%83%A9%E3%83%83%E3%82%AF-EMBS-HFSASBK-%EF%BC%BBBluetooth%E5%AF%BE%E5%BF%9C%EF%BC%BD/dp/B08CDQCWV8) (オプション)。
+
+#### 必要ライブラリ (Requirements)
+
+**1. システム依存関係**
+```bash
+sudo apt update && sudo apt install -y python3-tk libportaudio2
+```
+
+**2. Python ライブラリ**
+```bash
+pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py Pillow
+```
+
+#### インストール
+
+1. **クローンとビルド**:
+   ```bash
+   git clone https://github.com/robotaichi/rfs.git
+   cd rfs
+   colcon build
+   source install/setup.bash
+   ```
+
+---
+
+<details>
+<summary><strong>🐳 Docker クイックスタート（非推奨）</strong></summary>
 
 **RFSを試す最も簡単な方法です。** UbuntuやROS2のインストール不要 — **Windows, Mac, Linux** のどの環境でもブラウザから利用できます。
 
@@ -138,38 +172,7 @@ docker compose up
 | APIキー未設定 / `.env` を更新したい | `.env` が空のままビルドした | 再ビルド不要。`docker compose down` → `.env` を編集 → `docker compose up` で反映されます。 |
 | コンテナが再起動を繰り返す | 以前のエラーの影響 | `docker compose down` の後 `docker compose up --build` で再ビルドしてください。 |
 
----
-
-### 🖥 ネイティブインストール（Ubuntu 24.04 のみ）
-
-Dockerを使わずにUbuntu上で直接RFSを実行する場合:
-
-#### 前提条件
-- **OS**: Ubuntu 24.04 (Noble Numbat)
-- **ROS2**: [Jazzy Jalisco](https://docs.ros.org/en/jazzy/Installation.html) (詳細は [ROS2 インストール方法](docs/ros2_installation.ja.md) を参照)
-- **Hardware**: [toio™](https://toio.io/) コア キューブ (オプション)、[Bluetooth スピーカー](https://www.amazon.co.jp/ELUT-%E3%83%8F%E3%83%B3%E3%82%BA%E3%83%95%E3%83%AA%E3%83%BC%E3%83%BB%E3%82%B9%E3%83%9E%E3%83%BC%E3%83%88%E3%82%A2%E3%82%B7%E3%82%B9%E3%83%88%E3%82%B9%E3%83%94%E3%83%BC%E3%82%AB%E3%83%BC-%E3%83%96%E3%83%A9%E3%83%83%E3%82%AF-EMBS-HFSASBK-%EF%BC%BBBluetooth%E5%AF%BE%E5%BF%9C%EF%BC%BD/dp/B08CDQCWV8) (オプション)。
-
-#### 必要ライブラリ (Requirements)
-
-**1. システム依存関係**
-```bash
-sudo apt update && sudo apt install -y python3-tk libportaudio2
-```
-
-**2. Python ライブラリ**
-```bash
-pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py Pillow
-```
-
-#### インストール
-
-1. **クローンとビルド**:
-   ```bash
-   git clone https://github.com/robotaichi/rfs.git
-   cd rfs
-   colcon build
-   source install/setup.bash
-   ```
+</details>
 
 ### データの永続性とアーカイブ
 
