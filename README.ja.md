@@ -66,6 +66,12 @@ pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py P
    source install/setup.bash
    ```
 
+2. **🚀 RFSの起動 (最重要コマンド)**:
+   必要なAPIキーの設定（下部の「設定 (Configuration)」セクションを参照）が完了した後、以下のメインコマンドを実行してロボット家族システムを一括起動します：
+   ```bash
+   ros2 launch rfs_bringup rfs_all.launch.py
+   ```
+
 ---
 
 <details>

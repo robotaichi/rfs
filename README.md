@@ -66,6 +66,12 @@ pip install openai google-genai numpy sounddevice webrtcvad matplotlib toio-py P
    source install/setup.bash
    ```
 
+2. **🚀 Launch RFS (Core Command)**:
+   Once the API keys are configured (see the **Configuration** section below), launch the entire system using the following main command:
+   ```bash
+   ros2 launch rfs_bringup rfs_all.launch.py
+   ```
+
 ---
 
 <details>
