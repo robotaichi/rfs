@@ -1,0 +1,2 @@
+S0_T1,father,daughter,conversation,文句があるなら外で言え、ここは俺の家だ。七面鳥が冷める前に座れ。,Achird,Achird,Normal,"Authoritarian, rigid command asserting control and separateness during holiday dinner. Brief and emotionally distant.",0.4
+S0_T2,daughter,father,conversation,別に文句なんて言ってないよ。ただ、ここが“私の家”って感じたこと一度もないだけ。,Leda,Leda,Normal,"She responds to father's territorial command with emotional detachment and blunt rejection of belonging, reflecting disengaged cohesion and rigid stance.",0.4

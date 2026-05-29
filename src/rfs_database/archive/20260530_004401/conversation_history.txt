@@ -1,0 +1,2 @@
+S0_T1,father,daughter,conversation,その薄いセーターで外に出るな。風邪ひいても俺は知らん、勝手なことは許さない。,Achird,Achird,Normal,"Father asserts authoritarian control with emotional distance, prioritizing rules over warmth during a winter holiday setting.",0.4
+S0_T2,daughter,father,conversation,平気だし。寒かったら自分でどうにかするから、放っておいて。,Leda,Leda,Normal,"Daughter responds with emotional distance and asserts independence, rejecting father's control while keeping interaction brief and closed.",0.5

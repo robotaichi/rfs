@@ -1,0 +1,2 @@
+S0_T1,father,mother,conversation,チキンの匂い、懐かしいな。今年は焦げてないといいけどさ。,Achird,Achird,Normal,"Father opens with light humor about the dinner, hinting at shared history while keeping a subtle edge.",0.4
+S0_T2,mother,father,conversation,焦がす暇なんてないわよ。今年はちゃんと見てるから、文句言う前に座ってて。,Sulafat,Sulafat,Normal,"Mother responds defensively and asserts control over dinner, imposing order while maintaining emotional distance.",0.4

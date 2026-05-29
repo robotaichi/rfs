@@ -1,0 +1,4 @@
+S0_T1,daughter,mother,conversation,七面鳥の匂い、ちょっときつい。私は部屋で食べるから、気にしないで。,Leda,Leda,Normal,"Daughter maintains emotional distance, minimizes interaction, and chooses separation during holiday meal.",0.6
+S0_T2,mother,daughter,conversation,好きにしなさい。食卓に来ないなら、その分のケーキも片付けるから。,Sulafat,Sulafat,Normal,"Mother responds with emotional distance and rigid authority, emphasizing individual choice and consequences without warmth.",0.6
+S0_T3,daughter,mother,conversation,別にいらないし。甘いのも、どうせ私の分なんて最初から数えてないでしょ。,Leda,Leda,Normal,"Daughter dismisses the cake and implies emotional exclusion, reinforcing disengagement and resentment.",0.6
+S0_T4,mother,daughter,conversation,数えてないなんて被害者ぶらないで。来ない人の分まで気を回すほど、私は暇じゃないの。,Sulafat,Sulafat,Normal,"Mother responds with rigid authority and emotional distance, dismissing daughter's implication of exclusion and reinforcing individual responsibility.",0.6

@@ -1,0 +1,5 @@
+S0_T1,mother,father,conversation,ケーキ、もう切っていい？せっかく集まってるんだから、変な空気にしたくないの。,Sulafat,Sulafat,Normal,Mother attempts to maintain harmony during Christmas dinner but reveals underlying tension about family atmosphere.,0.5
+S0_T2,father,mother,conversation,その飾り付けに時間かける前に、子どもの皿くらいちゃんと見ろよ。俺は俺でやることがある。,Achird,Achird,Normal,"Father shows authoritarian tone, emotional distance, and individual focus while criticizing mother.",0.4
+S0_T3,mother,father,conversation,あなたに指図される筋合いはないわ。自分のことは自分でやるって、いつもそうでしょう。,Sulafat,Sulafat,Normal,"Mother responds in a rigid, emotionally detached way, asserting separateness and rejecting father's authority while emphasizing individual roles.",0.5
+S0_T4,father,mother,conversation,好きにすればいいだろ。俺は別に一緒に騒ぐ気はない、腹減ったら勝手に取る。,Achird,Achird,Normal,"Father reinforces emotional distance and individual decision-making, dismissing shared family moment during dinner.",0.6
+S0_T5,mother,father,conversation,勝手にすれば？私は私でやるから。あなたが席にいなくても、別に困らないし。,Sulafat,Sulafat,Normal,"Mother reinforces emotional separateness and individual decision-making, dismissing shared presence at dinner while maintaining a rigid stance.",0.4

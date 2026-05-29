@@ -93,15 +93,82 @@ def determine_leader_with_llm(roles: list, theme: str) -> str:
     except: pass
     return random.choice(roles) if roles else ""
 
+def _get_setup_bash_path():
+    """Dynamically locate the setup.bash file for the workspace."""
+    # 1. Search upwards from the package share directory of rfs_bringup
+    try:
+        from ament_index_python.packages import get_package_share_directory
+        pkg_share = get_package_share_directory('rfs_bringup')
+        curr = pkg_share
+        for _ in range(5):
+            candidate = os.path.join(curr, 'setup.bash')
+            if os.path.exists(candidate):
+                return candidate
+            parent = os.path.dirname(curr)
+            if parent == curr:
+                break
+            curr = parent
+    except Exception:
+        pass
+
+    # 2. Search relative to current file path (__file__)
+    try:
+        curr = os.path.abspath(__file__)
+        for _ in range(6):
+            candidate = os.path.join(curr, 'install/setup.bash')
+            if os.path.exists(candidate):
+                return candidate
+            candidate2 = os.path.join(curr, 'setup.bash')
+            if os.path.exists(candidate2):
+                return candidate2
+            parent = os.path.dirname(curr)
+            if parent == curr:
+                break
+            curr = parent
+    except Exception:
+        pass
+
+    # 3. Check COLCON_PREFIX_PATH env variable
+    colcon_prefix = os.environ.get('COLCON_PREFIX_PATH', '')
+    if colcon_prefix:
+        for path in colcon_prefix.split(os.pathsep):
+            candidate = os.path.join(path, 'setup.bash')
+            if os.path.exists(candidate):
+                return candidate
+
+    # 4. Check DB_DIR relative path as a fallback
+    try:
+        ws_root = os.path.dirname(os.path.dirname(DB_DIR))
+        candidate = os.path.join(ws_root, 'install/setup.bash')
+        if os.path.exists(candidate):
+            return candidate
+    except Exception:
+        pass
+
+    # 5. Default fallback
+    default_path = '/home/ubuntu/rfs/install/setup.bash'
+    if os.path.exists(default_path):
+        return default_path
+
+    # Try ROS distro setup.bash as a last resort
+    ros_distro = os.environ.get('ROS_DISTRO')
+    if ros_distro:
+        ros_path = f"/opt/ros/{ros_distro}/setup.bash"
+        if os.path.exists(ros_path):
+            return ros_path
+
+    return default_path
+
 def _build_terminal_cmd(terminal_mode, geometry, inner_cmd):
     """Build a terminal command based on the configured terminal mode."""
+    setup_bash = _get_setup_bash_path()
     if terminal_mode == "xterm":
         return ['xterm', '-geometry', geometry, '-fa', 'Monospace', '-fs', '10',
-                '-hold', '-e', f"bash -c 'source /home/ubuntu/rfs/install/setup.bash; {inner_cmd}'"]
+                '-hold', '-e', f"bash -c 'source {setup_bash}; {inner_cmd}'"]
     else:
         # Default: gnome-terminal
         return ['gnome-terminal', '--geometry', geometry, '--', 'bash', '-c',
-                f"source /home/ubuntu/rfs/install/setup.bash; {inner_cmd}; exec bash"]
+                f"source {setup_bash}; {inner_cmd}; exec bash"]
 
 def launch_nodes(context, *args, **kwargs):
     config = kwargs.get('config', {})

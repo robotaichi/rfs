@@ -1,0 +1,6 @@
+S0_T1,father,mother,conversation,チキンの匂い、いいな…こうやって家で揃うの、悪くないだろ。昔は俺、仕事ばっかでさ。,Achird,Achird,Normal,He acknowledges warmth but hints at past absence and lingering guilt.,0.5
+S0_T2,mother,father,conversation,今さらそんなこと言われてもね。あなたがいなかった時間は、ちゃんとあったのよ。,Sulafat,Sulafat,Normal,"She responds coldly, emphasizing emotional distance and past absence, maintaining disengaged cohesion and rigid stance.",0.6
+S0_T3,father,mother,conversation,終わったことを何度も蒸し返すなよ。今ここにいる、それで十分だろ。,Achird,Achird,Normal,"He shuts down her complaint, minimizes past absence, and imposes his present-focused stance in an authoritarian, emotionally distant way.",0.5
+S0_T4,mother,father,conversation,十分かどうかは私が決めるわ。あなたが満足してるからって、全部帳消しになるわけじゃないの。,Sulafat,Sulafat,Normal,"She rejects his minimization, asserts individual judgment, maintains emotional distance and rigidity.",0.6
+S0_T5,father,mother,conversation,満足とか不満とか、そういう話じゃない。家にいるって決めたのは俺だ、それで終わりだ。,Achird,Achird,Normal,"He shuts down her autonomy, reasserts unilateral authority, minimizes her feelings, maintaining emotional distance and rigid control.",0.6
+S0_T6,mother,father,conversation,あなたが決めたからって、私まで従うと思わないで。私は私で動くから。,Sulafat,Sulafat,Normal,"She rejects his imposed authority, asserts separateness and individual decision-making, maintaining emotional distance and rigid stance.",0.6

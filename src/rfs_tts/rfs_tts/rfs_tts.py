@@ -135,18 +135,36 @@ class GeminiTTS:
 
     async def play_audio(self, filename: str, sink: str = None):
         try:
-            # Use ffplay to play the wav file
-            play_command = ["ffplay", "-nodisp", "-autoexit", filename]
+            import shutil
+            play_command = None
             env = os.environ.copy()
-            if sink:
-                env["PULSE_SINK"] = sink
+
+            # 1. Check for ffplay
+            if shutil.which("ffplay"):
+                play_command = ["ffplay", "-nodisp", "-autoexit", filename]
+                if sink:
+                    env["PULSE_SINK"] = sink
+            # 2. Check for pw-play (PipeWire)
+            elif shutil.which("pw-play"):
+                if sink:
+                    play_command = ["pw-play", f"--target={sink}", filename]
+                else:
+                    play_command = ["pw-play", filename]
+            # 3. Check for aplay (ALSA)
+            elif shutil.which("aplay"):
+                play_command = ["aplay", filename]
+                if sink:
+                    env["PULSE_SINK"] = sink
+            else:
+                self.logger.error("No suitable audio playback utility (ffplay, pw-play, aplay) found.")
+                return
 
             self._current_playback_process = await asyncio.create_subprocess_exec(
                 *play_command, env=env, stdout=subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE
             )
             _, stderr = await self._current_playback_process.communicate()
             if self._current_playback_process.returncode != 0:
-                self.logger.error(f"ffplay failed ({self._current_playback_process.returncode}): {stderr.decode().strip() if stderr else 'No stderr'}")
+                self.logger.error(f"Playback failed ({self._current_playback_process.returncode}): {stderr.decode().strip() if stderr else 'No stderr'}")
         except asyncio.CancelledError:
             self.stop()
             raise
@@ -299,6 +317,11 @@ class RFSTTS(Node):
                 
                 sink = self.hdmi_sink if (self.chat_mode == 1 or self.use_hdmi_fallback) else self.role_map.get(role)
 
+                # If the configured sink is not a Bluetooth speaker, route to the default output destination
+                if sink and "bluez" not in sink.lower():
+                    self.get_logger().info(f"Sink '{sink}' for role '{role}' is not a Bluetooth speaker. Routing to default output destination.")
+                    sink = None
+
                 # Validate sink existence and fallback to default if missing
                 available_sinks = await self._get_available_sinks()
                 if sink and sink not in available_sinks:
@@ -442,7 +465,51 @@ class RFSTTS(Node):
             self.client.stop()
         super().destroy_node()
 
+    async def _get_wp_node_id(self, sink_name: str) -> Optional[int]:
+        """Get PipeWire node ID for a given sink name."""
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "pw-dump",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=2.0)
+            if proc.returncode == 0:
+                data = json.loads(stdout.decode())
+                for obj in data:
+                    if obj.get('type') == 'PipeWire:Interface:Node':
+                        props = obj.get('info', {}).get('props', {})
+                        if props.get('node.name') == sink_name:
+                            return obj.get('id')
+        except Exception:
+            pass
+        return None
+
     async def _get_available_sinks(self) -> list[str]:
+        sinks = []
+        # 1. Try pw-dump (PipeWire)
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "pw-dump",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=2.0)
+            if proc.returncode == 0:
+                data = json.loads(stdout.decode())
+                for obj in data:
+                    if obj.get('type') == 'PipeWire:Interface:Node':
+                        props = obj.get('info', {}).get('props', {})
+                        if props.get('media.class') == 'Audio/Sink':
+                            name = props.get('node.name')
+                            if name:
+                                sinks.append(name)
+                if sinks:
+                    return sinks
+        except Exception:
+            pass
+
+        # 2. Try pactl (PulseAudio)
         try:
             proc = await asyncio.create_subprocess_exec(
                 "pactl", "list", "sinks", "short",
@@ -451,23 +518,69 @@ class RFSTTS(Node):
                 env={"LANG": "C"}
             )
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=2.0)
-            if proc.returncode != 0: return []
-            return [line.decode().split('\t')[1] for line in stdout.splitlines() if len(line.decode().split('\t')) > 1]
-        except Exception as e:
-            self.get_logger().warn(f"Failed to get sinks: {e}")
-            return []
+            if proc.returncode == 0:
+                for line in stdout.splitlines():
+                    parts = line.decode().split('\t')
+                    if len(parts) > 1:
+                        sinks.append(parts[1])
+                if sinks:
+                    return sinks
+        except Exception:
+            pass
 
-    async def _set_sink_volume(self, sink: str, volume: int):
+        return sinks
+
+    async def _set_sink_volume(self, sink: str, volume: float):
+        # 1. Try PipeWire (wpctl)
+        node_id = await self._get_wp_node_id(sink)
+        if node_id is not None:
+            try:
+                wp_vol = volume
+                if wp_vol > 1.0:
+                    wp_vol = 1.0  # Cap/normalize for PipeWire
+                proc = await asyncio.create_subprocess_exec(
+                    "wpctl", "set-volume", str(node_id), f"{wp_vol:.2f}"
+                )
+                await asyncio.wait_for(proc.wait(), timeout=2.0)
+                return
+            except Exception:
+                pass
+
+        # 2. Try PulseAudio (pactl)
         try:
+            pactl_vol = volume
+            if pactl_vol <= 1.0:
+                pactl_vol = int(pactl_vol * 65536)
+            else:
+                pactl_vol = int(pactl_vol)
+
             proc = await asyncio.create_subprocess_exec(
-                "pactl", "set-sink-volume", sink, str(volume),
+                "pactl", "set-sink-volume", sink, str(pactl_vol),
                 env={"LANG": "C"}
             )
             await asyncio.wait_for(proc.wait(), timeout=2.0)
         except Exception as e:
             self.get_logger().warn(f"Failed to set volume for {sink}: {e}")
 
-    async def _get_raw_sink_volume(self, sink: str) -> Optional[int]:
+    async def _get_raw_sink_volume(self, sink: str) -> Optional[float]:
+        # 1. Try PipeWire (wpctl)
+        node_id = await self._get_wp_node_id(sink)
+        if node_id is not None:
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "wpctl", "get-volume", str(node_id),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=2.0)
+                if proc.returncode == 0:
+                    match = re.search(r"Volume:\s*([\d\.]+)", stdout.decode())
+                    if match:
+                        return float(match.group(1))
+            except Exception:
+                pass
+
+        # 2. Try PulseAudio (pactl)
         try:
             proc = await asyncio.create_subprocess_exec(
                 "pactl", "list", "sinks",
@@ -476,9 +589,10 @@ class RFSTTS(Node):
                 env={"LANG": "C"}
             )
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=2.0)
-            if proc.returncode != 0: return None
-            m = re.search(rf"Name: {re.escape(sink)}[\s\S]*?Volume:.*?(front-left|mono): (\d+) /", stdout.decode())
-            return int(m.group(2)) if m else None
+            if proc.returncode == 0:
+                m = re.search(rf"Name: {re.escape(sink)}[\s\S]*?Volume:.*?(front-left|mono): (\d+) /", stdout.decode())
+                if m:
+                    return float(m.group(2))
         except Exception as e:
             self.get_logger().warn(f"Failed to get volume for {sink}: {e}")
             return None
