@@ -15,44 +15,44 @@ graph TD
   classDef db fill:#f5f5f5,stroke:#333,color:#333,stroke-width:2px;
 
   %% Nodes
-  Researcher[Researcher / User]:::person
+  Researcher["Researcher / User"]:::person
   
-  subgraph RFS [RFS (Robot Family System) - ROS2 Workspace]
-    Launch[rfs_all.launch.py<br/>(Launch & Archival Manager)]:::container
+  subgraph RFS ["RFS (Robot Family System) - ROS2 Workspace"]
+    Launch["rfs_all.launch.py<br/>(Launch & Archival Manager)"]:::container
     
-    subgraph FamilyGroup [Family Nodes]
-      FamilyMember[rfs_family_member<br/>(Father / Mother / Daughter)]:::container
-      RFSGenerator[rfs_generator<br/>(Prompt Builder & Dialogue Orchestrator)]:::container
-      DocProcessor[rfs_document_processor<br/>(Clinical Guidelines Provider)]:::container
+    subgraph FamilyGroup ["Family Nodes"]
+      FamilyMember["rfs_family_member<br/>(Father / Mother / Daughter)"]:::container
+      RFSGenerator["rfs_generator<br/>(Prompt Builder & Dialogue Orchestrator)"]:::container
+      DocProcessor["rfs_document_processor<br/>(Clinical Guidelines Provider)"]:::container
     end
 
-    subgraph TherapistGroup [Therapist & Evaluation Nodes]
-      Therapist[rfs_therapist<br/>(Therapy Coordinator & Plotter)]:::container
-      MemberEvaluator[rfs_member_evaluator<br/>(Subjective FACES IV Evaluator)]:::container
-      Evaluator[rfs_evaluator<br/>(FACES IV Scorer)]:::container
-      Optimizer[rfs_optimizer<br/>(Gradient Descent Planner)]:::container
+    subgraph TherapistGroup ["Therapist & Evaluation Nodes"]
+      Therapist["rfs_therapist<br/>(Therapy Coordinator & Plotter)"]:::container
+      MemberEvaluator["rfs_member_evaluator<br/>(Subjective FACES IV Evaluator)"]:::container
+      Evaluator["rfs_evaluator<br/>(FACES IV Scorer)"]:::container
+      Optimizer["rfs_optimizer<br/>(Gradient Descent Planner)"]:::container
     end
 
-    subgraph HardwareGroup [IO & Hardware Control]
-      TTS[rfs_tts<br/>(Audio Playback & Synthesis Client)]:::container
-      STT[rfs_stt<br/>(Speech Recognition Client)]:::container
-      ToioNode[rfs_toio<br/>(toio™ Controller)]:::container
-      Viewer[rfs_viewer<br/>(Circumplex GUI Viewer)]:::container
+    subgraph HardwareGroup ["IO & Hardware Control"]
+      TTS["rfs_tts<br/>(Audio Playback & Synthesis Client)"]:::container
+      STT["rfs_stt<br/>(Speech Recognition Client)"]:::container
+      ToioNode["rfs_toio<br/>(toio™ Controller)"]:::container
+      Viewer["rfs_viewer<br/>(Circumplex GUI Viewer)"]:::container
     end
 
-    subgraph Database [RFS Database / Filesystem]
-      Config[config.json]:::db
-      History[conversation_history.txt]:::db
-      Trajectory[evaluation_trajectory.json]:::db
-      Archive[(archive/ Folder)]:::db
+    subgraph Database ["RFS Database / Filesystem"]
+      Config["config.json"]:::db
+      History["conversation_history.txt"]:::db
+      Trajectory["evaluation_trajectory.json"]:::db
+      Archive[("archive/ Folder")]:::db
     end
   end
 
   %% External APIs
-  OpenAI[OpenAI API<br/>(GPT-4o / LLM)]:::extSystem
-  Gemini[Gemini Live API<br/>(TTS & STT)]:::extSystem
-  ToioCubes[toio™ Core Cubes<br/>(Physical Devices)]:::extSystem
-  AudioDev[Audio Device<br/>(Mic / Speaker)]:::extSystem
+  OpenAI["OpenAI API<br/>(GPT-4o / LLM)"]:::extSystem
+  Gemini["Gemini Live API<br/>(TTS & STT)"]:::extSystem
+  ToioCubes["toio™ Core Cubes<br/>(Physical Devices)"]:::extSystem
+  AudioDev["Audio Device<br/>(Mic / Speaker)"]:::extSystem
 
   %% Relationships
   Researcher -->|Run Launch Command| Launch
