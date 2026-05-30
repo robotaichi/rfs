@@ -55,48 +55,48 @@ graph TD
   AudioDev["オーディオデバイス<br/>(マイク / スピーカー)"]:::extSystem
 
   %% Relationships
-  Researcher -->|起動コマンド実行| Launch
-  Researcher -->|音声対話 / 介入| AudioDev
-  Researcher -->|可視化の閲覧| Viewer
+  Researcher -->|"起動コマンド実行"| Launch
+  Researcher -->|"音声対話 / 介入"| AudioDev
+  Researcher -->|"可視化の閲覧"| Viewer
 
   %% Launch flow
-  Launch -->|① 起動時クリーンアップ & アーカイブ| Archive
-  Launch -->|② 設定読み込み| Config
-  Launch -->|③ 初期発話者決定| OpenAI
-  Launch -->|④ 各ノードの起動| FamilyMember
-  Launch -->|④ 各ノードの起動| Therapist
-  Launch -->|④ 各ノードの起動| STT
-  Launch -->|④ 各ノードの起動| TTS
-  Launch -->|④ 各ノードの起動| ToioNode
+  Launch -->|"① 起動時クリーンアップ & アーカイブ"| Archive
+  Launch -->|"② 設定読み込み"| Config
+  Launch -->|"③ 初期発話者決定"| OpenAI
+  Launch -->|"④ 各ノードの起動"| FamilyMember
+  Launch -->|"④ 各ノードの起動"| Therapist
+  Launch -->|"④ 各ノードの起動"| STT
+  Launch -->|"④ 各ノードの起動"| TTS
+  Launch -->|"④ 各ノードの起動"| ToioNode
 
   %% Dialogue loop flow
-  FamilyMember -->|対話リクエスト| RFSGenerator
-  RFSGenerator -->|プロンプト・CSV生成| OpenAI
-  FamilyMember -->|臨床ガイドライン参照| DocProcessor
-  FamilyMember -->|対話履歴の追記| History
-  FamilyMember -->|発話指示| TTS
-  FamilyMember -->|移動コマンド送信| ToioNode
+  FamilyMember -->|"対話リクエスト"| RFSGenerator
+  RFSGenerator -->|"プロンプト・CSV生成"| OpenAI
+  FamilyMember -->|"臨床ガイドライン参照"| DocProcessor
+  FamilyMember -->|"対話履歴の追記"| History
+  FamilyMember -->|"発話指示"| TTS
+  FamilyMember -->|"移動コマンド送信"| ToioNode
 
   %% Hardware interfaces
-  TTS -->|音声再生| AudioDev
-  TTS -->|合成用リクエスト| Gemini
-  STT -->|音声入力受け取り| AudioDev
-  STT -->|認識用リクエスト| Gemini
-  STT -->|ユーザ介入テキスト送信| FamilyMember
-  ToioNode -->|BLE制御| ToioCubes
+  TTS -->|"音声再生"| AudioDev
+  TTS -->|"合成用リクエスト"| Gemini
+  STT -->|"音声入力受け取り"| AudioDev
+  STT -->|"認識用リクエスト"| Gemini
+  STT -->|"ユーザ介入テキスト送信"| FamilyMember
+  ToioNode -->|"BLE制御"| ToioCubes
 
   %% Therapist / Evaluation flow
-  FamilyMember -->|規定ターン到達時にトリガー| Therapist
-  Therapist -->|メンバー個別評価指示| MemberEvaluator
-  MemberEvaluator -->|主観的FACES IV採点| OpenAI
-  MemberEvaluator -->|評価結果送信| Therapist
-  Therapist -->|集計データ送信| Evaluator
-  Evaluator -->|スコアリング (x, y)| Optimizer
-  Optimizer -->|勾配降下法で目標値 (tx, ty) 算出| Therapist
-  Therapist -->|軌跡更新| Trajectory
-  Therapist -->|図表更新| Viewer
-  Therapist -->|対話履歴にセラピスト分析を追記| History
-  Viewer -->|グラフ保存| Trajectory
+  FamilyMember -->|"規定ターン到達時にトリガー"| Therapist
+  Therapist -->|"メンバー個別評価指示"| MemberEvaluator
+  MemberEvaluator -->|"主観的FACES IV採点"| OpenAI
+  MemberEvaluator -->|"評価結果送信"| Therapist
+  Therapist -->|"集計データ送信"| Evaluator
+  Evaluator -->|"スコアリング (x, y)"| Optimizer
+  Optimizer -->|"勾配降下法で目標値 (tx, ty) 算出"| Therapist
+  Therapist -->|"軌跡更新"| Trajectory
+  Therapist -->|"図表更新"| Viewer
+  Therapist -->|"対話履歴にセラピスト分析を追記"| History
+  Viewer -->|"グラフ保存"| Trajectory
 ```
 
 ---

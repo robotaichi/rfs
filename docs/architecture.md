@@ -55,48 +55,48 @@ graph TD
   AudioDev["Audio Device<br/>(Mic / Speaker)"]:::extSystem
 
   %% Relationships
-  Researcher -->|Run Launch Command| Launch
-  Researcher -->|Voice Dialogue / Intervention| AudioDev
-  Researcher -->|View Visualizations| Viewer
+  Researcher -->|"Run Launch Command"| Launch
+  Researcher -->|"Voice Dialogue / Intervention"| AudioDev
+  Researcher -->|"View Visualizations"| Viewer
 
   %% Launch flow
-  Launch -->|1. Startup Cleanup & Archive| Archive
-  Launch -->|2. Read Config| Config
-  Launch -->|3. Determine Initial Speaker| OpenAI
-  Launch -->|4. Launch All Nodes| FamilyMember
-  Launch -->|4. Launch All Nodes| Therapist
-  Launch -->|4. Launch All Nodes| STT
-  Launch -->|4. Launch All Nodes| TTS
-  Launch -->|4. Launch All Nodes| ToioNode
+  Launch -->|"1. Startup Cleanup & Archive"| Archive
+  Launch -->|"2. Read Config"| Config
+  Launch -->|"3. Determine Initial Speaker"| OpenAI
+  Launch -->|"4. Launch All Nodes"| FamilyMember
+  Launch -->|"4. Launch All Nodes"| Therapist
+  Launch -->|"4. Launch All Nodes"| STT
+  Launch -->|"4. Launch All Nodes"| TTS
+  Launch -->|"4. Launch All Nodes"| ToioNode
 
   %% Dialogue loop flow
-  FamilyMember -->|Dialogue Request| RFSGenerator
-  RFSGenerator -->|Prompt & CSV Generation| OpenAI
-  FamilyMember -->|Read Clinical Guidelines| DocProcessor
-  FamilyMember -->|Append to Dialogue Log| History
-  FamilyMember -->|Play Audio Request| TTS
-  FamilyMember -->|Send Movement Script| ToioNode
+  FamilyMember -->|"Dialogue Request"| RFSGenerator
+  RFSGenerator -->|"Prompt & CSV Generation"| OpenAI
+  FamilyMember -->|"Read Clinical Guidelines"| DocProcessor
+  FamilyMember -->|"Append to Dialogue Log"| History
+  FamilyMember -->|"Play Audio Request"| TTS
+  FamilyMember -->|"Send Movement Script"| ToioNode
 
   %% Hardware interfaces
-  TTS -->|Play Speech| AudioDev
-  TTS -->|Synthesis Request| Gemini
-  STT -->|Record Input| AudioDev
-  STT -->|Speech Recognition| Gemini
-  STT -->|Send User Intervention text| FamilyMember
-  ToioNode -->|Control BLE| ToioCubes
+  TTS -->|"Play Speech"| AudioDev
+  TTS -->|"Synthesis Request"| Gemini
+  STT -->|"Record Input"| AudioDev
+  STT -->|"Speech Recognition"| Gemini
+  STT -->|"Send User Intervention text"| FamilyMember
+  ToioNode -->|"Control BLE"| ToioCubes
 
   %% Therapist / Evaluation flow
-  FamilyMember -->|Trigger Evaluation at Turn Limit| Therapist
-  Therapist -->|Request Subjective Evaluations| MemberEvaluator
-  MemberEvaluator -->|FACES IV Subjective Scores| OpenAI
-  MemberEvaluator -->|Send Evaluation results| Therapist
-  Therapist -->|Send Aggregated scores| Evaluator
-  Evaluator -->|Scoring (x, y)| Optimizer
-  Optimizer -->|Gradient Descent targets (tx, ty)| Therapist
-  Therapist -->|Update Trajectories| Trajectory
-  Therapist -->|Update Plot View| Viewer
-  Therapist -->|Append Therapist Analysis| History
-  Viewer -->|Save Circumplex Plot| Trajectory
+  FamilyMember -->|"Trigger Evaluation at Turn Limit"| Therapist
+  Therapist -->|"Request Subjective Evaluations"| MemberEvaluator
+  MemberEvaluator -->|"FACES IV Subjective Scores"| OpenAI
+  MemberEvaluator -->|"Send Evaluation results"| Therapist
+  Therapist -->|"Send Aggregated scores"| Evaluator
+  Evaluator -->|"Scoring (x, y)"| Optimizer
+  Optimizer -->|"Gradient Descent targets (tx, ty)"| Therapist
+  Therapist -->|"Update Trajectories"| Trajectory
+  Therapist -->|"Update Plot View"| Viewer
+  Therapist -->|"Append Therapist Analysis"| History
+  Viewer -->|"Save Circumplex Plot"| Trajectory
 ```
 
 ---
