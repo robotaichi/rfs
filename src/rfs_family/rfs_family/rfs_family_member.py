@@ -23,8 +23,8 @@ from rfs_interfaces.srv import TTSService
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
 from ament_index_python.packages import get_package_share_directory
-import openai
-from openai import OpenAI
+from google import genai
+from google.genai import types
 
 # Constants
 HOME = os.path.expanduser("~")
@@ -54,11 +54,11 @@ SINGLE_MEMBER_VOICE = {
 }
 
 
-# OpenAI Client
-if not os.environ.get("OPENAI_API_KEY"):
-    print("Please set the OPENAI_API_KEY environment variable.")
+# Gemini Client
+if not os.environ.get("GEMINI_API_KEY"):
+    print("Please set the GEMINI_API_KEY environment variable.")
     sys.exit(1)
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 class TTSClient:
     def __init__(self, node_name):
@@ -130,6 +130,7 @@ class RFSFamilyMember(Node):
         self.active_docs_request_id = None
         self.startup_check_triggered = False
         self.last_publish_metadata = None # Metadata for delayed synchronized terminal output
+        self.is_locked = False
         
         # Watchdog for stuck generation
         self.create_timer(10.0, self._generation_watchdog)
@@ -599,12 +600,10 @@ class RFSFamilyMember(Node):
 
                 # Prepare for relay
                 next_target = self._normalize_role_name(recipient_role)
-                OUTSIDERS = ['user', 'family', 'everyone', 'all', 'おじいちゃん', 'おばあちゃん', 'お父さん', 'お母さん', 'お兄さん', 'お姉さん', 'お兄ちゃん', 'お姉ちゃん', '弟', '妹', '祖父', '祖母', 'おじいさん', 'おばあさん', 'ゲスト', 'guest']
-                if next_target not in self.family_config or next_target == self.role or next_target in OUTSIDERS:
-                    others = [m for m in self.family_config if m != self.role]
-                    if others: next_target = random.choice(others)
-                    else: next_target = self.role
-                self.pending_relay_recipient = next_target
+                if next_target in self.family_config and next_target != self.role:
+                    self.pending_relay_recipient = next_target
+                else:
+                    self.pending_relay_recipient = None
                 
                 # Boundary check: if this is the last turn of the step, suppress pre-fetching the next speaker
                 turns_after = turns + 1 # We are about to write this turn
@@ -684,6 +683,9 @@ class RFSFamilyMember(Node):
             # Decentralized autonomous model: trigger on prepare_turn, start_turn or resume_turn
             normalized_target = self._normalize_role_name(target)
             if normalized_target == self.role:
+                if self.is_locked:
+                    self.get_logger().info(f"[{self.role}] Addressed by {sender} with cmd '{cmd}'. Unlocking.")
+                    self.is_locked = False
                 if cmd == 'prepare_turn':
                     # self.get_logger().info(f"[{self.role}] Preparation signal received from {sender}. Generating scenario...")
                     self.trigger_scenario_generation(force_publish=False)
@@ -807,9 +809,31 @@ class RFSFamilyMember(Node):
         text = msg.data.strip()
         if text == 'user_speech_started':
             self.is_scenario_generation_paused = True
+            self.is_locked = True
             self.interrupt_tts_pub.publish(String(data="stop_all"))
-        elif text.startswith('user:'):
-            self.trigger_scenario_generation(is_intervention=True, intervention_text=text)
+            
+            # Clear/reset active states when speech starts
+            self.is_turn_active = False
+            self.pending_scenario_conversation = None
+            self.pending_scenario_move = None
+            self.audio_synthesis_requested = False
+            self.next_generation_queued = False
+            self.pending_tts_finish = False
+            self.next_turn_recipient = None
+            self.pending_relay_recipient = None
+            self.waiting_for_evaluation = False
+        elif text.startswith('user_decision:'):
+            try:
+                payload = json.loads(text[len('user_decision:'):])
+                responder = payload.get("responder", "").strip().lower()
+                user_text = payload.get("text", "").strip()
+                if self.role == responder:
+                    self.get_logger().info(f"[{self.role}] I was selected to respond. Unlocking and generating response.")
+                    self.is_locked = False
+                    self.is_scenario_generation_paused = False
+                    self.trigger_scenario_generation(is_intervention=True, intervention_text=f'user: "{user_text}"')
+            except Exception as e:
+                self.get_logger().error(f"Error parsing user_decision: {e}")
 
     def intervention_resolved_callback(self, msg: String):
         self.is_scenario_generation_paused = False
@@ -938,12 +962,14 @@ class RFSFamilyMember(Node):
 
             # Use LLM to pick the best match for the role and theme
             prompt = f"Role: {self.role}\nTheme: {self.theme}\nGender Requirement: {gender}\nAvailable Voices: {[{'name':v['name'], 'overview':v['overview']} for v in candidates]}\n\nPick the most suitable voice name for this role from the list above. You MUST pick one of the names from 'Available Voices'. Output ONLY the name."
-            response = client.chat.completions.create(
-                model="gpt-5.2-chat-latest",
-                messages=[{"role": "user", "content": prompt}],
-                max_completion_tokens=100
+            response = client.models.generate_content(
+                model="gemini-3.1-flash-lite",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    max_output_tokens=100
+                )
             )
-            v_name = response.choices[0].message.content.strip().replace('"', '').replace("'", "")
+            v_name = response.text.strip().replace('"', '').replace("'", "")
             
             # Strict validation
             found_voice = next((v for v in candidates if v['name'].lower() == v_name.lower()), None)

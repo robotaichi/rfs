@@ -9,10 +9,11 @@ import os
 import csv
 import io
 import re
-from openai import OpenAI
+from google import genai
+from google.genai import types
 
-# Global OpenAI setup (matching rfs_family_member.py)
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+# Global Gemini setup
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 class RFSGenerator(Node):
     def __init__(self):
@@ -106,22 +107,20 @@ daughter, mother, move, "none", "NO; No move needed."
 # OUTPUT YOUR LINE NOW.
 """
             if intervention_text:
-                prompt_base += f"\n# User Utterance: {intervention_text}\nDetermine the best responder from {family_config} and generate the response."
+                prompt_base += f"\n# User Utterance: {intervention_text}\nGenerate your response to this user utterance."
 
-            messages = [
-                {"role": "system", "content": f"Config: {config_content}\nVoices: {voice_list_content}"},
-                {"role": "system", "content": f"History: {current_history}"},
-                {"role": "user", "content": prompt_base}
-            ]
+            system_instruction = f"Config: {config_content}\nVoices: {voice_list_content}\n\nHistory: {current_history}"
 
-            response = client.chat.completions.create(
-                model=llm_model,
-                messages=messages,
-                temperature=llm_temperature,
-                timeout=60.0
+            response = client.models.generate_content(
+                model="gemini-3.1-flash-lite",
+                contents=prompt_base,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=llm_temperature,
+                )
             )
             
-            scenario_output = response.choices[0].message.content.strip()
+            scenario_output = response.text.strip()
             
             # Robust CSV extraction (in case of markdown or preamble)
             if "```" in scenario_output:

@@ -7,10 +7,11 @@ from std_msgs.msg import String
 import json
 import os
 import re
-from openai import OpenAI
+from google import genai
+from google.genai import types
 
-# Global OpenAI setup
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+# Global Gemini setup
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 FACES_ITEMS = {
     1: "Family members are involved in each others lives.",
@@ -145,15 +146,16 @@ Output in the following JSON format:
 }}
 """
             # 3. LLM Call
-            response = client.chat.completions.create(
-                model=llm_model,
-                messages=[{"role": "user", "content": prompt}],
-                response_format={ "type": "json_object" },
-                temperature=llm_temperature,
-                timeout=60.0
+            response = client.models.generate_content(
+                model="gemini-3.1-flash-lite",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=llm_temperature,
+                )
             )
             
-            content_res = response.choices[0].message.content.strip()
+            content_res = response.text.strip()
             results = json.loads(content_res)
 
             # 4. Publish Results

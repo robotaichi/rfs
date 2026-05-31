@@ -2,7 +2,8 @@ import os
 import json
 import random
 import shlex
-import openai
+from google import genai
+from google.genai import types
 import sys
 import re
 import shutil
@@ -77,20 +78,21 @@ TRAJECTORY_FILE = os.path.join(DB_DIR, "evaluation_trajectory.json")
 
 def determine_leader_with_llm(roles: list, theme: str) -> str:
     print("[rfs_launch] Determining leader...")
-    if not os.environ.get("OPENAI_API_KEY"):
+    if not os.environ.get("GEMINI_API_KEY"):
         return random.choice(roles) if roles else ""
-    client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": f"Identify the best role to start a conversation about '{theme}' from {roles}."},
-                {"role": "user", "content": "Who should start?"}
-            ]
+        client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+        response = client.models.generate_content(
+            model="gemini-3.1-flash-lite",
+            contents="Who should start?",
+            config=types.GenerateContentConfig(
+                system_instruction=f"Identify the best role to start a conversation about '{theme}' from {roles}.",
+            )
         )
-        leader = response.choices[0].message.content.strip().lower()
+        leader = response.text.strip().lower()
         if leader in [r.lower() for r in roles]: return leader
-    except: pass
+    except Exception as e:
+        print(f"[rfs_launch] Error determining leader with Gemini: {e}")
     return random.choice(roles) if roles else ""
 
 def _get_setup_bash_path():

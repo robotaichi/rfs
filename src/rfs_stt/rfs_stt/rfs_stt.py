@@ -15,6 +15,10 @@ import asyncio
 import webrtcvad
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
 
+HOME = os.path.expanduser("~")
+DB_DIR = os.path.join(HOME, "rfs/src/rfs_database")
+HISTORY_FILE = os.path.join(DB_DIR, "conversation_history.txt")
+
 class GeminiLiveRecorder:
     def __init__(
         self,
@@ -172,6 +176,7 @@ class RFSSTT(Node):
             vad_debug=self.stt_config.get("vad_debug", False),
             vad_energy_threshold=self.stt_config.get("vad_energy_threshold", 0.0)
         )
+        self.client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
         self.recorder_thread = threading.Thread(target=self._recorder_loop, daemon=True)
         self.recorder_thread.start()
 
@@ -224,6 +229,62 @@ class RFSSTT(Node):
     def _on_speech_status_change(self, is_active: bool):
         self.speech_status_pub.publish(Bool(data=is_active))
 
+    def _determine_responder_with_gemini(self, transcript: str) -> str:
+        try:
+            history = ""
+            if os.path.exists(HISTORY_FILE):
+                with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                    lines = f.readlines()
+                filtered = [l for l in lines if not (l.startswith("[THERAPIST_") or l.startswith("[SYSTEM_UPDATE"))]
+                history = "".join(filtered)
+            
+            home = os.path.expanduser("~")
+            paths = [
+                os.path.join(home, "rfs/src/rfs_config/config/config.json"),
+                os.path.join(home, "rfs/install/rfs_config/share/rfs_config/config/config.json"),
+            ]
+            config_file = next((p for p in paths if os.path.exists(p)), None)
+            
+            family_config = []
+            if config_file:
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    family_config = config.get("family_config", [])
+            
+            if not family_config:
+                family_config = ["father", "mother", "daughter"]
+            
+            prompt = f"""
+You are a coordinator for a family robot conversation simulation.
+Based on the following conversation history and the user's speech, determine which family member should respond to the user.
+
+Available family members: {family_config}
+
+Conversation History:
+{history}
+
+User Speech:
+"{transcript}"
+
+Which family member is the most appropriate to respond? Respond with ONLY the name of the family member from the list above in lowercase (e.g., father, mother, daughter, son). Do not include any other words or punctuation.
+"""
+            from google.genai import types
+            response = self.client.models.generate_content(
+                model="gemini-3.1-flash-lite",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.0
+                )
+            )
+            ans = response.text.strip().lower()
+            for m in family_config:
+                if m.lower() in ans:
+                    return m.lower()
+            return family_config[0].lower()
+        except Exception as e:
+            self.get_logger().error(f"Error determining responder with Gemini: {e}")
+            return "father"
+
     def _recorder_loop(self):
         self.ready_event.wait()
         _loop = asyncio.new_event_loop()
@@ -233,7 +294,14 @@ class RFSSTT(Node):
                 transcript = await self.recorder.record_and_transcribe()
                 if transcript.strip():
                     print(f"\n[Recognized] User: {transcript.strip()}\n")
-                    self.intervention_pub.publish(String(data=f'user: "{transcript.strip()}"'))
+                    selected_member = self._determine_responder_with_gemini(transcript.strip())
+                    self.get_logger().info(f"Selected responder: {selected_member}")
+                    
+                    decision_payload = {
+                        "responder": selected_member,
+                        "text": transcript.strip()
+                    }
+                    self.intervention_pub.publish(String(data=f"user_decision:{json.dumps(decision_payload)}"))
                     self.resume_event.clear()
                     self.resume_event.wait()
         _loop.run_until_complete(run())

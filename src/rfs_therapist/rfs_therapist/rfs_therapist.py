@@ -7,7 +7,6 @@ from std_msgs.msg import String
 import sys
 import os
 import json
-import openai
 import threading
 import csv
 import io
@@ -32,12 +31,6 @@ os.makedirs(DB_DIR, exist_ok=True)
 
 HISTORY_FILE = os.path.join(DB_DIR, "conversation_history.txt")
 CONFIG_FILE = os.path.join(SAVE_DIR, "config.json")
-
-# OpenAI Client
-if not os.environ.get("OPENAI_API_KEY"):
-    print("Please set the OPENAI_API_KEY environment variable.")
-    sys.exit(1)
-client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 class TTSClient:
     def __init__(self, node_name):
