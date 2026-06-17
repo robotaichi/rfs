@@ -6,6 +6,7 @@ import threading
 import time
 import sounddevice as sd
 import os
+os.environ["NO_GCE_CHECK"] = "true"
 import json
 import numpy as np
 from google import genai
@@ -14,6 +15,7 @@ from collections import deque
 import asyncio
 import webrtcvad
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
+import io
 
 HOME = os.path.expanduser("~")
 DB_DIR = os.path.join(HOME, "rfs/src/rfs_database")
@@ -22,7 +24,7 @@ HISTORY_FILE = os.path.join(DB_DIR, "conversation_history.txt")
 class GeminiLiveRecorder:
     def __init__(
         self,
-        model: str = "gemini-2.5-flash-native-audio-preview-12-2025",
+        model: str = "gemini-3.1-flash-lite",
         api_key_env: str = "GEMINI_API_KEY",
         vad_aggressiveness: int = 3,
         silence_duration_s: float = 2.0,
@@ -39,7 +41,6 @@ class GeminiLiveRecorder:
         if not self.api_key:
             if logger: logger.error("GEMINI_API_KEY environment variable is not set.")
         
-        self.client = genai.Client(api_key=self.api_key)
         self.model = model
         self.logger = logger
         self.on_start = on_start
@@ -49,13 +50,8 @@ class GeminiLiveRecorder:
         self.vad_energy_threshold = vad_energy_threshold
         
         self.lang_code = "ja-JP" if language == "ja" else "en-US"
+        self.language = language
         
-        self.config = {
-            "response_modalities": ["AUDIO"],
-            "realtime_input_config": {"automatic_activity_detection": {"disabled": True}, "activity_handling": "NO_INTERRUPTION"},
-            "input_audio_transcription": {},
-            "speech_config": {"voice_config": {"prebuilt_voice_config": {"voice_name": "Puck"}}},
-        }
         self.sample_rate = 16000
         self.vad = webrtcvad.Vad(vad_aggressiveness)
         self.frame_duration_ms = 30
@@ -67,11 +63,13 @@ class GeminiLiveRecorder:
         self.on_speech_status_change = on_speech_status_change
         self._is_speech_active = False
 
-    async def _record_and_send(self, session):
+    async def _record_audio(self) -> bytes:
+        """Record audio using VAD to detect speech start/end. Returns raw PCM bytes."""
         speech_started = False
         silence_counter = 0
         speech_frame_counter = 0
         pre_buffer = deque(maxlen=self.speech_trigger_frames + 5)
+        recorded_frames = []
 
         try:
             with sd.RawInputStream(
@@ -93,7 +91,7 @@ class GeminiLiveRecorder:
 
                     if self.vad_debug:
                         status_char = "S" if is_speech else "."
-                        if not is_speech and is_speech_vad: status_char = "x" # VAD True but Energy False
+                        if not is_speech and is_speech_vad: status_char = "x"
                         self.logger.info(f"VAD: {status_char} | E: {energy:6.1f} | S:{speech_frame_counter:2d} | Z:{silence_counter:2d}", once=False)
 
                     if is_speech and not self._is_speech_active:
@@ -104,49 +102,91 @@ class GeminiLiveRecorder:
                         self.on_speech_status_change(False)
 
                     if not speech_started:
-                        pre_buffer.append(frame)
+                        pre_buffer.append(bytes(frame))
                         if is_speech:
                             speech_frame_counter += 1
                             if speech_frame_counter >= self.speech_trigger_frames:
                                 self.logger.info("RFS STT: Recording...")
                                 self.on_start()
                                 speech_started = True
-                                await session.send_realtime_input(activity_start=types.ActivityStart())
-                                for p_frame in pre_buffer:
-                                    await session.send_realtime_input(audio=types.Blob(data=bytes(p_frame), mime_type=f"audio/pcm;rate={self.sample_rate}"))
+                                recorded_frames.extend(list(pre_buffer))
                                 pre_buffer.clear()
                         else:
                             speech_frame_counter = 0
                     else:
-                        await session.send_realtime_input(audio=types.Blob(data=bytes(frame), mime_type=f"audio/pcm;rate={self.sample_rate}"))
+                        recorded_frames.append(bytes(frame))
                         if is_speech: silence_counter = 0
                         else: silence_counter += 1
                         
                         if silence_counter > self.max_silence_frames:
                             self.logger.info("RFS STT: Speech ended, processing...")
                             self.on_end()
-                            await session.send_realtime_input(activity_end=types.ActivityEnd())
                             break
         except Exception as e:
             self.logger.error(f"Error in STT recorder: {e}")
+        
+        return b"".join(recorded_frames)
 
-    async def _receive_transcript(self, session) -> str:
-        buffer = ""
+    def _transcribe_with_rest(self, audio_pcm: bytes) -> str:
+        """Send recorded audio to Gemini REST API for transcription."""
+        import requests
+        import base64
+        import wave
+        import tempfile
+        import io
+        import socket
+        import urllib3.util.connection as urllib3_cn
+        urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
+        
+        if not audio_pcm:
+            return ""
+        
+        # Convert raw PCM to WAV format in memory
+        wav_buffer = io.BytesIO()
+        with wave.open(wav_buffer, 'wb') as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)  # 16-bit
+            wf.setframerate(self.sample_rate)
+            wf.writeframes(audio_pcm)
+        wav_data = wav_buffer.getvalue()
+        
+        # Encode as base64
+        audio_b64 = base64.b64encode(wav_data).decode('utf-8')
+        
+        lang_instruction = "日本語で" if self.language == "ja" else "in English"
+        
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}"
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "contents": [{
+                "parts": [
+                    {"text": f"Transcribe the following audio {lang_instruction}. Output ONLY the transcription text, nothing else."},
+                    {"inlineData": {"mimeType": "audio/wav", "data": audio_b64}}
+                ]
+            }]
+        }
+        
         try:
-            async for msg in session.receive():
-                if msg.server_content.input_transcription:
-                    buffer += msg.server_content.input_transcription.text
-        except Exception: pass
-        return "".join(buffer.split())
+            self.logger.info("RFS STT: Sending audio to Gemini REST API for transcription...")
+            res = requests.post(url, headers=headers, json=payload, timeout=30.0)
+            if res.status_code == 200:
+                transcript = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                self.logger.info(f"RFS STT: Transcription result: {transcript}")
+                return transcript
+            else:
+                self.logger.error(f"RFS STT: API returned {res.status_code}: {res.text[:200]}")
+                return ""
+        except Exception as e:
+            self.logger.error(f"RFS STT: Transcription error: {e}")
+            return ""
 
     async def record_and_transcribe(self) -> str:
-        try:
-            async with self.client.aio.live.connect(model=self.model, config=self.config) as session:
-                await self._record_and_send(session)
-                return await self._receive_transcript(session)
-        except Exception as e:
-            self.logger.error(f"Failed to connect to Gemini Live: {e}")
-        return ""
+        audio_data = await self._record_audio()
+        if not audio_data:
+            return ""
+        # Run REST API call in a thread to avoid blocking the event loop
+        transcript = await asyncio.to_thread(self._transcribe_with_rest, audio_data)
+        return transcript
 
 class RFSSTT(Node):
     def __init__(self):
@@ -176,7 +216,7 @@ class RFSSTT(Node):
             vad_debug=self.stt_config.get("vad_debug", False),
             vad_energy_threshold=self.stt_config.get("vad_energy_threshold", 0.0)
         )
-        self.client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+        self.api_key = os.environ.get("GEMINI_API_KEY")
         self.recorder_thread = threading.Thread(target=self._recorder_loop, daemon=True)
         self.recorder_thread.start()
 
@@ -268,15 +308,20 @@ User Speech:
 
 Which family member is the most appropriate to respond? Respond with ONLY the name of the family member from the list above in lowercase (e.g., father, mother, daughter, son). Do not include any other words or punctuation.
 """
-            from google.genai import types
-            response = self.client.models.generate_content(
-                model="gemini-3.1-flash-lite",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.0
-                )
-            )
-            ans = response.text.strip().lower()
+            import requests
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={self.api_key}"
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {
+                    "temperature": 0.0
+                }
+            }
+            res = requests.post(url, headers=headers, json=payload, timeout=15.0)
+            if res.status_code == 200:
+                ans = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip().lower()
+            else:
+                raise RuntimeError(f"Gemini API returned {res.status_code}: {res.text}")
             for m in family_config:
                 if m.lower() in ans:
                     return m.lower()

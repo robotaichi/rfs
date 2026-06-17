@@ -7,7 +7,7 @@ import re
 from std_msgs.msg import String, Bool
 import sys
 import os
-import os
+os.environ["NO_GCE_CHECK"] = "true"
 import json
 import time
 import argparse
@@ -23,8 +23,7 @@ from rfs_interfaces.srv import TTSService
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
 from ament_index_python.packages import get_package_share_directory
-from google import genai
-from google.genai import types
+
 
 # Constants
 HOME = os.path.expanduser("~")
@@ -54,11 +53,10 @@ SINGLE_MEMBER_VOICE = {
 }
 
 
-# Gemini Client
+# Verify API key is available
 if not os.environ.get("GEMINI_API_KEY"):
     print("Please set the GEMINI_API_KEY environment variable.")
     sys.exit(1)
-client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 class TTSClient:
     def __init__(self, node_name):
@@ -951,34 +949,17 @@ class RFSFamilyMember(Node):
             female_keywords = ["mother", "daughter", "sister", "grandma", "grandmother", "aunt", "girl", "woman", "female",
                                "母", "母さん", "お母さん", "ママ", "娘", "姉", "妹", "おばあさん", "おばあちゃん", "祖母", "叔母", "伯母", "女"]
             if gender == "male" and any(k in self.role.lower() for k in female_keywords):
-                # If there's a conflict, default to female (usually safer for ambiguous roles)
                 gender = "female"
             
             candidates = [v for v in v_list if v.get("gender", "").lower() == gender]
             if not candidates: candidates = v_list
             
-            self.get_logger().debug(f"[{self.role}] Detected gender: {gender}. Filtering {len(candidates)} candidates.")
-
-
-            # Use LLM to pick the best match for the role and theme
-            prompt = f"Role: {self.role}\nTheme: {self.theme}\nGender Requirement: {gender}\nAvailable Voices: {[{'name':v['name'], 'overview':v['overview']} for v in candidates]}\n\nPick the most suitable voice name for this role from the list above. You MUST pick one of the names from 'Available Voices'. Output ONLY the name."
-            response = client.models.generate_content(
-                model="gemini-3.1-flash-lite",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    max_output_tokens=100
-                )
-            )
-            v_name = response.text.strip().replace('"', '').replace("'", "")
-            
-            # Strict validation
-            found_voice = next((v for v in candidates if v['name'].lower() == v_name.lower()), None)
-            if found_voice:
-                return found_voice['name']
-            
-            # Fallback to first suitable gendered voice
-            self.get_logger().warn(f"[{self.role}] LLM provided invalid voice name '{v_name}'. Falling back.")
-            return candidates[0]["name"]
+            # Deterministic voice assignment based on role hash (no API call needed)
+            # Use the role name to pick a consistent voice from the candidates
+            role_hash = sum(ord(c) for c in self.role)
+            selected = candidates[role_hash % len(candidates)]
+            self.get_logger().info(f"[{self.role}] Voice assigned: {selected['name']} (gender={gender})")
+            return selected['name']
         except Exception as e:
             self.get_logger().error(f"Voice assignment error: {e}")
             return "Kore"

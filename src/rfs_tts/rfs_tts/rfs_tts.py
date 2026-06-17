@@ -2,6 +2,7 @@
 import rclpy
 import time
 import os
+os.environ["NO_GCE_CHECK"] = "true"
 import threading
 from rclpy.node import Node
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -17,8 +18,6 @@ import subprocess
 import re
 import csv
 import io
-import google.genai as genai
-from google.genai import types
 import wave
 from typing import Optional
 from ament_index_python.packages import get_package_share_directory
@@ -42,17 +41,10 @@ class GeminiTTS:
             self.logger.error("GEMINI_API_KEY environment variable is not set.")
             raise RuntimeError("GEMINI_API_KEY is missing")
         self.model_id = "gemini-2.5-flash-preview-tts" 
-        self.client = None # Lazy init within the loop's thread
         self._current_playback_process = None
-
-    def _ensure_client(self):
-        if self.client is None:
-            self.logger.info(f"Initializing Gemini Client for thread {threading.get_ident()}...")
-            self.client = genai.Client(api_key=self.api_key)
 
     async def generate_audio(self, text: str, voice: str) -> Optional[str]:
         try:
-            self._ensure_client()
             # Valid Gemini voices from voice_list.txt
             valid_voices = [
                 "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede", "Callirrhoe",
@@ -77,28 +69,46 @@ class GeminiTTS:
                 )
 
             # Parallel synthesis enabled (no semaphore wrap)
-            response = None
+            audio_data = None
             last_error = None
             
-            self.logger.info(f"Generating audio for voice '{voice}' via {self.model_id} (Native Async Parallel)...")
+            self.logger.info(f"Generating audio for voice '{voice}' via {self.model_id} (REST Parallel)...")
             for attempt in range(5):
                 try:
                     self.logger.info(f"API attempt {attempt+1} starting for {voice}...")
-                    # Native async call using client.aio
-                    response = await asyncio.wait_for(
-                        self.client.aio.models.generate_content(
-                            model=self.model_id,
-                            contents=text,
-                            config=_get_config()
-                        ),
-                        timeout=7.0
-                    )
-                    if response: 
+                    import requests
+                    import base64
+                    import socket
+                    import urllib3.util.connection as urllib3_cn
+                    urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
+                    
+                    def call_api():
+                        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_id}:generateContent?key={self.api_key}"
+                        headers = {"Content-Type": "application/json"}
+                        payload = {
+                            "contents": [{"parts": [{"text": text}]}],
+                            "generationConfig": {
+                                "responseModalities": ["AUDIO"],
+                                "speechConfig": {
+                                    "voiceConfig": {
+                                        "prebuiltVoiceConfig": {
+                                            "voiceName": voice
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        return requests.post(url, headers=headers, json=payload, timeout=30.0)
+
+                    res = await asyncio.to_thread(call_api)
+                    if res.status_code == 200:
+                        res_data = res.json()
+                        b64_data = res_data["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
+                        audio_data = base64.b64decode(b64_data)
                         self.logger.info(f"API attempt {attempt+1} SUCCESS for {voice}.")
                         break
-                except asyncio.TimeoutError:
-                    self.logger.warn(f"Gemini TTS attempt {attempt+1} TIMEOUT (7s) for {voice}")
-                    last_error = "Timeout"
+                    else:
+                        raise RuntimeError(f"REST API status {res.status_code}: {res.text}")
                 except Exception as e:
                     last_error = e
                     self.logger.warn(f"Gemini TTS attempt {attempt+1} failed for {voice}: {e}")
@@ -107,13 +117,12 @@ class GeminiTTS:
                 if attempt < 4:
                     await asyncio.sleep(1.0)
             
-            if not response:
+            if not audio_data:
                 self.logger.error(f"Failed to generate audio for {voice} after all attempts: {last_error}")
                 return None
 
             # The SDK returns binary data for the audio content
             self.logger.info(f"Extracting audio data for {voice}...")
-            audio_data = response.candidates[0].content.parts[0].inline_data.data
             
             # Create a unique temporary file
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav", dir=tempfile.gettempdir()) as f:

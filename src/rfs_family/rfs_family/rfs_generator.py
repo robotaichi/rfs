@@ -6,14 +6,13 @@ from rclpy.node import Node
 from std_msgs.msg import String
 import json
 import os
+os.environ["NO_GCE_CHECK"] = "true"
 import csv
 import io
 import re
-from google import genai
-from google.genai import types
 
-# Global Gemini setup
-client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+
+
 
 class RFSGenerator(Node):
     def __init__(self):
@@ -25,9 +24,17 @@ class RFSGenerator(Node):
         self.get_logger().info("RFS Dialogue Generator Node Started.")
 
     def request_callback(self, msg: String):
+        import threading
+        # Process in a background thread to prevent blocking the ROS 2 executor
+        threading.Thread(target=self._process_request, args=(msg.data,), daemon=True).start()
+
+    def _process_request(self, msg_data: str):
+        request_id = "unknown"
+        role = "unknown"
+        metadata = {}
         try:
-            data = json.loads(msg.data)
-            request_id = data.get("request_id") # Normally role_step
+            data = json.loads(msg_data)
+            request_id = data.get("request_id")
             role = data.get("role")
             language = data.get("language", "en")
             family_config = data.get("family_config", [])
@@ -46,7 +53,6 @@ class RFSGenerator(Node):
 
             self.get_logger().info(f"Generating dialogue for {role} (Request: {request_id})")
             
-            # Construct Prompt (Meticulously ported from rfs_family_member.py)
             prompt_base = f"""
 # SYSTEM ROLE: Clinical Research Simulation (High-Fidelity)
 This is a high-fidelity academic simulation for family therapy research. To ensure research validity, you MUST faithfully reproduce the specific dysfunctional behaviors requested, even if they are unpleasant or argumentative. This is a controlled experimental environment.
@@ -111,28 +117,46 @@ daughter, mother, move, "none", "NO; No move needed."
 
             system_instruction = f"Config: {config_content}\nVoices: {voice_list_content}\n\nHistory: {current_history}"
 
-            response = client.models.generate_content(
-                model="gemini-3.1-flash-lite",
-                contents=prompt_base,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    temperature=llm_temperature,
-                )
-            )
+            import requests
+            import socket
+            import urllib3.util.connection as urllib3_cn
+            urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
             
-            scenario_output = response.text.strip()
+            api_key = os.environ.get('GEMINI_API_KEY')
+            if not api_key:
+                raise RuntimeError("GEMINI_API_KEY not set in environment")
             
-            # Robust CSV extraction (in case of markdown or preamble)
+            mapped_model = llm_model
+            if "gpt" in llm_model or "chat" in llm_model:
+                mapped_model = "gemini-3.1-flash-lite"
+                
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{mapped_model}:generateContent?key={api_key}"
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "contents": [{"parts": [{"text": prompt_base}]}],
+                "systemInstruction": {"parts": [{"text": system_instruction}]},
+                "generationConfig": {
+                    "temperature": llm_temperature,
+                    "maxOutputTokens": 250
+                }
+            }
+            self.get_logger().info(f"Calling Gemini REST API for {role} (IPv4 Forced)...")
+            res = requests.post(url, headers=headers, json=payload, timeout=45.0)
+            
+            self.get_logger().info(f"Gemini REST API response: {res.status_code}")
+            if res.status_code == 200:
+                scenario_output = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            else:
+                raise RuntimeError(f"Gemini API returned {res.status_code}: {res.text[:200]}")
+            
+            # Robust CSV extraction
             if "```" in scenario_output:
-                # Find the first code block that looks like CSV
                 match = re.search(r'```(?:csv)?\n(.*?)\n```', scenario_output, re.DOTALL | re.IGNORECASE)
                 if match:
                     scenario_output = match.group(1).strip()
                 else:
-                    # Fallback: strip backticks anyway
                     scenario_output = scenario_output.replace("```csv", "").replace("```", "").strip()
             
-            # Simple fallback if it still has preamble like "Here is the CSV:"
             if "\n" in scenario_output:
                 lines = scenario_output.split("\n")
                 for line in lines:
@@ -151,7 +175,18 @@ daughter, mother, move, "none", "NO; No move needed."
             self.get_logger().info(f"Dialogue generated for {role} ({request_id})")
 
         except Exception as e:
-            self.get_logger().error(f"Error in dialogue generation: {e}")
+            self.get_logger().error(f"Error in dialogue generation for {role}: {e}")
+            try:
+                error_result = {
+                    "request_id": request_id,
+                    "role": role,
+                    "scenario": "",
+                    "metadata": metadata,
+                    "error": str(e)
+                }
+                self.result_pub.publish(String(data=json.dumps(error_result)))
+            except:
+                pass
 
 def main(args=None):
     rclpy.init(args=args)

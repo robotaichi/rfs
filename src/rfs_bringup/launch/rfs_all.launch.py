@@ -1,15 +1,15 @@
 import os
+os.environ["NO_GCE_CHECK"] = "true"
 import json
 import random
 import shlex
-from google import genai
-from google.genai import types
 import sys
 import re
 import shutil
 import datetime
 import time
 import atexit
+import threading
 from launch import LaunchDescription
 from launch.actions import OpaqueFunction, ExecuteProcess
 import subprocess
@@ -77,23 +77,12 @@ HISTORY_FILE = os.path.join(DB_DIR, "conversation_history.txt")
 TRAJECTORY_FILE = os.path.join(DB_DIR, "evaluation_trajectory.json")
 
 def determine_leader_with_llm(roles: list, theme: str) -> str:
-    print("[rfs_launch] Determining leader...")
-    if not os.environ.get("GEMINI_API_KEY"):
-        return random.choice(roles) if roles else ""
-    try:
-        client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-        response = client.models.generate_content(
-            model="gemini-3.1-flash-lite",
-            contents="Who should start?",
-            config=types.GenerateContentConfig(
-                system_instruction=f"Identify the best role to start a conversation about '{theme}' from {roles}.",
-            )
-        )
-        leader = response.text.strip().lower()
-        if leader in [r.lower() for r in roles]: return leader
-    except Exception as e:
-        print(f"[rfs_launch] Error determining leader with Gemini: {e}")
-    return random.choice(roles) if roles else ""
+    """Select the initial speaker. Uses random selection for instant startup."""
+    if not roles:
+        return ""
+    leader = random.choice(roles)
+    print(f"[rfs_launch] Leader selected: {leader}")
+    return leader
 
 def _get_setup_bash_path():
     """Dynamically locate the setup.bash file for the workspace."""
@@ -148,7 +137,7 @@ def _get_setup_bash_path():
         pass
 
     # 5. Default fallback
-    default_path = '/home/ubuntu/rfs/install/setup.bash'
+    default_path = os.path.join(HOME, 'rfs/install/setup.bash')
     if os.path.exists(default_path):
         return default_path
 
@@ -164,13 +153,30 @@ def _get_setup_bash_path():
 def _build_terminal_cmd(terminal_mode, geometry, inner_cmd):
     """Build a terminal command based on the configured terminal mode."""
     setup_bash = _get_setup_bash_path()
+    print(f"[rfs_launch] Terminal setup.bash path: {setup_bash}")
+    
+    # Propagate environment variables (GEMINI_API_KEY and proxy settings) to the new terminal windows
+    # Also disable GCE check to prevent google-auth from hanging on metadata server lookups
+    env_vars = ['GEMINI_API_KEY', 'HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy', 'NO_PROXY', 'no_proxy']
+    exports = ["export NO_GCE_CHECK=true"]
+    for var in env_vars:
+        val = os.environ.get(var)
+        if val is not None:
+            escaped_val = val.replace("'", "'\\''" )
+            exports.append(f"export {var}='{escaped_val}'")
+            
+    env_export = "; ".join(exports) + "; "
+    
+    # Add diagnostic output so we can see what happens inside the terminal
+    debug_prefix = f"echo '[RFS Terminal] Starting: {inner_cmd}'; echo '[RFS Terminal] setup.bash: {setup_bash}'; "
+    
     if terminal_mode == "xterm":
         return ['xterm', '-geometry', geometry, '-fa', 'Monospace', '-fs', '10',
-                '-hold', '-e', f"bash -c 'source {setup_bash}; {inner_cmd}'"]
+                '-hold', '-e', f"bash -c '{env_export}{debug_prefix}source {setup_bash}; {inner_cmd}'"]
     else:
         # Default: gnome-terminal
         return ['gnome-terminal', '--geometry', geometry, '--', 'bash', '-c',
-                f"source {setup_bash}; {inner_cmd}; exec bash"]
+                f"{env_export}{debug_prefix}source {setup_bash} && {inner_cmd}; exec bash"]
 
 def launch_nodes(context, *args, **kwargs):
     config = kwargs.get('config', {})

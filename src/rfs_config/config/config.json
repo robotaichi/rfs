@@ -42,9 +42,9 @@
     "y": 8.0
   },
   "learning_rate_scaling": 0.15,
-  "llm_model": "gpt-5.2-chat-latest",
+  "llm_model": "gemini-3.1-flash-lite",
   "llm_temperature": 1.0,
-  "llm_evaluation_model": "gpt-5.2-chat-latest",
+  "llm_evaluation_model": "gemini-3.1-flash-lite",
   "llm_evaluation_temperature": 1.0,
   "shutdown_timer_minutes": 0
 }

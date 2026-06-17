@@ -6,12 +6,11 @@ from rclpy.node import Node
 from std_msgs.msg import String
 import json
 import os
+os.environ["NO_GCE_CHECK"] = "true"
 import re
-from google import genai
-from google.genai import types
 
-# Global Gemini setup
-client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+
+
 
 FACES_ITEMS = {
     1: "Family members are involved in each others lives.",
@@ -86,8 +85,12 @@ class RFSMemberEvaluator(Node):
         self.get_logger().info("RFS Member Evaluator Node Started.")
 
     def request_callback(self, msg: String):
+        import threading
+        threading.Thread(target=self._process_request, args=(msg.data,), daemon=True).start()
+
+    def _process_request(self, msg_data: str):
         try:
-            data = json.loads(msg.data)
+            data = json.loads(msg_data)
             step_id = data.get("step_id")
             role = data.get("role")
             history = data.get("history", "")
@@ -137,7 +140,7 @@ Please rate how you feel about your family for the following 62 FACES IV items o
 {items_text}
 
 # Output Format
-Output in the following JSON format:
+Output ONLY valid JSON in this exact format:
 {{
   "1": Rating,
   "2": Rating,
@@ -146,16 +149,34 @@ Output in the following JSON format:
 }}
 """
             # 3. LLM Call
-            response = client.models.generate_content(
-                model="gemini-3.1-flash-lite",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    temperature=llm_temperature,
-                )
-            )
+            import requests
+            import socket
+            import urllib3.util.connection as urllib3_cn
+            urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
             
-            content_res = response.text.strip()
+            api_key = os.environ.get('GEMINI_API_KEY')
+            if not api_key:
+                raise RuntimeError("GEMINI_API_KEY not set in environment")
+            
+            mapped_model = llm_model
+            if "gpt" in llm_model or "chat" in llm_model:
+                mapped_model = "gemini-3.1-flash-lite"
+                
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{mapped_model}:generateContent?key={api_key}"
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {
+                    "temperature": llm_temperature,
+                    "responseMimeType": "application/json"
+                }
+            }
+            res = requests.post(url, headers=headers, json=payload, timeout=45.0)
+                
+            if res.status_code == 200:
+                content_res = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            else:
+                raise RuntimeError(f"Gemini API returned {res.status_code}: {res.text[:200]}")
             results = json.loads(content_res)
 
             # 4. Publish Results

@@ -1,0 +1,6 @@
+S0_T1,father,daughter,conversation,またそんな顔して……プレゼントなんてものに、一体何の価値があるんだ？,Alnilam,Alnilam,Normal,Father reflects rigidity and disconnection by dismissing the ritual of gift-giving.,0.8
+S0_T2,daughter,father,conversation,価値が分からないんじゃなくて、あんたが私たちに何も渡したくないだけでしょう？,Vindemiatrix,Vindemiatrix,Normal,Daughter uses a guilt-tripping tone to confront her father's selfishness and emotional unavailability.,1.2
+S0_T3,father,daughter,conversation,きれいな包装紙に包めば、中身の空っぽさが隠せるとでも思っているのか？,Alnilam,Alnilam,Normal,Father rejects the sentimentality of the occasion by equating gift-giving to deceptive superficiality.,1.0
+S0_T4,daughter,father,conversation,空っぽなのは包装紙じゃなくて、あんたの心の方じゃないの？,Vindemiatrix,Vindemiatrix,Normal,Daughter counter-attacks father's projection by attacking his lack of emotional substance.,1.2
+S0_T5,father,daughter,conversation,薄汚れた思い出を飾り付けたところで、何が変わるっていうんだ。,Alnilam,Alnilam,Normal,Father dismisses the holiday sentimentality as a hollow cover for their underlying dysfunction.,1.0
+S0_T6,daughter,father,conversation,思い出なんて、あんたが私たちを放置して逃げ回った言い訳に過ぎないでしょ。,Vindemiatrix,Vindemiatrix,Normal,Daughter dismisses father's nostalgia as a defensive rationalization for his past neglect.,1.2
