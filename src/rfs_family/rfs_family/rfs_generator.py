@@ -113,7 +113,12 @@ daughter, mother, move, "none", "NO; No move needed."
 # OUTPUT YOUR LINE NOW.
 """
             if intervention_text:
-                prompt_base += f"\n# User Utterance: {intervention_text}\nGenerate your response to this user utterance."
+                prompt_base += f"""
+# User Utterance: {intervention_text}
+Generate your response to this user utterance.
+**CRITICAL RULE**: Your recipient (the person you address your line to) MUST be one of the other family members ({', '.join([m for m in family_config if m.lower() != role.lower()])}). 
+You are speaking TO a family member ABOUT what the user said. Do NOT address the user directly. The user is an outsider observing; you react to their words by speaking to your family.
+"""
 
             system_instruction = f"Config: {config_content}\nVoices: {voice_list_content}\n\nHistory: {current_history}"
 

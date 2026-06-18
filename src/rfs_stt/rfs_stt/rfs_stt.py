@@ -36,6 +36,7 @@ class GeminiLiveRecorder:
         language: str = "en",
         vad_debug: bool = False,
         vad_energy_threshold: float = 0.0,
+        device_index: int = None,
     ):
         self.api_key = os.environ.get(api_key_env)
         if not self.api_key:
@@ -48,6 +49,7 @@ class GeminiLiveRecorder:
         self.on_speech_status_change = on_speech_status_change
         self.vad_debug = vad_debug
         self.vad_energy_threshold = vad_energy_threshold
+        self.device_index = device_index
         
         self.lang_code = "ja-JP" if language == "ja" else "en-US"
         self.language = language
@@ -64,29 +66,66 @@ class GeminiLiveRecorder:
         self._is_speech_active = False
 
     async def _record_audio(self) -> bytes:
-        """Record audio using VAD to detect speech start/end. Returns raw PCM bytes."""
+        """Record audio using VAD to detect speech start/end. Returns raw PCM bytes at 16kHz."""
         speech_started = False
         silence_counter = 0
         speech_frame_counter = 0
         pre_buffer = deque(maxlen=self.speech_trigger_frames + 5)
         recorded_frames = []
 
+        # Determine the actual sample rate to use
+        target_rate = self.sample_rate  # 16000
+        actual_rate = target_rate
+        needs_resample = False
+
+        if self.device_index is not None:
+            dev_info = sd.query_devices(self.device_index)
+            dev_default_rate = int(dev_info['default_samplerate'])
+            # Try target rate first; if device doesn't list it, use its default
+            # Common rates that work with webrtcvad: 8000, 16000, 32000, 48000
+            try:
+                sd.check_input_settings(device=self.device_index, samplerate=target_rate, channels=1, dtype='int16')
+            except Exception:
+                self.logger.info(f"Device {self.device_index} does not support {target_rate}Hz. Using {dev_default_rate}Hz with resampling.")
+                actual_rate = dev_default_rate
+                needs_resample = True
+
+        actual_frame_size = int(actual_rate * (self.frame_duration_ms / 1000.0))
+
         try:
             with sd.RawInputStream(
-                samplerate=self.sample_rate,
-                blocksize=self.frame_size,
+                samplerate=actual_rate,
+                blocksize=actual_frame_size,
                 dtype="int16",
                 channels=1,
+                device=self.device_index,
             ) as mic:
-                self.logger.info("RFS STT: Idle (Waiting for speech...)")
+                self.logger.info(f"RFS STT: Idle (Waiting for speech...) [Device rate: {actual_rate}Hz]")
                 while rclpy.ok():
-                    frame, _ = mic.read(self.frame_size)
+                    frame, _ = mic.read(actual_frame_size)
                     
-                    # Energy calculation
-                    audio_data = np.frombuffer(frame, dtype=np.int16)
+                    # Resample to 16kHz if needed (for VAD and transcription)
+                    if needs_resample:
+                        audio_float = np.frombuffer(frame, dtype=np.int16).astype(np.float32)
+                        # Simple linear interpolation resampling
+                        target_len = int(len(audio_float) * target_rate / actual_rate)
+                        indices = np.linspace(0, len(audio_float) - 1, target_len)
+                        resampled = np.interp(indices, np.arange(len(audio_float)), audio_float)
+                        frame_16k = resampled.astype(np.int16).tobytes()
+                    else:
+                        frame_16k = bytes(frame)
+                    
+                    # Energy calculation (on 16kHz data)
+                    audio_data = np.frombuffer(frame_16k, dtype=np.int16)
                     energy = np.sqrt(np.mean(audio_data.astype(np.float32)**2))
                     
-                    is_speech_vad = self.vad.is_speech(frame, self.sample_rate)
+                    # VAD expects exactly frame_size samples at 16kHz
+                    # Ensure frame is exact size for VAD
+                    vad_frame = frame_16k[:self.frame_size * 2]  # 2 bytes per int16 sample
+                    if len(vad_frame) < self.frame_size * 2:
+                        vad_frame = vad_frame + b'\x00' * (self.frame_size * 2 - len(vad_frame))
+                    
+                    is_speech_vad = self.vad.is_speech(vad_frame, self.sample_rate)
                     is_speech = is_speech_vad and (energy >= self.vad_energy_threshold)
 
                     if self.vad_debug:
@@ -102,7 +141,7 @@ class GeminiLiveRecorder:
                         self.on_speech_status_change(False)
 
                     if not speech_started:
-                        pre_buffer.append(bytes(frame))
+                        pre_buffer.append(frame_16k)
                         if is_speech:
                             speech_frame_counter += 1
                             if speech_frame_counter >= self.speech_trigger_frames:
@@ -114,7 +153,7 @@ class GeminiLiveRecorder:
                         else:
                             speech_frame_counter = 0
                     else:
-                        recorded_frames.append(bytes(frame))
+                        recorded_frames.append(frame_16k)
                         if is_speech: silence_counter = 0
                         else: silence_counter += 1
                         
@@ -199,23 +238,24 @@ class RFSSTT(Node):
         self.create_subscription(String, 'rfs_stt_resume', self.resume_callback, 10)
         self.initial_scenario_sub = self.create_subscription(String, 'rfs_initial_scenario_generated', self.initial_scenario_callback, qos_pl)
 
+        # Vote collection
+        self.create_subscription(String, 'rfs_responder_vote', self.vote_callback, 10)
+        self._votes = {}          # {role: voted_role}
+        self._vote_lock = threading.Lock()
+        self._vote_event = threading.Event()
+        self._expected_voters = 0
+
         self.stt_config = self._load_stt_config()
         self.language = self.stt_config["language"]
+        self.family_config = self._load_family_config()
         self.get_logger().info(f"STT Language Mode: {self.language}")
         self.get_logger().info(f"VAD Config: {self.stt_config}")
+        self.get_logger().info(f"Family Config: {self.family_config}")
 
-        self.recorder = GeminiLiveRecorder(
-            on_start=self._on_speech_start,
-            on_end=self._on_speech_end,
-            on_speech_status_change=self._on_speech_status_change,
-            logger=self.get_logger(),
-            language=self.language,
-            vad_aggressiveness=self.stt_config["vad_aggressiveness"],
-            silence_duration_s=self.stt_config["silence_duration_s"],
-            speech_trigger_frames=self.stt_config["speech_trigger_frames"],
-            vad_debug=self.stt_config.get("vad_debug", False),
-            vad_energy_threshold=self.stt_config.get("vad_energy_threshold", 0.0)
-        )
+        # Device selection happens at startup and can be re-triggered
+        self._selected_device = None
+        self._device_reselect_event = threading.Event()
+        self.recorder = None  # Will be created after device selection
         self.api_key = os.environ.get("GEMINI_API_KEY")
         self.recorder_thread = threading.Thread(target=self._recorder_loop, daemon=True)
         self.recorder_thread.start()
@@ -251,6 +291,21 @@ class RFSSTT(Node):
         except: pass
         return config_data
 
+    def _load_family_config(self):
+        try:
+            home = os.path.expanduser("~")
+            paths = [
+                os.path.join(home, "rfs/src/rfs_config/config/config.json"),
+                os.path.join(home, "rfs/install/rfs_config/share/rfs_config/config/config.json"),
+            ]
+            config_file = next((p for p in paths if os.path.exists(p)), None)
+            if config_file:
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    return [r.lower() for r in config.get("family_config", ["father", "mother", "daughter"])]
+        except: pass
+        return ["father", "mother", "daughter"]
+
     def initial_scenario_callback(self, msg: String):
         if msg.data == "completed":
             time.sleep(5)
@@ -269,79 +324,162 @@ class RFSSTT(Node):
     def _on_speech_status_change(self, is_active: bool):
         self.speech_status_pub.publish(Bool(data=is_active))
 
-    def _determine_responder_with_gemini(self, transcript: str) -> str:
+    def vote_callback(self, msg: String):
+        """Collect votes from family members."""
         try:
-            history = ""
-            if os.path.exists(HISTORY_FILE):
-                with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-                    lines = f.readlines()
-                filtered = [l for l in lines if not (l.startswith("[THERAPIST_") or l.startswith("[SYSTEM_UPDATE"))]
-                history = "".join(filtered)
-            
-            home = os.path.expanduser("~")
-            paths = [
-                os.path.join(home, "rfs/src/rfs_config/config/config.json"),
-                os.path.join(home, "rfs/install/rfs_config/share/rfs_config/config/config.json"),
-            ]
-            config_file = next((p for p in paths if os.path.exists(p)), None)
-            
-            family_config = []
-            if config_file:
-                with open(config_file, 'r', encoding='utf-8') as f:
-                    config = json.load(f)
-                    family_config = config.get("family_config", [])
-            
-            if not family_config:
-                family_config = ["father", "mother", "daughter"]
-            
-            prompt = f"""
-You are a coordinator for a family robot conversation simulation.
-Based on the following conversation history and the user's speech, determine which family member should respond to the user.
-
-Available family members: {family_config}
-
-Conversation History:
-{history}
-
-User Speech:
-"{transcript}"
-
-Which family member is the most appropriate to respond? Respond with ONLY the name of the family member from the list above in lowercase (e.g., father, mother, daughter, son). Do not include any other words or punctuation.
-"""
-            import requests
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={self.api_key}"
-            headers = {"Content-Type": "application/json"}
-            payload = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {
-                    "temperature": 0.0
-                }
-            }
-            res = requests.post(url, headers=headers, json=payload, timeout=15.0)
-            if res.status_code == 200:
-                ans = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip().lower()
-            else:
-                raise RuntimeError(f"Gemini API returned {res.status_code}: {res.text}")
-            for m in family_config:
-                if m.lower() in ans:
-                    return m.lower()
-            return family_config[0].lower()
+            data = json.loads(msg.data)
+            voter = data.get("voter", "").lower()
+            voted_for = data.get("voted_for", "").lower()
+            self.get_logger().info(f"Vote received: {voter} -> {voted_for}")
+            with self._vote_lock:
+                self._votes[voter] = voted_for
+                if len(self._votes) >= self._expected_voters:
+                    self._vote_event.set()
         except Exception as e:
-            self.get_logger().error(f"Error determining responder with Gemini: {e}")
-            return "father"
+            self.get_logger().error(f"Error parsing vote: {e}")
+
+    def _tally_votes(self) -> str:
+        """Count votes and return the winner (majority). Tie-break: first in family_config order."""
+        with self._vote_lock:
+            votes = dict(self._votes)
+        
+        if not votes:
+            return self.family_config[0] if self.family_config else "father"
+        
+        # Count votes
+        counts = {}
+        for voted_for in votes.values():
+            counts[voted_for] = counts.get(voted_for, 0) + 1
+        
+        self.get_logger().info(f"Vote tally: {counts}")
+        
+        max_count = max(counts.values())
+        # Tie-break by family_config order (first listed wins)
+        for member in self.family_config:
+            if counts.get(member, 0) == max_count:
+                return member
+        
+        # Fallback
+        return max(counts, key=counts.get)
+
+    def _select_audio_device(self):
+        """Interactive audio device selection. Returns selected device index."""
+        devices = sd.query_devices()
+        input_devices = []
+        for i, d in enumerate(devices):
+            if d['max_input_channels'] > 0:
+                input_devices.append((i, d))
+        
+        if not input_devices:
+            print("\n[RFS STT] No input devices found! Using system default.")
+            return None
+        
+        print("\n" + "=" * 60)
+        print("  RFS STT - マイクデバイス選択 / Microphone Selection")
+        print("=" * 60)
+        for idx, (dev_id, d) in enumerate(input_devices):
+            marker = " *" if d == sd.query_devices(kind='input') else "  "
+            print(f"  [{idx}]{marker} {d['name']}")
+            print(f"        (channels: {d['max_input_channels']}, rate: {d['default_samplerate']:.0f}Hz)")
+        print("=" * 60)
+        print("  * = current default device")
+        print("  番号を入力してEnter / Enter number and press Enter:")
+        
+        while True:
+            try:
+                choice = input("  > ").strip()
+                if choice == "":
+                    # Use default
+                    print(f"  Using default device.")
+                    return None
+                idx = int(choice)
+                if 0 <= idx < len(input_devices):
+                    dev_id, d = input_devices[idx]
+                    print(f"  Selected: [{idx}] {d['name']}")
+                    print("=" * 60 + "\n")
+                    return dev_id
+                else:
+                    print(f"  Invalid number. Enter 0-{len(input_devices)-1}")
+            except ValueError:
+                print(f"  Enter a number (0-{len(input_devices)-1}) or press Enter for default.")
+            except EOFError:
+                return None
+
+    def _create_recorder(self, device_index):
+        """Create or re-create the recorder with the given device index."""
+        self.recorder = GeminiLiveRecorder(
+            on_start=self._on_speech_start,
+            on_end=self._on_speech_end,
+            on_speech_status_change=self._on_speech_status_change,
+            logger=self.get_logger(),
+            language=self.language,
+            vad_aggressiveness=self.stt_config["vad_aggressiveness"],
+            silence_duration_s=self.stt_config["silence_duration_s"],
+            speech_trigger_frames=self.stt_config["speech_trigger_frames"],
+            vad_debug=self.stt_config.get("vad_debug", False),
+            vad_energy_threshold=self.stt_config.get("vad_energy_threshold", 0.0),
+            device_index=device_index,
+        )
 
     def _recorder_loop(self):
+        # Step 1: Select device before waiting for scenario
+        self._selected_device = self._select_audio_device()
+        self._create_recorder(self._selected_device)
+        
+        # Step 2: Wait for initial scenario
         self.ready_event.wait()
+        
         _loop = asyncio.new_event_loop()
         asyncio.set_event_loop(_loop)
+        
+        # Start a stdin listener thread for device re-selection
+        self._reselect_requested = False
+        def stdin_listener():
+            """Listen for Enter key press to trigger device re-selection."""
+            while rclpy.ok():
+                try:
+                    input()  # Block until Enter is pressed
+                    self._reselect_requested = True
+                    self.get_logger().info("Device re-selection requested. Will apply after current recording.")
+                except EOFError:
+                    break
+        stdin_thread = threading.Thread(target=stdin_listener, daemon=True)
+        stdin_thread.start()
+        
         async def run():
             while rclpy.ok():
+                # Check if re-selection was requested
+                if self._reselect_requested:
+                    self._reselect_requested = False
+                    self._selected_device = self._select_audio_device()
+                    self._create_recorder(self._selected_device)
+                
                 transcript = await self.recorder.record_and_transcribe()
                 if transcript.strip():
                     print(f"\n[Recognized] User: {transcript.strip()}\n")
-                    selected_member = self._determine_responder_with_gemini(transcript.strip())
-                    self.get_logger().info(f"Selected responder: {selected_member}")
                     
+                    # Step 1: Publish transcript to all members for voting
+                    self.get_logger().info(f"Broadcasting transcript for voting: {transcript.strip()}")
+                    with self._vote_lock:
+                        self._votes.clear()
+                        self._expected_voters = len(self.family_config)
+                    self._vote_event.clear()
+                    
+                    vote_request = {
+                        "text": transcript.strip()
+                    }
+                    self.intervention_pub.publish(
+                        String(data=f"user_speech_transcribed:{json.dumps(vote_request)}")
+                    )
+                    
+                    # Step 2: Wait for votes (timeout 10s)
+                    self._vote_event.wait(timeout=10.0)
+                    
+                    # Step 3: Tally votes
+                    selected_member = self._tally_votes()
+                    self.get_logger().info(f"Vote result: {selected_member} selected as responder")
+                    
+                    # Step 4: Publish decision
                     decision_payload = {
                         "responder": selected_member,
                         "text": transcript.strip()

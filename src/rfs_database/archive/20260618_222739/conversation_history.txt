@@ -1,0 +1,5 @@
+S0_T1,daughter,father,conversation,またそんな安い酒で誤魔化すの？昔から何も変わってないね。,Vindemiatrix,Vindemiatrix,Normal,Daughter dismisses father's attempt at normalcy by pointing out his chronic alcoholism.,0.8
+S0_T2,father,daughter,conversation,昔からお前は、人の楽しみを台無しにするのが得意だったな。この場にふさわしい顔をしてられないのか？,Alnilam,Alnilam,Normal,"Daughter's remark is perceived as a direct attack on his dignity, prompting a defensive, guilt-tripping redirection of blame.",0.9
+S0_T3,daughter,father,conversation,楽しむなんて言葉、この家には何年も前に死語になったはずでしょ。,Vindemiatrix,Vindemiatrix,Normal,"Daughter rejects father's attempt to impose a festive facade, highlighting the emotional hollowness of their home.",0.8
+S0_T4,father,daughter,conversation,そうやって他人を見下すことが、お前の唯一の生き甲斐か？さっさとそのワイングラスを置いて寝ろ。,Alnilam,Alnilam,Normal,"Father counters the daughter's jab by attacking her character, asserting authority to shut down the confrontation.",0.8
+S0_T5,daughter,father,conversation,そんなこと言える立場なの？自分の稼ぎで何とかしたらどう。,Vindemiatrix,Vindemiatrix,Normal,"Daughter attacks father's authority by questioning his financial and moral standing, maintaining the rigid boundary.",0.6

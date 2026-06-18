@@ -175,6 +175,7 @@ class RFSFamilyMember(Node):
         self.member_eval_req_pub = self.create_publisher(String, 'rfs_member_eval_request', 10)
         self.behavior_req_pub = self.create_publisher(String, 'rfs_behavioral_info_request', 10)
         self.few_shot_req_pub = self.create_publisher(String, 'rfs_few_shot_request', 10)
+        self.vote_pub = self.create_publisher(String, 'rfs_responder_vote', 10)
 
         self.create_subscription(String, 'rfs_family_actions', self.message_callback, 10)
         self.create_subscription(String, 'rfs_user_intervention', self.user_intervention_callback, qos_tl)
@@ -803,6 +804,62 @@ class RFSFamilyMember(Node):
         self.is_turn_active = False
         self.next_generation_queued = False
 
+    def _cast_responder_vote(self, user_text: str):
+        """Each family member votes for who should respond to the user, using Gemini API."""
+        try:
+            import requests
+            import socket
+            import urllib3.util.connection as urllib3_cn
+            urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
+
+            history = self.load_full_history()
+            # Only use last 20 lines for context efficiency
+            history_lines = history.strip().split('\n')[-20:]
+            recent_history = '\n'.join(history_lines)
+
+            lang_hint = "日本語の会話です。" if self.language == "ja" else ""
+            prompt = f"""
+{lang_hint}
+You are "{self.role}" in a family simulation with members: {self.family_config}.
+A user (outsider) just said: "{user_text}"
+
+Recent conversation:
+{recent_history}
+
+Based on the user's speech and the conversation context, which family member is the MOST appropriate to respond to the user?
+Consider:
+- Who is most relevant to what the user said?
+- Who was most recently involved in the conversation topic?
+- Who has the personality/role best suited to respond?
+
+Respond with ONLY the name of ONE family member from this list: {self.family_config}
+Output the name in lowercase, nothing else.
+"""
+            api_key = os.environ.get('GEMINI_API_KEY')
+            if not api_key:
+                return self.family_config[0]
+
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={api_key}"
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"temperature": 0.0}
+            }
+            res = requests.post(url, headers=headers, json=payload, timeout=15.0)
+            if res.status_code == 200:
+                ans = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip().lower()
+            else:
+                self.get_logger().error(f"[{self.role}] Vote API error: {res.status_code}")
+                return self.family_config[0]
+
+            for m in self.family_config:
+                if m.lower() in ans:
+                    return m.lower()
+            return self.family_config[0]
+        except Exception as e:
+            self.get_logger().error(f"[{self.role}] Error casting vote: {e}")
+            return self.family_config[0]
+
     def user_intervention_callback(self, msg: String):
         text = msg.data.strip()
         if text == 'user_speech_started':
@@ -820,21 +877,49 @@ class RFSFamilyMember(Node):
             self.next_turn_recipient = None
             self.pending_relay_recipient = None
             self.waiting_for_evaluation = False
+            with self.generation_lock:
+                self.is_generating_scenario = False
+        elif text.startswith('user_speech_transcribed:'):
+            # Vote for who should respond
+            try:
+                payload = json.loads(text[len('user_speech_transcribed:'):])
+                user_text = payload.get("text", "").strip()
+                if user_text:
+                    def vote_task():
+                        voted_for = self._cast_responder_vote(user_text)
+                        self.get_logger().info(f"[{self.role}] Voted for: {voted_for}")
+                        vote_msg = json.dumps({"voter": self.role, "voted_for": voted_for})
+                        self.vote_pub.publish(String(data=vote_msg))
+                    threading.Thread(target=vote_task, daemon=True).start()
+            except Exception as e:
+                self.get_logger().error(f"[{self.role}] Error in vote processing: {e}")
         elif text.startswith('user_decision:'):
             try:
                 payload = json.loads(text[len('user_decision:'):])
                 responder = payload.get("responder", "").strip().lower()
                 user_text = payload.get("text", "").strip()
                 if self.role == responder:
-                    self.get_logger().info(f"[{self.role}] I was selected to respond. Unlocking and generating response.")
+                    self.get_logger().info(f"[{self.role}] I was selected to respond by vote. Generating response.")
                     self.is_locked = False
                     self.is_scenario_generation_paused = False
                     self.trigger_scenario_generation(is_intervention=True, intervention_text=f'user: "{user_text}"')
+                # Non-selected members stay paused until intervention_resolved
             except Exception as e:
                 self.get_logger().error(f"Error parsing user_decision: {e}")
 
     def intervention_resolved_callback(self, msg: String):
+        """Called after the selected responder finishes. Unlock all members and discard old jobs."""
         self.is_scenario_generation_paused = False
+        self.is_locked = False
+        # Discard any stale pending jobs from before the intervention
+        self.pending_scenario_conversation = None
+        self.pending_scenario_move = None
+        self.audio_synthesis_requested = False
+        self.next_generation_queued = False
+        self.pending_tts_finish = False
+        with self.generation_lock:
+            self.is_generating_scenario = False
+            self.startup_check_triggered = False
 
     def toio_position_callback(self, msg: String):
         try: self.robot_positions = json.loads(msg.data)

@@ -77,10 +77,92 @@ HISTORY_FILE = os.path.join(DB_DIR, "conversation_history.txt")
 TRAJECTORY_FILE = os.path.join(DB_DIR, "evaluation_trajectory.json")
 
 def determine_leader_with_llm(roles: list, theme: str) -> str:
-    """Select the initial speaker. Uses random selection for instant startup."""
+    """Select the initial speaker by majority vote using Gemini API.
+    Each family member votes for who should start the conversation.
+    """
     if not roles:
         return ""
-    leader = random.choice(roles)
+    
+    print("[rfs_launch] Determining leader by Gemini vote...")
+    
+    import requests
+    import socket
+    import urllib3.util.connection as urllib3_cn
+    urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
+    
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        print("[rfs_launch] GEMINI_API_KEY not set. Falling back to random.")
+        leader = random.choice(roles)
+        print(f"[rfs_launch] Leader selected (random): {leader}")
+        return leader
+    
+    votes = {}
+    
+    def cast_vote(voter_role):
+        try:
+            prompt = f"""
+You are "{voter_role}" in a family simulation.
+The family members are: {roles}
+The conversation theme is: "{theme}"
+
+Who should speak FIRST to start the conversation about this theme?
+Consider which family member would most naturally initiate this topic.
+
+Respond with ONLY the name of ONE family member from the list above, in lowercase.
+"""
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={api_key}"
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"temperature": 0.3}
+            }
+            res = requests.post(url, headers=headers, json=payload, timeout=15.0)
+            if res.status_code == 200:
+                ans = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip().lower()
+                for m in roles:
+                    if m.lower() in ans:
+                        return m.lower()
+            return None
+        except Exception as e:
+            print(f"[rfs_launch] Vote error for {voter_role}: {e}")
+            return None
+    
+    # Parallel voting using threads
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(roles)) as executor:
+        futures = {executor.submit(cast_vote, role): role for role in roles}
+        try:
+            for future in concurrent.futures.as_completed(futures, timeout=20.0):
+                voter = futures[future]
+                result = future.result()
+                if result:
+                    votes[voter] = result
+                    print(f"[rfs_launch] {voter} voted for: {result}")
+        except concurrent.futures.TimeoutError:
+            print("[rfs_launch] Vote timeout. Using collected votes.")
+    
+    if not votes:
+        leader = random.choice(roles)
+        print(f"[rfs_launch] No votes collected. Leader selected (random): {leader}")
+        return leader
+    
+    # Tally
+    counts = {}
+    for voted_for in votes.values():
+        counts[voted_for] = counts.get(voted_for, 0) + 1
+    
+    print(f"[rfs_launch] Vote tally: {counts}")
+    
+    max_count = max(counts.values())
+    # Tie-break by family_config order
+    for member in roles:
+        if counts.get(member.lower(), 0) == max_count:
+            leader = member.lower()
+            print(f"[rfs_launch] Leader selected by vote: {leader}")
+            return leader
+    
+    leader = max(counts, key=counts.get)
     print(f"[rfs_launch] Leader selected: {leader}")
     return leader
 
