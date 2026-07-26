@@ -33,6 +33,92 @@ RFS operates in a closed-loop cycle where the **Therapist Node** (`rfs_therapist
 | **`rfs_evaluation`** | FACES IV Evaluation Node | Evaluates FACES IV based on the robot family's conversation logs. |
 | **`rfs_stt`** | Speech-to-Text Node | Performs real-time speech recognition for human intervention using Gemini Live. |
 
+### Sequence Diagrams
+
+The following diagrams show the ROS2 topic/service traffic between nodes for the three main flows: startup + one conversation turn, the periodic FACES IV evaluation cycle, and a user's spoken intervention.
+
+#### 1. Startup & Conversation Turn
+
+```mermaid
+sequenceDiagram
+    participant Launch as rfs_bringup (launch all)
+    participant Leader as rfs_family_member (speaker)
+    participant Doc as rfs_document_processor
+    participant Gen as rfs_generator
+    participant TTS as rfs_tts
+    participant Toio as rfs_toio
+    participant Next as rfs_family_member (next speaker)
+
+    Launch->>Launch: Elect initial speaker (Gemini vote)
+    Launch->>Leader: ros2 run rfs_family rfs_family_member --initiate
+    TTS-->>Leader: rfs_tts_initialization "tts_initialized"
+    Toio-->>Leader: rfs_toio_status "toios_ready"
+    Leader->>Doc: rfs_behavioral_info_request / rfs_few_shot_request
+    Doc-->>Leader: rfs_behavioral_info_results / rfs_few_shot_results
+    Leader->>Gen: rfs_generator_request (role, history, clinical guidelines)
+    Gen->>Gen: Build prompt, call Gemini API
+    Gen-->>Leader: rfs_generator_results (dialogue/move CSV line)
+    Leader->>Leader: append line to conversation_history.txt
+    Leader->>TTS: rfs_speak_text (service call)
+    Leader->>Next: rfs_family_actions "prepare_turn" (early pre-generation)
+    TTS-->>Leader: rfs_tts_status "start" / rfs_tts_finished "finished"
+    Leader->>Toio: rfs_toio_move_script (if move != none)
+    Toio-->>Leader: rfs_toio_move_finished
+    Leader->>Next: rfs_family_actions "start_turn"
+```
+
+#### 2. Periodic FACES IV Evaluation Cycle
+
+Every `turns_per_step` conversation turns, the Therapist node pauses the conversation and orchestrates a full evaluation → gradient-descent → re-plot cycle before letting the family resume.
+
+```mermaid
+sequenceDiagram
+    participant Member as rfs_family_member (each member)
+    participant Ther as rfs_therapist
+    participant MEval as rfs_member_evaluator
+    participant Eval as rfs_evaluator
+    participant Opt as rfs_optimizer
+    participant Viewer as rfs_viewer
+
+    Member->>Ther: rfs_trigger_evaluation (step boundary reached)
+    Ther->>Member: rfs_request_member_evaluation
+    Member->>MEval: rfs_member_eval_request (own conversation history)
+    MEval->>MEval: Call Gemini API (62-item FACES IV self-rating)
+    MEval-->>Ther: rfs_member_evaluation_results
+    Note over Ther: Waits until every family member has responded
+    Ther->>Eval: rfs_evaluator_request (aggregated ratings)
+    Eval->>Eval: Average ratings → percentiles → (x, y)
+    Eval->>Opt: rfs_optimizer_request
+    Opt->>Opt: Gradient descent → next target (tx, ty)
+    Opt-->>Ther: rfs_evaluator_results (x, y, tx, ty, ratios, ...)
+    Ther->>Ther: log evaluation_history.csv, update trajectory, render plot
+    Ther-->>Viewer: rfs_faces_plot_updated (plot image path)
+    Ther->>Member: rfs_evaluation_complete
+    Note over Member: Leader resumes the conversation with the next speaker
+```
+
+#### 3. User Voice Intervention
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant STT as rfs_stt
+    participant Members as rfs_family_member (all)
+    participant TTS as rfs_tts
+
+    User->>STT: speaks into microphone (VAD detects speech)
+    STT-->>Members: rfs_user_intervention "user_speech_started"
+    Members->>TTS: rfs_interrupt_tts "stop_all"
+    STT->>STT: transcribe recorded audio via Gemini API
+    STT-->>Members: rfs_user_intervention "user_speech_transcribed:<text>"
+    Members->>Members: each member casts a vote (Gemini API) for who should respond
+    Members-->>STT: rfs_responder_vote
+    STT->>STT: tally votes (majority; ties broken by family_config order)
+    STT-->>Members: rfs_user_intervention "user_decision:<responder>"
+    Note over Members: only the selected member responds; the rest stay paused
+    Members->>Members: rfs_intervention_resolved (unlock, resume normal turns)
+```
+
 ## 🚀 Getting Started
 
 ### 🖥 Native Install (Ubuntu 24.04 only) (Recommended)

@@ -1,5 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+RFS Toio node.
+
+Handles BLE connections to toio cubes, publishing position info, and running
+movement scripts. Simple logic such as getting BLE addresses, keeping numbers
+inside a set range, and config loading is handled by `toio_backend` (no rclpy
+dependency); this file only handles ROS2 publish/subscribe (the communication
+layer) and managing the BLE control that runs in the background.
+
+`_scan_connect_toio` / `handle_user_intervention` / `handle_command_sequence` are
+state changes where "BLE communication -> state update -> publish" are all
+tied closely together, so per the CLAUDE.md policy they are kept in the Node
+as-is rather than being split apart.
+
+Beginner's guide:
+  1. On startup, `_scan_connect_toio` scans for the configured toio cubes over
+     BLE and connects to each one, then starts `_periodic_position_publish`
+     (publishes every cube's (x, y) position every 0.5s on `rfs_toio_position`).
+  2. `execute_script_cb` receives a move command from a family member
+     (`rfs_toio_move_script`) and runs it using `handle_command_sequence`.
+  3. `user_intervention_cb` reacts when a user starts/stops speaking, pausing
+     movement and turning the toio toward the user using `handle_user_intervention`.
+"""
 
 import os
 import sys
@@ -24,6 +47,8 @@ from ament_index_python.packages import get_package_share_directory
 from toio import BLEScanner, ToioCoreCube, MovementType, Speed, SpeedChangeType, TargetPosition, CubeLocation, Point, RotationOption, WriteMode, PositionId, PositionIdMissed, IdInformation
 from toio.cube.api.indicator import IndicatorParam, Color
 
+from rfs_toio.toio_backend import best_addr_name, clamp, load_role_toio_map
+
 # Configuration
 try:
     SAVE_DIR = os.path.join(get_package_share_directory('rfs_config'), 'config')
@@ -41,18 +66,10 @@ MAT_Y_MIN, MAT_Y_MAX = 180, 320
 COLLISION_THRESHOLD = 35
 AVOIDANCE_LOOP_THRESHOLD = 35
 
-def _best_addr_name(dev) -> Tuple[Optional[str], Optional[str]]:
-    addr, name = None, None
-    for a in ("address", "mac", "addr"):
-        if hasattr(dev, a): addr = getattr(dev, a) or addr
-    if hasattr(dev, "interface"):
-        if hasattr(dev.interface, "address"): addr = dev.interface.address or addr
-    return addr, name
-
-def clamp(v, lo, hi):
-    return lo if v < lo else hi if v > hi else v
 
 class RFSToio(Node):
+    """ROS2 node (communication layer) that handles toio cube connections, position publishing, and movement control."""
+
     def __init__(self, loop: asyncio.AbstractEventLoop):
         super().__init__('rfs_toio')
         self.loop = loop
@@ -65,15 +82,10 @@ class RFSToio(Node):
         self.USER_X = 250
         self.USER_Y = 320
 
-        try:
-            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                config_data = json.load(f)
-            for item in config_data.get('toio_speaker_match', []):
-                role, toio_id = item.get('role'), item.get('toio_id')
-                if role and toio_id: self.role_toio_map[role.lower()] = toio_id
-        except Exception as e:
-            self.get_logger().error(f"Failed to load config: {e}")
+        # --- Config loading (logic layer) ---
+        self.role_toio_map = load_role_toio_map(CONFIG_FILE, logger=self.get_logger())
 
+        # --- ROS2 communication setup ---
         self.create_subscription(String, 'rfs_toio_move_script', self.execute_script_cb, 10)
         self.create_subscription(String, 'rfs_user_intervention_toio_move', self.user_intervention_cb, 10)
         qos_pl = QoSProfile(reliability=QoSReliabilityPolicy.RELIABLE, history=QoSHistoryPolicy.KEEP_LAST, depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
@@ -84,10 +96,11 @@ class RFSToio(Node):
         self.status_publisher.publish(String(data=json.dumps({"status": "initializing"})))
         if self.role_toio_map:
             self.loop.call_soon_threadsafe(lambda: asyncio.create_task(self._scan_connect_toio()))
-        
+
         self.get_logger().info('RFS Toio Node Started.')
 
     async def _scan_connect_toio(self):
+        """Scan for and connect to the configured toios using BLE, then publish that they're ready."""
         expected_macs = set(self.role_toio_map.values())
         try:
             devs = await asyncio.wait_for(BLEScanner.scan(num=len(expected_macs)), timeout=SCAN_TIMEOUT)
@@ -95,7 +108,7 @@ class RFSToio(Node):
             devs = []
 
         for role, toio_id in self.role_toio_map.items():
-            dev = next((d for d in devs if (_best_addr_name(d)[0] or "").upper() == toio_id.upper()), None)
+            dev = next((d for d in devs if (best_addr_name(d)[0] or "").upper() == toio_id.upper()), None)
             if not dev: continue
             try:
                 cube = ToioCoreCube(dev.interface)
@@ -118,6 +131,7 @@ class RFSToio(Node):
             self.latest_positions[role] = {'x': id_info.center.point.x, 'y': id_info.center.point.y, 'angle': id_info.center.angle}
 
     async def _periodic_position_publish(self):
+        """Publish the latest position of every toio every 0.5 seconds."""
         while rclpy.ok():
             if self.latest_positions:
                 self.position_publisher.publish(String(data=json.dumps(self.latest_positions)))
@@ -127,7 +141,7 @@ class RFSToio(Node):
         data = msg.data.strip()
         is_leader = data.startswith("[LEADER_RESPONSE]")
         if is_leader: data = data[len("[LEADER_RESPONSE]"):]
-        
+
         if self.movement_blocked_by_intervention and not is_leader: return
         if is_leader: self.movement_blocked_by_intervention = False
 
@@ -152,6 +166,7 @@ class RFSToio(Node):
         except Exception: pass
 
     async def handle_user_intervention(self, role: str, state: str):
+        """On user intervention start/end, turn that member's toio toward the user, or turn off its indicator light."""
         cube = self.cube_map.get(role)
         if not cube or not cube.is_connect(): return
         if state == "start":
@@ -176,6 +191,7 @@ class RFSToio(Node):
             self.move_finished_pub.publish(String(data=json.dumps({"role": role, "recipient": recipient})))
             self.current_move_task = None
 
+
 def main():
     rclpy.init()
     loop = asyncio.get_event_loop()
@@ -191,6 +207,7 @@ def main():
         t.join()
         node.destroy_node()
         rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

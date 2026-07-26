@@ -1,3 +1,20 @@
+#!/usr/bin/env python3
+"""
+Launch file that starts every RFS node at once (a.k.a. "launch all").
+
+Entry point for `ros2 launch rfs_bringup rfs_all.launch.py`.
+The ROS2 launch system loads this file standalone using `exec_module` and does
+not add its own directory to `sys.path`, so everything must be self-contained
+in this one file (splitting it into separate modules, like other packages do,
+risks an ImportError when `ros2 launch` runs it). For that reason, the classes
+below exist for readability but are kept in this single file.
+
+What each part does:
+- SessionArchiver: moves the previous session's DB files into the archive
+- LeaderElection: decides the first speaker using a Gemini API majority vote
+- TerminalCommandBuilder: builds the command to launch each node in a GUI terminal (gnome-terminal/xterm)
+- launch_nodes / generate_launch_description: the required ROS2 launch entry points
+"""
 import os
 os.environ["NO_GCE_CHECK"] = "true"
 import json
@@ -19,50 +36,59 @@ from ament_index_python.packages import get_package_share_directory
 HOME = os.path.expanduser("~")
 DB_DIR = os.path.join(HOME, "rfs/src/rfs_database")
 
-def archive_session_files(context_label="Shutdown"):
-    """Stand-alone archival function to preserve session data."""
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    archive_dir = os.path.join(DB_DIR, "archive", timestamp)
-    
-    session_files = {
-        "conversation": os.path.join(DB_DIR, "conversation_history.txt"),
-        "plot": os.path.join(DB_DIR, "evaluation_plot.png"),
-        "trajectory": os.path.join(DB_DIR, "evaluation_trajectory.json"),
-        "plot_bg": os.path.join(DB_DIR, "evaluation_plot_bg.png"),
-        "history_csv": os.path.join(DB_DIR, "evaluation_history.csv"),
-        "debug_log": os.path.join(DB_DIR, "last_evaluation_debug.log")
+
+class SessionArchiver:
+    """Class that moves the previous session's DB output files (conversation history, evaluation plots, etc.) into the archive."""
+
+    #: Files to archive (logical name -> filename inside DB_DIR)
+    SESSION_FILE_NAMES = {
+        "conversation": "conversation_history.txt",
+        "plot": "evaluation_plot.png",
+        "trajectory": "evaluation_trajectory.json",
+        "plot_bg": "evaluation_plot_bg.png",
+        "history_csv": "evaluation_history.csv",
+        "debug_log": "last_evaluation_debug.log",
     }
-    
-    # Check if ANY of the core files exist
-    existing = {name: f for name, f in session_files.items() if os.path.exists(f)}
-    
-    if existing:
-        try:
-            os.makedirs(archive_dir, exist_ok=True)
-            print(f"\n[rfs_launch][{context_label}] Archiving session to {archive_dir}...")
-            
-            count = 0
-            for name, f_path in existing.items():
-                try:
-                    dest = os.path.join(archive_dir, os.path.basename(f_path))
-                    # Copy then delete for safety
-                    shutil.copy2(f_path, dest)
-                    if os.path.exists(dest):
-                        os.remove(f_path)
-                        count += 1
-                        print(f"[rfs_launch][{context_label}] Successfully archived {name}")
-                except Exception as e:
-                    print(f"[rfs_launch][{context_label}] Failed to archive {name}: {e}")
-            
-            print(f"[rfs_launch][{context_label}] Total {count} files archived.\n")
-        except Exception as e:
-            print(f"[rfs_launch][{context_label}] Critical error during archival: {e}")
-    else:
-        if context_label == "Shutdown":
-             print(f"\n[rfs_launch][{context_label}] No session data found to archive.\n")
+
+    @classmethod
+    def archive(cls, context_label: str = "Shutdown"):
+        """Stand-alone archival function to preserve session data."""
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        archive_dir = os.path.join(DB_DIR, "archive", timestamp)
+
+        session_files = {name: os.path.join(DB_DIR, fname) for name, fname in cls.SESSION_FILE_NAMES.items()}
+
+        # Check if ANY of the core files exist
+        existing = {name: f for name, f in session_files.items() if os.path.exists(f)}
+
+        if existing:
+            try:
+                os.makedirs(archive_dir, exist_ok=True)
+                print(f"\n[rfs_launch][{context_label}] Archiving session to {archive_dir}...")
+
+                count = 0
+                for name, f_path in existing.items():
+                    try:
+                        dest = os.path.join(archive_dir, os.path.basename(f_path))
+                        # Copy then delete for safety
+                        shutil.copy2(f_path, dest)
+                        if os.path.exists(dest):
+                            os.remove(f_path)
+                            count += 1
+                            print(f"[rfs_launch][{context_label}] Successfully archived {name}")
+                    except Exception as e:
+                        print(f"[rfs_launch][{context_label}] Failed to archive {name}: {e}")
+
+                print(f"[rfs_launch][{context_label}] Total {count} files archived.\n")
+            except Exception as e:
+                print(f"[rfs_launch][{context_label}] Critical error during archival: {e}")
+        else:
+            if context_label == "Shutdown":
+                 print(f"\n[rfs_launch][{context_label}] No session data found to archive.\n")
+
 
 # Register shutdown archival
-atexit.register(archive_session_files, "Shutdown")
+atexit.register(SessionArchiver.archive, "Shutdown")
 
 try:
     SHARE_DIR = get_package_share_directory('rfs_config')
@@ -76,32 +102,37 @@ CONFIG_FILE = os.path.join(SAVE_DIR, "config.json")
 HISTORY_FILE = os.path.join(DB_DIR, "conversation_history.txt")
 TRAJECTORY_FILE = os.path.join(DB_DIR, "evaluation_trajectory.json")
 
-def determine_leader_with_llm(roles: list, theme: str) -> str:
-    """Select the initial speaker by majority vote using Gemini API.
-    Each family member votes for who should start the conversation.
-    """
-    if not roles:
-        return ""
-    
-    print("[rfs_launch] Determining leader by Gemini vote...")
-    
-    import requests
-    import socket
-    import urllib3.util.connection as urllib3_cn
-    urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
-    
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("[rfs_launch] GEMINI_API_KEY not set. Falling back to random.")
-        leader = random.choice(roles)
-        print(f"[rfs_launch] Leader selected (random): {leader}")
-        return leader
-    
-    votes = {}
-    
-    def cast_vote(voter_role):
-        try:
-            prompt = f"""
+
+class LeaderElection:
+    """Class that decides the first speaker of the conversation using a Gemini API majority vote among the family members."""
+
+    @staticmethod
+    def determine(roles: list, theme: str) -> str:
+        """Select the initial speaker by majority vote using Gemini API.
+        Each family member votes for who should start the conversation.
+        """
+        if not roles:
+            return ""
+
+        print("[rfs_launch] Determining leader by Gemini vote...")
+
+        import requests
+        import socket
+        import urllib3.util.connection as urllib3_cn
+        urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
+
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            print("[rfs_launch] GEMINI_API_KEY not set. Falling back to random.")
+            leader = random.choice(roles)
+            print(f"[rfs_launch] Leader selected (random): {leader}")
+            return leader
+
+        votes = {}
+
+        def cast_vote(voter_role):
+            try:
+                prompt = f"""
 You are "{voter_role}" in a family simulation.
 The family members are: {roles}
 The conversation theme is: "{theme}"
@@ -111,190 +142,198 @@ Consider which family member would most naturally initiate this topic.
 
 Respond with ONLY the name of ONE family member from the list above, in lowercase.
 """
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={api_key}"
-            headers = {"Content-Type": "application/json"}
-            payload = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.3}
-            }
-            res = requests.post(url, headers=headers, json=payload, timeout=15.0)
-            if res.status_code == 200:
-                ans = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip().lower()
-                for m in roles:
-                    if m.lower() in ans:
-                        return m.lower()
-            return None
-        except Exception as e:
-            print(f"[rfs_launch] Vote error for {voter_role}: {e}")
-            return None
-    
-    # Parallel voting using threads
-    import concurrent.futures
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(roles)) as executor:
-        futures = {executor.submit(cast_vote, role): role for role in roles}
-        try:
-            for future in concurrent.futures.as_completed(futures, timeout=20.0):
-                voter = futures[future]
-                result = future.result()
-                if result:
-                    votes[voter] = result
-                    print(f"[rfs_launch] {voter} voted for: {result}")
-        except concurrent.futures.TimeoutError:
-            print("[rfs_launch] Vote timeout. Using collected votes.")
-    
-    if not votes:
-        leader = random.choice(roles)
-        print(f"[rfs_launch] No votes collected. Leader selected (random): {leader}")
-        return leader
-    
-    # Tally
-    counts = {}
-    for voted_for in votes.values():
-        counts[voted_for] = counts.get(voted_for, 0) + 1
-    
-    print(f"[rfs_launch] Vote tally: {counts}")
-    
-    max_count = max(counts.values())
-    # Tie-break by family_config order
-    for member in roles:
-        if counts.get(member.lower(), 0) == max_count:
-            leader = member.lower()
-            print(f"[rfs_launch] Leader selected by vote: {leader}")
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={api_key}"
+                headers = {"Content-Type": "application/json"}
+                payload = {
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {"temperature": 0.3}
+                }
+                res = requests.post(url, headers=headers, json=payload, timeout=15.0)
+                if res.status_code == 200:
+                    ans = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip().lower()
+                    for m in roles:
+                        if m.lower() in ans:
+                            return m.lower()
+                return None
+            except Exception as e:
+                print(f"[rfs_launch] Vote error for {voter_role}: {e}")
+                return None
+
+        # Parallel voting using threads
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(roles)) as executor:
+            futures = {executor.submit(cast_vote, role): role for role in roles}
+            try:
+                for future in concurrent.futures.as_completed(futures, timeout=20.0):
+                    voter = futures[future]
+                    result = future.result()
+                    if result:
+                        votes[voter] = result
+                        print(f"[rfs_launch] {voter} voted for: {result}")
+            except concurrent.futures.TimeoutError:
+                print("[rfs_launch] Vote timeout. Using collected votes.")
+
+        if not votes:
+            leader = random.choice(roles)
+            print(f"[rfs_launch] No votes collected. Leader selected (random): {leader}")
             return leader
-    
-    leader = max(counts, key=counts.get)
-    print(f"[rfs_launch] Leader selected: {leader}")
-    return leader
 
-def _get_setup_bash_path():
-    """Dynamically locate the setup.bash file for the workspace."""
-    # 1. Search upwards from the package share directory of rfs_bringup
-    try:
-        from ament_index_python.packages import get_package_share_directory
-        pkg_share = get_package_share_directory('rfs_bringup')
-        curr = pkg_share
-        for _ in range(5):
-            candidate = os.path.join(curr, 'setup.bash')
+        # Count
+        counts = {}
+        for voted_for in votes.values():
+            counts[voted_for] = counts.get(voted_for, 0) + 1
+
+        print(f"[rfs_launch] Vote count: {counts}")
+
+        max_count = max(counts.values())
+        # Tie-break by family_config order
+        for member in roles:
+            if counts.get(member.lower(), 0) == max_count:
+                leader = member.lower()
+                print(f"[rfs_launch] Leader selected by vote: {leader}")
+                return leader
+
+        leader = max(counts, key=counts.get)
+        print(f"[rfs_launch] Leader selected: {leader}")
+        return leader
+
+
+class TerminalCommandBuilder:
+    """Class that builds the command list for launching each node in a GUI terminal (gnome-terminal/xterm)."""
+
+    @staticmethod
+    def _get_setup_bash_path():
+        """Dynamically locate the setup.bash file for the workspace."""
+        # 1. Search upwards from the package share directory of rfs_bringup
+        try:
+            from ament_index_python.packages import get_package_share_directory
+            pkg_share = get_package_share_directory('rfs_bringup')
+            curr = pkg_share
+            for _ in range(5):
+                candidate = os.path.join(curr, 'setup.bash')
+                if os.path.exists(candidate):
+                    return candidate
+                parent = os.path.dirname(curr)
+                if parent == curr:
+                    break
+                curr = parent
+        except Exception:
+            pass
+
+        # 2. Search relative to current file path (__file__)
+        try:
+            curr = os.path.abspath(__file__)
+            for _ in range(6):
+                candidate = os.path.join(curr, 'install/setup.bash')
+                if os.path.exists(candidate):
+                    return candidate
+                candidate2 = os.path.join(curr, 'setup.bash')
+                if os.path.exists(candidate2):
+                    return candidate2
+                parent = os.path.dirname(curr)
+                if parent == curr:
+                    break
+                curr = parent
+        except Exception:
+            pass
+
+        # 3. Check COLCON_PREFIX_PATH env variable
+        colcon_prefix = os.environ.get('COLCON_PREFIX_PATH', '')
+        if colcon_prefix:
+            for path in colcon_prefix.split(os.pathsep):
+                candidate = os.path.join(path, 'setup.bash')
+                if os.path.exists(candidate):
+                    return candidate
+
+        # 4. Check DB_DIR relative path as a fallback
+        try:
+            ws_root = os.path.dirname(os.path.dirname(DB_DIR))
+            candidate = os.path.join(ws_root, 'install/setup.bash')
             if os.path.exists(candidate):
                 return candidate
-            parent = os.path.dirname(curr)
-            if parent == curr:
-                break
-            curr = parent
-    except Exception:
-        pass
+        except Exception:
+            pass
 
-    # 2. Search relative to current file path (__file__)
-    try:
-        curr = os.path.abspath(__file__)
-        for _ in range(6):
-            candidate = os.path.join(curr, 'install/setup.bash')
-            if os.path.exists(candidate):
-                return candidate
-            candidate2 = os.path.join(curr, 'setup.bash')
-            if os.path.exists(candidate2):
-                return candidate2
-            parent = os.path.dirname(curr)
-            if parent == curr:
-                break
-            curr = parent
-    except Exception:
-        pass
+        # 5. Default fallback
+        default_path = os.path.join(HOME, 'rfs/install/setup.bash')
+        if os.path.exists(default_path):
+            return default_path
 
-    # 3. Check COLCON_PREFIX_PATH env variable
-    colcon_prefix = os.environ.get('COLCON_PREFIX_PATH', '')
-    if colcon_prefix:
-        for path in colcon_prefix.split(os.pathsep):
-            candidate = os.path.join(path, 'setup.bash')
-            if os.path.exists(candidate):
-                return candidate
+        # Try ROS distro setup.bash as a last resort
+        ros_distro = os.environ.get('ROS_DISTRO')
+        if ros_distro:
+            ros_path = f"/opt/ros/{ros_distro}/setup.bash"
+            if os.path.exists(ros_path):
+                return ros_path
 
-    # 4. Check DB_DIR relative path as a fallback
-    try:
-        ws_root = os.path.dirname(os.path.dirname(DB_DIR))
-        candidate = os.path.join(ws_root, 'install/setup.bash')
-        if os.path.exists(candidate):
-            return candidate
-    except Exception:
-        pass
-
-    # 5. Default fallback
-    default_path = os.path.join(HOME, 'rfs/install/setup.bash')
-    if os.path.exists(default_path):
         return default_path
 
-    # Try ROS distro setup.bash as a last resort
-    ros_distro = os.environ.get('ROS_DISTRO')
-    if ros_distro:
-        ros_path = f"/opt/ros/{ros_distro}/setup.bash"
-        if os.path.exists(ros_path):
-            return ros_path
+    @classmethod
+    def build(cls, terminal_mode, geometry, inner_cmd):
+        """Build a terminal command based on the configured terminal mode."""
+        setup_bash = cls._get_setup_bash_path()
+        print(f"[rfs_launch] Terminal setup.bash path: {setup_bash}")
 
-    return default_path
+        # Propagate environment variables (GEMINI_API_KEY and proxy settings) to the new terminal windows
+        # Also disable GCE check to prevent google-auth from hanging on metadata server lookups
+        env_vars = ['GEMINI_API_KEY', 'HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy', 'NO_PROXY', 'no_proxy']
+        exports = ["export NO_GCE_CHECK=true"]
+        for var in env_vars:
+            val = os.environ.get(var)
+            if val is not None:
+                escaped_val = val.replace("'", "'\\''" )
+                exports.append(f"export {var}='{escaped_val}'")
 
-def _build_terminal_cmd(terminal_mode, geometry, inner_cmd):
-    """Build a terminal command based on the configured terminal mode."""
-    setup_bash = _get_setup_bash_path()
-    print(f"[rfs_launch] Terminal setup.bash path: {setup_bash}")
-    
-    # Propagate environment variables (GEMINI_API_KEY and proxy settings) to the new terminal windows
-    # Also disable GCE check to prevent google-auth from hanging on metadata server lookups
-    env_vars = ['GEMINI_API_KEY', 'HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy', 'NO_PROXY', 'no_proxy']
-    exports = ["export NO_GCE_CHECK=true"]
-    for var in env_vars:
-        val = os.environ.get(var)
-        if val is not None:
-            escaped_val = val.replace("'", "'\\''" )
-            exports.append(f"export {var}='{escaped_val}'")
-            
-    env_export = "; ".join(exports) + "; "
-    
-    # Add diagnostic output so we can see what happens inside the terminal
-    debug_prefix = f"echo '[RFS Terminal] Starting: {inner_cmd}'; echo '[RFS Terminal] setup.bash: {setup_bash}'; "
-    
-    if terminal_mode == "xterm":
-        return ['xterm', '-geometry', geometry, '-fa', 'Monospace', '-fs', '10',
-                '-hold', '-e', f"bash -c '{env_export}{debug_prefix}source {setup_bash}; {inner_cmd}'"]
-    else:
-        # Default: gnome-terminal
-        return ['gnome-terminal', '--geometry', geometry, '--', 'bash', '-c',
-                f"{env_export}{debug_prefix}source {setup_bash} && {inner_cmd}; exec bash"]
+        env_export = "; ".join(exports) + "; "
+
+        # Add diagnostic output so we can see what happens inside the terminal
+        debug_prefix = f"echo '[RFS Terminal] Starting: {inner_cmd}'; echo '[RFS Terminal] setup.bash: {setup_bash}'; "
+
+        if terminal_mode == "xterm":
+            return ['xterm', '-geometry', geometry, '-fa', 'Monospace', '-fs', '10',
+                    '-hold', '-e', f"bash -c '{env_export}{debug_prefix}source {setup_bash}; {inner_cmd}'"]
+        else:
+            # Default: gnome-terminal
+            return ['gnome-terminal', '--geometry', geometry, '--', 'bash', '-c',
+                    f"{env_export}{debug_prefix}source {setup_bash} && {inner_cmd}; exec bash"]
+
 
 def launch_nodes(context, *args, **kwargs):
+    """Build the set of ExecuteProcess actions that launch every node in its role-specific grid-positioned terminal."""
     config = kwargs.get('config', {})
     initial_role = kwargs.get('initial_role')
     roles = config.get('family_config', [])
     terminal_mode = config.get('terminal_mode', 'gnome-terminal')
-    
+
     actions = []
-    
+
     # Grid Settings
     GRID_W = 500  # pixels (narrower to avoid overlap)
     GRID_H = 500  # pixels
-    TERM_GEOM = "58x18" # character dimensions (shrunk from 75x18)
+    TERM_GEOM = "58x18"  # character dimensions (shrunk from 75x18)
 
     # Family Member Nodes (Top Row: Father, Mother, Daughter)
     for i, role in enumerate(roles):
         x_pos = i * GRID_W
         y_pos = 0
         geometry = f"{TERM_GEOM}+{x_pos}+{y_pos}"
-        
+
         inner_cmd = f"ros2 run rfs_family rfs_family_member --role {role}"
         if role == initial_role:
             inner_cmd += " --initiate"
-        
-        cmd = _build_terminal_cmd(terminal_mode, geometry, inner_cmd)
+
+        cmd = TerminalCommandBuilder.build(terminal_mode, geometry, inner_cmd)
         actions.append(ExecuteProcess(cmd=cmd, output='screen'))
 
     # Therapist (Bottom Left: Column 0, Row 1)
     therapist_geometry = f"{TERM_GEOM}+0+{GRID_H}"
-    therapist_cmd = _build_terminal_cmd(terminal_mode, therapist_geometry,
+    therapist_cmd = TerminalCommandBuilder.build(terminal_mode, therapist_geometry,
                                         "ros2 run rfs_therapist rfs_therapist")
     actions.append(ExecuteProcess(cmd=therapist_cmd, output='screen'))
 
     # STT (Bottom Middle: Column 1, Row 1)
     stt_geometry = f"{TERM_GEOM}+{GRID_W}+{GRID_H}"
-    stt_cmd = _build_terminal_cmd(terminal_mode, stt_geometry,
+    stt_cmd = TerminalCommandBuilder.build(terminal_mode, stt_geometry,
                                   "ros2 run rfs_stt rfs_stt")
     actions.append(ExecuteProcess(cmd=stt_cmd, output='screen'))
 
@@ -313,16 +352,18 @@ def launch_nodes(context, *args, **kwargs):
 
     return actions
 
+
 def generate_launch_description():
+    """The required ROS2 launch entry point. Runs, in order: pre-launch cleanup -> leader election -> launch every node."""
     # --- Startup Cleanup ---
-    archive_session_files("Startup")
-    
+    SessionArchiver.archive("Startup")
+
     with open(CONFIG_FILE, 'r') as f:
         config = json.load(f)
-    
+
     roles = config.get('family_config', [])
     theme = config.get('theme', '')
-    
+
     # --- Pre-launch Cleanup ---
     print("[rfs_launch] Cleaning up previous RFS processes and audio tasks...")
     # Kill any existing ffplay or spd-say processes that might be orphaned
@@ -335,8 +376,8 @@ def generate_launch_description():
         subprocess.run(["pkill", "-f", node], stderr=subprocess.DEVNULL)
     # --------------------------
 
-    initial_role = determine_leader_with_llm(roles, theme)
-    
+    initial_role = LeaderElection.determine(roles, theme)
+
     return LaunchDescription([
         OpaqueFunction(function=launch_nodes, kwargs={'config': config, 'initial_role': initial_role})
     ])

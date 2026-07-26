@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+RFS Member Evaluator node.
+
+Has each family member rate the 62 FACES IV items from their own point of
+view. Building the evaluation prompt and calling the LLM is handled by
+`member_evaluation.MemberEvaluator` (no rclpy dependency); this file only
+handles ROS2 publish/subscribe (the communication layer) and manages the work
+that runs in the background.
+"""
 
 import rclpy
 from rclpy.node import Node
@@ -7,85 +16,27 @@ from std_msgs.msg import String
 import json
 import os
 os.environ["NO_GCE_CHECK"] = "true"
-import re
+import threading
 
+from rfs_family.member_evaluation import MemberEvaluator
 
-
-
-FACES_ITEMS = {
-    1: "Family members are involved in each others lives.",
-    2: "Our family tries new ways of dealing with problems.",
-    3: "We get along better with people outside our family than inside.",
-    4: "We spend too much time together.",
-    5: "There are strict consequences for breaking the rules in our family.",
-    6: "We never seem to get organized in our family.",
-    7: "Family members feel very close to each other.",
-    8: "Parents equally share leadership in our family.",
-    9: "Family members seem to avoid contact with each other when at home.",
-    10: "Family members feel pressured to spend most free time together.",
-    11: "There are clear consequences when a family member does something wrong.",
-    12: "It is hard to know who the leader is in our family.",
-    13: "Family members are supportive of each other during difficult times.",
-    14: "Discipline is fair in our family.",
-    15: "Family members know very little about the friends of other family members.",
-    16: "Family members are too dependent on each other.",
-    17: "Our family has a rule for almost every possible situation.",
-    18: "Things do not get done in our family.",
-    19: "Family members consult other family members on important decisions.",
-    20: "My family is able to adjust to change when necessary.",
-    21: "Family members are on their own when there is a problem to be solved.",
-    22: "Family members have little need for friends outside the family.",
-    23: "Our family is highly organized.",
-    24: "It is unclear who is responsible for things (chores, activities) in our family.",
-    25: "Family members like to spend some of their free time with each other.",
-    26: "We shift household responsibilities from person to person.",
-    27: "Our family seldom does things together.",
-    28: "We feel too connected to each other.",
-    29: "Our family becomes frustrated when there is a change in our plans or routines.",
-    30: "There is no leadership in our family.",
-    31: "Although family members have individual interests, they still participant in family activities.",
-    32: "We have clear rules and roles in our family.",
-    33: "Family members seldom depend on each other.",
-    34: "We resent family members doing things outside the family.",
-    35: "It is important to follow the rules in our family.",
-    36: "Our family has a hard time keeping track of who does various household tasks.",
-    37: "Our family has a good balance of separateness and closeness.",
-    38: "When problems arise, we compromise.",
-    39: "Family members mainly operate independently.",
-    40: "Family members feel guilty if they want to spend time away from the family.",
-    41: "Once a decision is made, it is very difficult to modify that decision.",
-    42: "Our family feels hectic and disorganized.",
-    43: "Family members are satisfied with how they communicate with each other.",
-    44: "Family members are very good listeners.",
-    45: "Family members express affection to each other.",
-    46: "Family members are able to ask each other for what they want.",
-    47: "Family members can calmly discuss problems with each other.",
-    48: "Family members discuss their ideas and beliefs with each other.",
-    49: "When family members ask questions of each other, they get honest answers.",
-    50: "Family members try to understand each other’s feelings.",
-    51: "When angry, family members seldom say negative things about each other.",
-    52: "Family members express their true feelings to each other.",
-    53: "The degree of closeness between family members.",
-    54: "Your family’s ability to cope with stress.",
-    55: "Your family’s ability to be flexible.",
-    56: "Your family’s ability to share positive experiences.",
-    57: "The quality of communication between family members.",
-    58: "Your family’s ability to resolve conflicts.",
-    59: "The amount of time you spend together as a family.",
-    60: "The way problems are discussed.",
-    61: "The fairness of criticism in your family.",
-    62: "Family members concern for each other."
-}
 
 class RFSMemberEvaluator(Node):
+    """ROS2 node that receives member subjective-evaluation requests and publishes the LLM's evaluation result."""
+
     def __init__(self):
         super().__init__('rfs_member_evaluator')
+
+        # --- Logic layer (no rclpy dependency: evaluation prompt building, LLM call) ---
+        self.evaluator = MemberEvaluator(self.get_logger())
+
+        # --- ROS2 communication setup ---
         self.create_subscription(String, 'rfs_member_eval_request', self.request_callback, 10)
         self.result_pub = self.create_publisher(String, 'rfs_member_evaluation_results', 10)
         self.get_logger().info("RFS Member Evaluator Node Started.")
 
     def request_callback(self, msg: String):
-        import threading
+        """Run evaluation on a separate thread so the ROS2 executor doesn't get blocked."""
         threading.Thread(target=self._process_request, args=(msg.data,), daemon=True).start()
 
     def _process_request(self, msg_data: str):
@@ -99,87 +50,8 @@ class RFSMemberEvaluator(Node):
 
             self.get_logger().info(f"Evaluating {role} for {step_id}...")
 
-            # 1. Scope History to Current Session (Ported from rfs_family_member.py)
-            current_session_history = ""
-            lines = history.strip().split('\n')
-            max_session_id = -1
-            s_pattern = re.compile(r"S(\d+)_T\d+")
-            
-            for line in lines:
-                match = s_pattern.match(line)
-                if match:
-                    sid = int(match.group(1))
-                    if sid > max_session_id: max_session_id = sid
+            results = self.evaluator.evaluate(role, history, llm_model, llm_temperature)
 
-            if max_session_id >= 0:
-                prefix = f"S{max_session_id}_"
-                session_lines = [line for line in lines if line.startswith(prefix)]
-                current_session_history = "\n".join(session_lines)
-                if not current_session_history: current_session_history = history
-            else:
-                current_session_history = history
-
-            # 2. Construct Prompt
-            items_text = "\n".join([f"{k}. {v}" for k, v in FACES_ITEMS.items()])
-            prompt = f"""
-You have the role of "{role}" in a family psychology simulation.
-Based on the family's dialogue history, evaluate the family's state from your own subjective perspective.
-This is a fictional scenario for research and education.
-
-Please rate how you feel about your family for the following 62 FACES IV items on a scale of 1 to 5.
-1: Strongly Disagree
-2: Generally Disagree
-3: Undecided
-4: Generally Agree
-5: Strongly Agree
-
-# Conversation History (CURRENT SESSION ONLY)
-{current_session_history}
-
-# FACES IV Items
-{items_text}
-
-# Output Format
-Output ONLY valid JSON in this exact format:
-{{
-  "1": Rating,
-  "2": Rating,
-  ...
-  "62": Rating
-}}
-"""
-            # 3. LLM Call
-            import requests
-            import socket
-            import urllib3.util.connection as urllib3_cn
-            urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
-            
-            api_key = os.environ.get('GEMINI_API_KEY')
-            if not api_key:
-                raise RuntimeError("GEMINI_API_KEY not set in environment")
-            
-            mapped_model = llm_model
-            if "gpt" in llm_model or "chat" in llm_model:
-                mapped_model = "gemini-3.1-flash-lite"
-                
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{mapped_model}:generateContent?key={api_key}"
-            headers = {"Content-Type": "application/json"}
-            payload = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {
-                    "temperature": llm_temperature,
-                    "responseMimeType": "application/json"
-                }
-            }
-            res = requests.post(url, headers=headers, json=payload, timeout=45.0)
-                
-            if res.status_code == 200:
-                content_res = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-            else:
-                raise RuntimeError(f"Gemini API returned {res.status_code}: {res.text[:200]}")
-            results = json.loads(content_res)
-
-            # 4. Publish Results
             result_payload = {
                 "step_id": step_id,
                 "role": role,
@@ -195,12 +67,14 @@ Output ONLY valid JSON in this exact format:
                 dummy = {"step_id": step_id, "role": role, "results": {}}
                 self.result_pub.publish(String(data=json.dumps(dummy)))
 
+
 def main(args=None):
     rclpy.init(args=args)
     node = RFSMemberEvaluator()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

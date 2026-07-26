@@ -33,6 +33,92 @@ RFSは、**セラピストノード** (`rfs_therapist`) がOlsonの家族円環�
 | **`rfs_evaluation`** | FACESⅣ評価ノード | ロボット家族の会話ログをもとにFACESⅣを評価します。 |
 | **`rfs_stt`** | Speech-to-Textノード | Gemini Liveを用いて人が介入するためのリアルタイム音声認識を行います。 |
 
+### シーケンス図
+
+以下は、主要な3つの流れ（起動〜1会話ターン、定期的なFACES IV評価サイクル、ユーザーによる音声介入）における、ノード間のROS2トピック/サービスのやり取りを示したものです。
+
+#### 1. 起動〜1会話ターン
+
+```mermaid
+sequenceDiagram
+    participant Launch as rfs_bringup (launch all)
+    participant Leader as rfs_family_member (発話者)
+    participant Doc as rfs_document_processor
+    participant Gen as rfs_generator
+    participant TTS as rfs_tts
+    participant Toio as rfs_toio
+    participant Next as rfs_family_member (次の発話者)
+
+    Launch->>Launch: 初回発話者を決定(Geminiによる多数決投票)
+    Launch->>Leader: ros2 run rfs_family rfs_family_member --initiate
+    TTS-->>Leader: rfs_tts_initialization "tts_initialized"
+    Toio-->>Leader: rfs_toio_status "toios_ready"
+    Leader->>Doc: rfs_behavioral_info_request / rfs_few_shot_request
+    Doc-->>Leader: rfs_behavioral_info_results / rfs_few_shot_results
+    Leader->>Gen: rfs_generator_request (役割・履歴・臨床ガイドライン)
+    Gen->>Gen: プロンプト構築、Gemini API呼び出し
+    Gen-->>Leader: rfs_generator_results (発話/行動のCSV1行)
+    Leader->>Leader: conversation_history.txt に追記
+    Leader->>TTS: rfs_speak_text (サービス呼び出し)
+    Leader->>Next: rfs_family_actions "prepare_turn" (次発話の先行生成)
+    TTS-->>Leader: rfs_tts_status "start" / rfs_tts_finished "finished"
+    Leader->>Toio: rfs_toio_move_script (moveがnone以外の場合)
+    Toio-->>Leader: rfs_toio_move_finished
+    Leader->>Next: rfs_family_actions "start_turn"
+```
+
+#### 2. 定期的なFACES IV評価サイクル
+
+会話が `turns_per_step` ターン進むごとに、セラピストノードが会話を一時停止し、評価→勾配降下法→再プロットの一連のサイクルを取りまとめてから会話を再開させます。
+
+```mermaid
+sequenceDiagram
+    participant Member as rfs_family_member (各メンバー)
+    participant Ther as rfs_therapist
+    participant MEval as rfs_member_evaluator
+    participant Eval as rfs_evaluator
+    participant Opt as rfs_optimizer
+    participant Viewer as rfs_viewer
+
+    Member->>Ther: rfs_trigger_evaluation (ステップ境界に到達)
+    Ther->>Member: rfs_request_member_evaluation
+    Member->>MEval: rfs_member_eval_request (自分の会話履歴)
+    MEval->>MEval: Gemini APIを呼び出し(FACES IV 62項目の主観評価)
+    MEval-->>Ther: rfs_member_evaluation_results
+    Note over Ther: 全メンバー分の応答が揃うまで待機
+    Ther->>Eval: rfs_evaluator_request (集約された評価値)
+    Eval->>Eval: 評価値を平均 → パーセンタイル変換 → 座標(x, y)算出
+    Eval->>Opt: rfs_optimizer_request
+    Opt->>Opt: 勾配降下法 → 次回目標座標(tx, ty)算出
+    Opt-->>Ther: rfs_evaluator_results (x, y, tx, ty, 比率など)
+    Ther->>Ther: evaluation_history.csv記録、軌跡更新、プロット画像生成
+    Ther-->>Viewer: rfs_faces_plot_updated (プロット画像パス)
+    Ther->>Member: rfs_evaluation_complete
+    Note over Member: リーダーが次の発話者を指定して会話を再開
+```
+
+#### 3. ユーザーによる音声介入
+
+```mermaid
+sequenceDiagram
+    participant User as ユーザー
+    participant STT as rfs_stt
+    participant Members as rfs_family_member (全メンバー)
+    participant TTS as rfs_tts
+
+    User->>STT: マイクに向かって話す(VADが発話を検出)
+    STT-->>Members: rfs_user_intervention "user_speech_started"
+    Members->>TTS: rfs_interrupt_tts "stop_all"
+    STT->>STT: 録音した音声をGemini APIで文字起こし
+    STT-->>Members: rfs_user_intervention "user_speech_transcribed:<テキスト>"
+    Members->>Members: 各メンバーが応答者をGemini APIで投票
+    Members-->>STT: rfs_responder_vote
+    STT->>STT: 投票を集計(多数決、同数時はfamily_configの順で決定)
+    STT-->>Members: rfs_user_intervention "user_decision:<応答者>"
+    Note over Members: 選出されたメンバーのみ応答し、他は一時停止のまま
+    Members->>Members: rfs_intervention_resolved (ロック解除、通常ターンを再開)
+```
+
 ## 🚀 はじめに
 
 ### 🖥 ネイティブインストール（Ubuntu 24.04 のみ）（推奨）
