@@ -87,9 +87,9 @@ sequenceDiagram
     MEval-->>Ther: rfs_member_evaluation_results
     Note over Ther: 全メンバー分の応答が揃うまで待機
     Ther->>Eval: rfs_evaluator_request (集約された評価値)
-    Eval->>Eval: 評価値を平均 → パーセンタイル変換 → 座標(x, y)算出
+    Eval->>Eval: 評価値を平均し、パーセンタイルに変換してから座標xとyを算出
     Eval->>Opt: rfs_optimizer_request
-    Opt->>Opt: 勾配降下法 → 次回目標座標(tx, ty)算出
+    Opt->>Opt: 勾配降下法で次回目標座標txとtyを算出
     Opt-->>Ther: rfs_evaluator_results (x, y, tx, ty, 比率など)
     Ther->>Ther: evaluation_history.csv記録、軌跡更新、プロット画像生成
     Ther-->>Viewer: rfs_faces_plot_updated (プロット画像パス)

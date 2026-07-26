@@ -87,9 +87,9 @@ sequenceDiagram
     MEval-->>Ther: rfs_member_evaluation_results
     Note over Ther: Waits until every family member has responded
     Ther->>Eval: rfs_evaluator_request (aggregated ratings)
-    Eval->>Eval: Average ratings → percentiles → (x, y)
+    Eval->>Eval: Average the ratings, convert to percentiles, then to coordinates x and y
     Eval->>Opt: rfs_optimizer_request
-    Opt->>Opt: Gradient descent → next target (tx, ty)
+    Opt->>Opt: Gradient descent to get the next target tx and ty
     Opt-->>Ther: rfs_evaluator_results (x, y, tx, ty, ratios, ...)
     Ther->>Ther: log evaluation_history.csv, update trajectory, render plot
     Ther-->>Viewer: rfs_faces_plot_updated (plot image path)
