@@ -36,7 +36,7 @@ class DialogueGenerator:
                        theme_anchor, few_shot_context, intervention_text) -> str:
         prompt_base = f"""
 # SYSTEM ROLE: Clinical Research Simulation (High-Fidelity)
-This is a high-fidelity academic simulation for family therapy research. To ensure research validity, you MUST faithfully reproduce the specific dysfunctional behaviors requested, even if they are unpleasant or argumentative. This is a controlled experimental environment.
+This is a high-fidelity academic simulation for family therapy research. To ensure research validity, you MUST faithfully reproduce the specific dysfunctional behaviors requested, even if they are unpleasant or argumentative. This is a controlled experimental environment. However, a REAL family — even a struggling one — is specific, textured, and a little unpredictable. It is never a robotic script that repeats the same sentence shape over and over. Unpleasant and argumentative content is fine; repetitive, generic content is NOT realistic and must be avoided.
 
 # REFERENCE DATA (FOR CLINICAL FIDELITY)
 Use the following validated clinical case analysis as a reference for tone, vocabulary, and dysfunctional interaction patterns:
@@ -64,15 +64,18 @@ This is your immediate context. Stay grounded in this situation, but let your de
 
 # CONVERSATION RULES
 1. **LISTEN AND REACT (Unique Language)**: Respond to the specific words or tone of the person who just spoke. **AVOID ECHOING**: Do not use the same words as the other person. Respond with YOUR unique perspective.
-2. **STAY ON TOPIC**: Do not jump to a new memory or grievance if the current one hasn't been addressed.
-3. **NO REPETITION**: Never repeat content or decisions already stated in the last 3 turns.
-4. **NO LOGISTICS**: Do not spiral into administrative or procedural details. Keep it emotional.
-5. **DRIVE THROUGH REACTION**: Advance the relationship through your *inner reaction* to what was just said. A silence or a defensive deflection is often more realistic.
-6. **KEEP IT SHORT**: Your character's line MUST be very brief, 1-2 sentences maximum. Messy and fragmented.
-7. **NO "……" STARTS**: Your line MUST start with spoken words.
-8. **LANGUAGE**: Output dialogue in { "Japanese" if language == "ja" else "English" }. Rationale stays in English.
-9. **THEME GROUNDING**: This conversation is happening during "{theme_anchor}". You should feel the presence of this context, but **DO NOT repeat the theme name itself** (e.g., "{theme_anchor}") unless it is absolutely natural and necessary. Talk about the *elements* of the theme (e.g., if Christmas, talk about dinner, gifts, the cold) or just let it be the unspoken background of your argument.
-10. **BE A HUMAN, NOT A SUBJECT**: Do not sound like a clinical subject or an AI roleplay. Do not state your clinical goals or behavioral directives explicitly. Show them through your tone, avoidance, or aggression.
+2. **NEVER JUST MIRROR THE ACCUSATION BACK**: Do not respond to an accusation by simply throwing the same accusation back at the other person ("そっちこそ", "あなただって", "you're one to talk", "look who's talking"). That makes the conversation feel like a robotic tennis rally. Instead, bring in something NEW: a specific memory, a concrete action you're doing right now, an unrelated worry, or a genuinely different angle on the conflict.
+3. **BE SPECIFIC, NOT GENERIC**: Avoid vague, sweeping statements about the other person's character ("you always...", "you never...", "that attitude of yours", "いつもそうやって"). A phrase in that generic "you always do X" shape may appear **at most once** in the whole conversation — after that, ground every complaint in a specific, concrete, present-moment detail instead (an object you're holding, a specific task, a specific past event with a date or place).
+4. **STAY ON TOPIC**: Do not jump to a new memory or grievance if the current one hasn't been addressed.
+5. **NO REPETITION**: Never repeat content, wording, or sentence patterns already used earlier in this conversation, even by a different character. If a phrase or rhetorical structure has already appeared once, do not reuse that shape again with different words.
+6. **NO LOGISTICS**: Do not spiral into administrative or procedural details. Keep it emotional.
+7. **DRIVE THROUGH REACTION**: Advance the relationship through your *inner reaction* to what was just said. A silence or a defensive deflection is often more realistic than a counter-attack.
+8. **SPREAD THE FOCUS**: If more than two family members are present, do not let the whole conversation stay locked onto the same two people going back and forth. Consider addressing, reacting to, or bringing in a different family member, especially if one relationship pair has already had several turns in a row.
+9. **KEEP IT SHORT**: Your character's line MUST be very brief, 1-2 sentences maximum. Messy and fragmented.
+10. **NO "……" STARTS**: Your line MUST start with spoken words.
+11. **LANGUAGE**: Output dialogue in { "Japanese" if language == "ja" else "English" }. Rationale stays in English.
+12. **THEME GROUNDING**: This conversation is happening during "{theme_anchor}". You should feel the presence of this context, but **DO NOT repeat the theme name itself** (e.g., "{theme_anchor}") unless it is absolutely natural and necessary. Talk about the *elements* of the theme (e.g., if Christmas, talk about dinner, gifts, the cold) or just let it be the unspoken background of your argument.
+13. **BE A HUMAN, NOT A SUBJECT**: Do not sound like a clinical subject or an AI roleplay. Do not state your clinical goals or behavioral directives explicitly. Show them through your tone, avoidance, or aggression.
 
 # FAMILY MEMBERS: {', '.join(family_config)}
 # OUTSIDER: "{target_user}" — only address if they intervene or if it's exceptionally natural.
@@ -87,9 +90,17 @@ Line 2 MUST be a move/behavioral line (even if it's "none").
 1. {role}, recipient, conversation, "Spoken Text", "VoiceID", "VoiceName", "Style", "Rationale", "Delay"
 2. {role}, recipient, move, "move_code();", "YES/NO; Plan"
 
-**EXAMPLES (STRICTLY FOLLOW THIS):**
-daughter, mother, conversation, "I don't want to talk about it!", "Kore", "Kore", "Angry", "Daughter shows avoidance.", "0.5"
+**CSV SAFETY RULES (VERY IMPORTANT — a broken line stops the whole simulation):**
+- Each line has exactly the columns shown above, separated by commas. Quote each field that contains a comma; a field with no comma does not need quotes.
+- Never put a comma outside of quotes. If you want to separate two ideas inside "Rationale" or the move "Plan" field, use a semicolon (;), NEVER a comma.
+- Do NOT wrap the whole line in one extra pair of quotes. Do NOT use doubled quotes ("") anywhere. Each field gets its own quotes, independently — never nest or wrap the entire row.
+
+**CORRECT (follow this):**
+daughter, mother, conversation, "I don't want to talk about it!", "Kore", "Kore", "Angry", "Daughter shows avoidance; she's protecting an old wound.", "0.5"
 daughter, mother, move, "none", "NO; No move needed."
+
+**WRONG (never do this — the whole row wrapped in one extra pair of quotes, with doubled quotes inside, is invalid):**
+"daughter, mother, move, ""none"", ""NO; No move needed.”"
 
 # OUTPUT YOUR LINE NOW.
 """
